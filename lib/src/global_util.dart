@@ -19,35 +19,39 @@
 // always resolve to the same global object regardless of how the module is
 // resolved.
 // tslint:disable-next-line:no-any
-let globalNameSpace: {_tfGlobals: Map<string, any>};
+final globalNameSpace = GlobalNamespace();
+
+class GlobalNamespace {
+  Map<String, Object?>? _tfGlobals;
+}
+
 // tslint:disable-next-line:no-any
-export function getGlobalNamespace(): {_tfGlobals: Map<string, any>} {
+GlobalNamespace getGlobalNamespace() {
   if (globalNameSpace == null) {
+    // TODO:
     // tslint:disable-next-line:no-any
-    let ns: any;
-    if (typeof (window) !== 'undefined') {
-      ns = window;
-    } else if (typeof (global) !== 'undefined') {
-      ns = global;
-    } else if (typeof (process) !== 'undefined') {
-      ns = process;
-    } else if (typeof (self) !== 'undefined') {
-      ns = self;
-    } else {
-      throw new Error('Could not find a global object');
-    }
-    globalNameSpace = ns;
+    // let ns: any;
+    // if (typeof (window) != 'undefined') {
+    //   ns = window;
+    // } else if (typeof (global) != 'undefined') {
+    //   ns = global;
+    // } else if (typeof (process) != 'undefined') {
+    //   ns = process;
+    // } else if (typeof (self) != 'undefined') {
+    //   ns = self;
+    // } else {
+    //   throw Exception('Could not find a global object');
+    // }
+    // globalNameSpace = ns;
   }
   return globalNameSpace;
 }
 
 // tslint:disable-next-line:no-any
-function getGlobalMap(): Map<string, any> {
-  const ns = getGlobalNamespace();
-  if (ns._tfGlobals == null) {
-    ns._tfGlobals = new Map();
-  }
-  return ns._tfGlobals;
+Map<String, Object?> getGlobalMap() {
+  final ns = getGlobalNamespace();
+  ns._tfGlobals ??= {};
+  return ns._tfGlobals!;
 }
 
 /**
@@ -57,13 +61,13 @@ function getGlobalMap(): Map<string, any> {
  * @param init a function to initialize to initialize this object
  *             the first time it is fetched.
  */
-export function getGlobal<T>(key: string, init: () => T): T {
-  const globalMap = getGlobalMap();
-  if (globalMap.has(key)) {
-    return globalMap.get(key);
+T getGlobal<T>(String key, T Function() init) {
+  final globalMap = getGlobalMap();
+  if (globalMap.containsKey(key)) {
+    return globalMap[key] as T;
   } else {
-    const singleton = init();
-    globalMap.set(key, singleton);
-    return globalMap.get(key);
+    final singleton = init();
+    globalMap[key] = singleton;
+    return singleton;
   }
 }
