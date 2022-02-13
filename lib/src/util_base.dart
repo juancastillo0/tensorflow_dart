@@ -234,24 +234,24 @@ int sizeFromShape(List<int> shape) {
 //   return shape.length === 0;
 // }
 
-// export function arraysEqual(n1: FlatVector, n2: FlatVector) {
-//   if (n1 === n2) {
-//     return true;
-//   }
-//   if (n1 == null || n2 == null) {
-//     return false;
-//   }
+bool arraysEqual(List? n1, List? n2) {
+  if (n1 == n2) {
+    return true;
+  }
+  if (n1 == null || n2 == null) {
+    return false;
+  }
 
-//   if (n1.length !== n2.length) {
-//     return false;
-//   }
-//   for (let i = 0; i < n1.length; i++) {
-//     if (n1[i] !== n2[i]) {
-//       return false;
-//     }
-//   }
-//   return true;
-// }
+  if (n1.length != n2.length) {
+    return false;
+  }
+  for (int i = 0; i < n1.length; i++) {
+    if (n1[i] != n2[i]) {
+      return false;
+    }
+  }
+  return true;
+}
 
 // export function isInt(a: number): boolean {
 //   return a % 1 === 0;
@@ -603,82 +603,88 @@ int bytesPerElement(DataType dtype) {
 //   return size;
 // }
 
-// export function computeStrides(shape: number[]): number[] {
-//   const rank = shape.length;
-//   if (rank < 2) {
-//     return [];
-//   }
+List<int> computeStrides(List<int> shape) {
+  final rank = shape.length;
+  if (rank < 2) {
+    return [];
+  }
 
-//   // Last dimension has implicit stride of 1, thus having D-1 (instead of D)
-//   // strides.
-//   const strides = new Array(rank - 1);
-//   strides[rank - 2] = shape[rank - 1];
-//   for (let i = rank - 3; i >= 0; --i) {
-//     strides[i] = strides[i + 1] * shape[i + 1];
-//   }
-//   return strides;
-// }
+  // Last dimension has implicit stride of 1, thus having D-1 (instead of D)
+  // strides.
+  final strides = List.filled(rank - 1, 0);
+  strides[rank - 2] = shape[rank - 1];
+  for (int i = rank - 3; i >= 0; --i) {
+    strides[i] = strides[i + 1] * shape[i + 1];
+  }
+  return strides;
+}
 
-// function createNestedArray(
-//     offset: number, shape: number[], a: TypedArray, isComplex = false) {
-//   const ret = new Array();
-//   if (shape.length === 1) {
-//     const d = shape[0] * (isComplex ? 2 : 1);
-//     for (let i = 0; i < d; i++) {
-//       ret[i] = a[offset + i];
-//     }
-//   } else {
-//     const d = shape[0];
-//     const rest = shape.slice(1);
-//     const len = rest.reduce((acc, c) => acc * c) * (isComplex ? 2 : 1);
-//     for (let i = 0; i < d; i++) {
-//       ret[i] = createNestedArray(offset + i * len, rest, a, isComplex);
-//     }
-//   }
-//   return ret;
-// }
+List createNestedArray(
+  int offset,
+  List<int> shape,
+  List a, {
+  bool isComplex = false,
+}) {
+  final ret = [];
+  if (shape.length == 1) {
+    final d = shape[0] * (isComplex ? 2 : 1);
+    for (int i = 0; i < d; i++) {
+      ret[i] = a[offset + i];
+    }
+  } else {
+    final d = shape[0];
+    final rest = shape.sublist(1);
+    final len = rest.reduce((acc, c) => acc * c) * (isComplex ? 2 : 1);
+    for (int i = 0; i < d; i++) {
+      ret[i] = createNestedArray(
+        offset + i * len,
+        rest,
+        a,
+        isComplex: isComplex,
+      );
+    }
+  }
+  return ret;
+}
 
-// // Provide a nested array of TypedArray in given shape.
-// export function toNestedArray(
-//     shape: number[], a: TypedArray, isComplex = false) {
-//   if (shape.length === 0) {
-//     // Scalar type should return a single number.
-//     return a[0];
-//   }
-//   const size = shape.reduce((acc, c) => acc * c) * (isComplex ? 2 : 1);
-//   if (size === 0) {
-//     // A tensor with shape zero should be turned into empty list.
-//     return [];
-//   }
-//   if (size !== a.length) {
-//     throw new Error(`[${shape}] does not match the input size ${a.length}${
-//         isComplex ? ' for a complex tensor' : ''}.`);
-//   }
+// Provide a nested array of TypedArray in given shape.
+Object toNestedArray(List<int> shape, List a, {bool isComplex = false}) {
+  if (shape.length == 0) {
+    // Scalar type should return a single number.
+    return a[0];
+  }
+  final size = shape.reduce((acc, c) => acc * c) * (isComplex ? 2 : 1);
+  if (size == 0) {
+    // A tensor with shape zero should be turned into empty list.
+    return [];
+  }
+  if (size != a.length) {
+    throw Exception(
+        "[${shape}] does not match the input size ${a.length}${isComplex ? ' for a complex tensor' : ''}.");
+  }
 
-//   return createNestedArray(0, shape, a, isComplex);
-// }
+  return createNestedArray(0, shape, a, isComplex: isComplex);
+}
 
-// export function makeOnesTypedArray<D extends DataType>(
-//     size: number, dtype: D): DataTypeMap[D] {
-//   const array = makeZerosTypedArray(size, dtype);
-//   for (let i = 0; i < array.length; i++) {
-//     array[i] = 1;
-//   }
-//   return array;
-// }
+List<num> makeOnesTypedArray<D extends DataType>(int size, D dtype) {
+  final array = makeZerosTypedArray(size, dtype);
+  for (int i = 0; i < array.length; i++) {
+    array[i] = 1;
+  }
+  return array;
+}
 
-// export function makeZerosTypedArray<D extends DataType>(
-//     size: number, dtype: D): DataTypeMap[D] {
-//   if (dtype == null || dtype === 'float32' || dtype === 'complex64') {
-//     return new Float32Array(size) as DataTypeMap[D];
-//   } else if (dtype === 'int32') {
-//     return new Int32Array(size) as DataTypeMap[D];
-//   } else if (dtype === 'bool') {
-//     return new Uint8Array(size) as DataTypeMap[D];
-//   } else {
-//     throw new Error(`Unknown data type ${dtype}`);
-//   }
-// }
+List<num> makeZerosTypedArray<D extends DataType>(int size, D dtype) {
+  if (dtype == null || dtype == 'float32' || dtype == 'complex64') {
+    return Float32List(size);
+  } else if (dtype == 'int32') {
+    return Int32List(size);
+  } else if (dtype == 'bool') {
+    return Uint8List(size);
+  } else {
+    throw Exception('Unknown data type ${dtype}');
+  }
+}
 
 // /**
 //  * Make nested `TypedArray` filled with zeros.
