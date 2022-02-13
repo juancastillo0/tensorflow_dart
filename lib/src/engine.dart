@@ -35,14 +35,15 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:tensorflow_wasm/src/backend_wasm.dart';
 import 'package:collection/collection.dart';
+import 'package:tensorflow_wasm/src/tape.dart';
 import 'package:tensorflow_wasm/src/tensor.dart';
 
 import 'backend.dart';
 import 'global_util.dart';
 import 'kernel_registry.dart';
 import 'util_base.dart' as util;
+import 'util_base.dart' show log;
 import 'dart:math' as math;
 /**
  * A function that computes an output. The save function is for saving tensors
@@ -391,7 +392,7 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
       Future<KernelBackend> Function() factory,
       [int priority = 1,]) {
     if (this.registryFactory.containsKey(backendName)) {
-      log.warn(
+      log.warning(
           '${backendName} backend was already registered. ' +
           'Reusing existing backend factory.');
       return false;
@@ -478,9 +479,9 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
                     return false;
                   }
                   this._pendingBackendInit = null;
-                  log.warn(
+                  log.warning(
                       'Initialization of backend ${backendName} failed');
-                  log.warn(err.stack ?? err.message);
+                  log.warning(err.stack ?? err.message);
                   return false;
                 });
         this._pendingBackendInit = success;
@@ -490,8 +491,8 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
         return InitResult(success: true, asyncInit: false);
       }
     } catch (err) {
-      log.warn('Initialization of backend ${backendName} failed');
-      log.warn(err.stackTrace ?? err.message);
+      log.warning('Initialization of backend ${backendName} failed');
+      log.warning(err.stackTrace ?? err.message);
       return InitResult(success: false, asyncInit: false);
     }
   }
@@ -595,14 +596,14 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
     //   // TODO(nsthorat,smilkov): Do operation logging and performance
     //   // profiling.
     // }
-    T result;
+    T? result;
     return this._scopedRun(
         () => this.startScope(name), () => this.endScope(result), ()  {
           result = fn();
           if (result is Future) {
-            console.error('Cannot return a Promise inside of tidy.');
+            util.log.severe('Cannot return a Promise inside of tidy.');
           }
-          return result;
+          return result as T;
         });
   }
 
@@ -1123,7 +1124,7 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
       String kernelName, NamedTensorMap inputs, List<Tensor> outputs,
       GradFunc gradientsFunc, List<Tensor> saved, NamedAttrMap attrs,) {
     final tapeNode =
-        TapeNode(id: this.state.nextTapeNodeId++, kernelName, inputs, outputs, saved);
+        TapeNode(id: this.state.nextTapeNodeId++, kernelName: kernelName, inputs: inputs, outputs: outputs, saved: saved,);
 
     final gradConfig = getGradient(kernelName);
     if (gradConfig != null) {
@@ -1231,13 +1232,13 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
 
     final y = this._scopedRun(
         () => this._startTape(), () => this._endTape(),
-        () => this.tidy('forward', f));
+        () => this.tidy(f, name: 'forward'));
 
     util.assert_(
         y is Tensor,
         () => 'The result y returned by f() must be a tensor.');
     // Filter out the nodes that don't connect x => y.
-    final filteredTape = getFilteredNodesXToY(this.state.activeTape, xs, y);
+    final filteredTape = getFilteredNodesXToY(this.state.activeTape!, xs, y);
     if (!allowNoGradients && filteredTape.length == 0 && xs.length > 0) {
       throw Exception(
           'Cannot compute gradient of y=f(x) with respect to x. Make sure ' +
@@ -1245,7 +1246,7 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
           'to y.');
     }
 
-    return this.tidy('backward', ()  {
+    return this.tidy(()  {
       final accumulatedGradientMap = <int, Tensor>{};
       accumulatedGradientMap[y.id] = (dy == null) ? ones(y.shape) : dy;
 
@@ -1262,14 +1263,14 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
         // This means that we are not computing higher-order gradients
         // and can clean up the tape.
         this.state.activeTape!.forEach((node) {
-          for (final tensor in node.saved) {
+          for (final tensor in node.saved!) {
             tensor.dispose();
           }
         });
         this.state.activeTape = null;
       }
       return WithGradients(y, grads);
-    });
+    }, name: 'backward');
   }
 
   
@@ -1400,7 +1401,7 @@ class InitResult {
 }
 
 Tensor ones(List<int> shape) {
-  final values = makeOnesTypedArray(sizeFromShape(shape), 'float32');
+  final values = util.makeOnesTypedArray(util.sizeFromShape(shape), 'float32');
   return ENGINE.makeTensor(values, shape, 'float32');
 }
 

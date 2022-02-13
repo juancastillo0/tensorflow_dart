@@ -1,4 +1,5 @@
-import 'package:tensorflow_wasm/src/backend_wasm.dart';
+import 'package:tensorflow_wasm/src/tape.dart';
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
 import 'package:tensorflow_wasm/src/global_util.dart';
 import 'package:tensorflow_wasm/src/tensor.dart';
 
@@ -155,7 +156,7 @@ void registerKernel(KernelConfig config) {
 
   final key = makeKey(kernelName, backendName);
   if (kernelRegistry.containsKey(key)) {
-    console.warn("The kernel '${kernelName}' for backend " +
+    util.log.warning("The kernel '${kernelName}' for backend " +
         "'${backendName}' is already registered");
   }
   kernelRegistry[key] = config;
@@ -176,7 +177,7 @@ void registerGradient(GradConfig config) {
     // TODO (yassogba) after 3.0 assess whether we need to keep this gated
     // to debug mode.
     if (env().getBool('DEBUG')) {
-      console.warn("Overriding the gradient for '${kernelName}'");
+      util.log.warning("Overriding the gradient for '${kernelName}'");
     }
   }
   gradRegistry[kernelName] = config;
