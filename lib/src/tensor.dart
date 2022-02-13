@@ -327,7 +327,7 @@ class Tensor<R extends Rank> with Tensors implements TensorInfo {
   /** Whether this tensor has been globally kept. */
   bool kept = false;
   /** The id of the scope this tensor is being tracked in. */
-  int scopeId;
+  int? scopeId;
 
   /**
    * Number of elements to skip in each dimension when indexing. See
@@ -340,7 +340,7 @@ class Tensor<R extends Rank> with Tensors implements TensorInfo {
     // TODO: this.shape = shape.slice() as ShapeMap[R];
     this.dtype = dtype ?? 'float32';
     this.size = util.sizeFromShape(shape);
-    this.strides = computeStrides(shape);
+    this.strides = util.computeStrides(shape);
     this.rankType = (this.rank < 5 ? this.rank.toString() : 'higher') as R;
   }
 
@@ -372,10 +372,15 @@ class Tensor<R extends Rank> with Tensors implements TensorInfo {
    *
    * @doc {heading: 'Tensors', subheading: 'Classes'}
    */
-  Future<List> array() async {
+  Future<Object> array() async {
+    // TODO: should be a list?
     // TODO: ArrayMap[R]
     final vals = await this.data();
-    return toNestedArray(this.shape, vals, this.dtype == 'complex64');
+    return util.toNestedArray(
+      this.shape,
+      vals,
+      isComplex: this.dtype == 'complex64',
+    );
   }
 
   /**
@@ -384,12 +389,13 @@ class Tensor<R extends Rank> with Tensors implements TensorInfo {
    *
    * @doc {heading: 'Tensors', subheading: 'Classes'}
    */
-  List arraySync() {
+  Object arraySync() {
+    // TODO: should be a list?
     // TODO: ArrayMap[R]
-    return toNestedArray(
+    return util.toNestedArray(
       this.shape,
       this.dataSync(),
-      this.dtype == 'complex64',
+      isComplex: this.dtype == 'complex64',
     );
   }
 
