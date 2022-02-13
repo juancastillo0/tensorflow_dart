@@ -18,7 +18,10 @@
 import 'dart:typed_data';
 import 'dart:math' as math;
 
+import 'package:logging/logging.dart';
 import 'package:tensorflow_wasm/src/tensor.dart';
+
+final log = Logger('tf_dart');
 
 // import {DataType, DataTypeMap, FlatVector, NumericDataType, RecursiveArray, TensorLike, TypedArray} from './types';
 

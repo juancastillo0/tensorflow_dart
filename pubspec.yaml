@@ -13,6 +13,7 @@ dependencies:
   universal_html:
   wasm_interop:
   http:
+  logging: ^1.0.2
 
 dev_dependencies:
   lints: ^1.0.0
