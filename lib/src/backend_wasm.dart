@@ -431,7 +431,7 @@ Future<BackendWasmModule> init() async {
   return completer.future;
 }
 
-TypedData typedArrayFromBuffer(ByteBuffer buffer, DataType dtype) {
+List typedArrayFromBuffer(ByteBuffer buffer, DataType dtype) {
   switch (dtype) {
     case 'float32':
       return Float32List.view(buffer);
