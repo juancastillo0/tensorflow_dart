@@ -1,4 +1,3 @@
-import 'package:tensorflow_wasm/src/base.dart';
 import 'package:tensorflow_wasm/src/tensor.dart';
 
 /**

@@ -21,9 +21,24 @@ import 'dart:typed_data';
 import 'package:collection/collection.dart';
 import 'package:tensorflow_wasm/src/backend.dart';
 
-import 'package:tensorflow_wasm/src/base.dart';
+import 'util_base.dart' as util;
 
-import 'util.dart' as util;
+class TensorInfo {
+  final DataId dataId;
+  final List<int> shape;
+  final DataType dtype;
+
+  TensorInfo({
+    required this.dataId,
+    required this.shape,
+    required this.dtype,
+  });
+}
+
+typedef DataId = Map; // object instead of {} to force non-primitive.
+typedef DataType = String;
+typedef BackendValues
+    = List; //  Float32Array|Int32Array|Uint8Array|Uint8Array[];
 
 class TensorList extends DelegatingList<Tensor> with Tensors {
   TensorList(List<Tensor<Rank>> base) : super(base);
