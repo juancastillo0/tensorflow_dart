@@ -1,3 +1,6 @@
+import 'package:tensorflow_wasm/src/base.dart';
+import 'package:tensorflow_wasm/src/tensor.dart';
+
 /**
  * @license
  * Copyright 2020 Google LLC. All Rights Reserved.
@@ -15,79 +18,93 @@
  * =============================================================================
  */
 
-import {Backend, DataId, DataToGPUOptions, GPUData} from '../tensor';
-import {BackendValues, DataType} from '../types';
+// import {Backend, DataId, DataToGPUOptions, GPUData} from '../tensor';
+// import {BackendValues, DataType} from '../types';
 
-export const EPSILON_FLOAT32 = 1e-7;
-export const EPSILON_FLOAT16 = 1e-4;
+const EPSILON_FLOAT32 = 1e-7;
+const EPSILON_FLOAT16 = 1e-4;
 
 // Required information for all backends.
-export interface BackendTimingInfo {
-  kernelMs: number|{error: string};
-  getExtraProfileInfo?(): string;  // a field for additional timing information
-                                   // e.g. packing / unpacking for WebGL backend
+class BackendTimingInfo {
+  // a field for additional timing information
+  final Object kernelMs; // number|{error: string};
+  // e.g. packing / unpacking for WebGL backend
+  final String Function()? getExtraProfileInfo;
+
+  BackendTimingInfo(this.kernelMs, {this.getExtraProfileInfo});
 }
 
-export interface TensorStorage {
-  read(dataId: DataId): Promise<BackendValues>;
-  readSync(dataId: DataId): BackendValues;
-  disposeData(dataId: DataId, force?: boolean): boolean;
-  write(values: BackendValues, shape: number[], dtype: DataType): DataId;
-  move(
-      dataId: DataId, values: BackendValues, shape: number[], dtype: DataType,
-      refCount: number): void;
-  memory(): {unreliable: boolean;};  // Backend-specific information.
+class MemoryInfo {
+  final bool unreliable;
+  final List<String>? reasons;
+  MemoryInfo({
+    required this.unreliable,
+    this.reasons,
+  });
+}
+
+abstract class TensorStorage {
+  Future<BackendValues> read(DataId dataId);
+  BackendValues readSync(DataId dataId);
+  bool disposeData(DataId dataId, {bool? force});
+  DataId write(BackendValues values, List<int> shape, DataType dtype);
+  void move(DataId dataId, BackendValues values, List<int> shape,
+      DataType dtype, int refCount);
+  MemoryInfo memory(); // Backend-specific information.
   /** Returns number of data ids currently in the storage. */
-  numDataIds(): number;
-  refCount(dataId: DataId): number;
+  int numDataIds();
+  int refCount(DataId dataId);
 }
 
 /** Convenient class for storing tensor-related data. */
-export class DataStorage<T> {
-  private data = new WeakMap<DataId, T>();
-  private dataIdsCount = 0;
+class DataStorage<T extends Object> {
+  // TODO: WeakMap
+  final data = <DataId, T>{};
+  int dataIdsCount = 0;
+  final KernelBackend backend;
+  final DataMover dataMover;
 
-  constructor(private backend: KernelBackend, private dataMover: DataMover) {}
+  DataStorage(this.backend, this.dataMover);
 
-  get(dataId: DataId) {
-    if (!this.data.has(dataId)) {
+  T? get(DataId dataId) {
+    if (!this.data.containsKey(dataId)) {
       this.dataMover.moveData(this.backend, dataId);
     }
-    return this.data.get(dataId);
+    return this.data[dataId];
   }
 
-  set(dataId: DataId, value: T): void {
+  void set(DataId dataId, T value) {
     this.dataIdsCount++;
-    this.data.set(dataId, value);
+    this.data[dataId] = value;
   }
 
-  has(dataId: DataId): boolean {
-    return this.data.has(dataId);
+  bool has(DataId dataId) {
+    return this.data.containsKey(dataId);
   }
 
-  delete(dataId: DataId): boolean {
+  bool delete(DataId dataId) {
     this.dataIdsCount--;
-    return this.data.delete(dataId);
+    return this.data.remove(dataId) != null;
   }
 
-  numDataIds(): number {
+  int numDataIds() {
     return this.dataIdsCount;
   }
 }
 
-export interface DataMover {
+abstract class DataMover {
   /**
    * To be called by backends whenever they see a dataId that they don't own.
    * Upon calling this method, the mover will fetch the tensor from another
    * backend and register it with the current active backend.
    */
-  moveData(backend: KernelBackend, dataId: DataId): void;
+  void moveData(KernelBackend backend, DataId dataId);
 }
 
-export interface BackendTimer {
+abstract class BackendTimer {
   // check if backend timer is available
-  timerAvailable(): boolean;
-  time(f: () => void): Promise<BackendTimingInfo>;
+  bool timerAvailable();
+  Future<BackendTimingInfo> time(void Function() f);
 }
 
 /**
@@ -96,60 +113,78 @@ export interface BackendTimer {
  * methods, this can be done gradually (throw an error for unimplemented
  * methods).
  */
-export class KernelBackend implements TensorStorage, Backend, BackendTimer {
-  refCount(dataId: DataId): number {
+class KernelBackend implements TensorStorage, Backend, BackendTimer {
+  int refCount(DataId dataId) {
     return notYetImplemented('refCount');
   }
-  incRef(dataId: DataId): void {
-    return notYetImplemented('incRef');
+
+  void incRef(DataId dataId) {
+    notYetImplemented('incRef');
   }
-  timerAvailable(): boolean {
+
+  bool timerAvailable() {
     return true;
   }
-  time(f: () => void): Promise<BackendTimingInfo> {
+
+  Future<BackendTimingInfo> time(void Function() f) {
     return notYetImplemented('time');
   }
-  read(dataId: object): Promise<BackendValues> {
+
+  Future<BackendValues> read(DataId dataId) {
     return notYetImplemented('read');
   }
-  readSync(dataId: object): BackendValues {
+
+  BackendValues readSync(DataId dataId) {
     return notYetImplemented('readSync');
   }
-  readToGPU(dataId: object, options?: DataToGPUOptions): GPUData {
+
+  GPUData readToGPU(DataId dataId, {DataToGPUOptions? options}) {
     return notYetImplemented('readToGPU');
   }
-  numDataIds(): number {
+
+  int numDataIds() {
     return notYetImplemented('numDataIds');
   }
-  disposeData(dataId: object, force?: boolean): boolean {
+
+  bool disposeData(DataId dataId, {bool? force}) {
     return notYetImplemented('disposeData');
   }
-  write(values: BackendValues, shape: number[], dtype: DataType): DataId {
+
+  DataId write(BackendValues values, List<int> shape, DataType dtype) {
     return notYetImplemented('write');
   }
-  move(
-      dataId: DataId, values: BackendValues, shape: number[], dtype: DataType,
-      refCount: number): void {
-    return notYetImplemented('move');
+
+  void move(
+    DataId dataId,
+    BackendValues values,
+    List<int> shape,
+    DataType dtype,
+    int refCount,
+  ) {
+    notYetImplemented('move');
   }
-  memory(): {unreliable: boolean; reasons?: string[]} {
+
+  MemoryInfo memory() {
     return notYetImplemented('memory');
   }
+
   /** Returns the highest precision for floats in bits (e.g. 16 or 32) */
-  floatPrecision(): 16|32 {
+  int floatPrecision() {
     return notYetImplemented('floatPrecision');
   }
+
   /** Returns the smallest representable number.  */
-  epsilon(): number {
-    return this.floatPrecision() === 32 ? EPSILON_FLOAT32 : EPSILON_FLOAT16;
+  double epsilon() {
+    return this.floatPrecision() == 32 ? EPSILON_FLOAT32 : EPSILON_FLOAT16;
   }
-  dispose(): void {
-    return notYetImplemented('dispose');
+
+  void dispose() {
+    notYetImplemented('dispose');
   }
 }
 
-function notYetImplemented(kernelName: string): never {
-  throw new Error(
-      `'${kernelName}' not yet implemented or not found in the registry. ` +
-      `This kernel may not be supported by the tfjs backend you have chosen`);
+Never notYetImplemented(String kernelName) {
+  throw Exception(
+      "'${kernelName}' not yet implemented or not found in the registry. " +
+          'This kernel may not be supported by the tfjs backend you have chosen');
 }
