@@ -45,11 +45,12 @@ import 'kernel_registry.dart';
 import 'util_base.dart' as util;
 import 'util_base.dart' show log;
 import 'dart:math' as math;
+
 /**
  * A function that computes an output. The save function is for saving tensors
  * computed in the forward pass, that we need in the backward pass.
  */
- typedef ForwardFunc<T> = T Function(KernelBackend backend, GradSaveFunc? save);
+typedef ForwardFunc<T> = T Function(KernelBackend backend, GradSaveFunc? save);
 
 /**
  * @docalias (a: Tensor, b: Tensor,..., save?: Function) => {
@@ -57,9 +58,10 @@ import 'dart:math' as math;
  *   gradFunc: (dy: Tensor, saved?: NamedTensorMap) => Tensor | Tensor[]
  * }
  */
- typedef CustomGradientFunc<T extends Tensor> =
-    Gradient<T> Function(List<Tensor> inputs); // inputs: Tensor|GradSaveFunc
-  
+typedef CustomGradientFunc<T extends Tensor> = Gradient<T> Function(
+  List<Tensor> inputs,
+); // inputs: Tensor|GradSaveFunc
+
 class Gradient<T> {
   final T value;
 
@@ -68,19 +70,19 @@ class Gradient<T> {
   Gradient(this.value, this.gradFunc);
 }
 
-class WithGradients<T>
-{
-final T value;
-final List<Tensor> grads;
+class WithGradients<T> {
+  final T value;
+  final List<Tensor> grads;
 
-  WithGradients(this.value, this.grads);}
+  WithGradients(this.value, this.grads);
+}
 
 class MemoryInfo {
-    int numTensors;
-   int numDataBuffers;
-   int numBytes;
-   bool? unreliable;
-   List<String>? reasons;
+  int numTensors;
+  int numDataBuffers;
+  int numBytes;
+  bool? unreliable;
+  List<String>? reasons;
 
   MemoryInfo({
     required this.numTensors,
@@ -89,18 +91,18 @@ class MemoryInfo {
     this.unreliable,
     this.reasons,
   });
-  }
+}
 
 class KernelInfo {
-   final String name;
-   final int bytesAdded;
-   final int totalBytesSnapshot;
-   final int tensorsAdded;
-   final int totalTensorsSnapshot;
-   final List<List<int>> inputShapes;
-   final List<List<int>> outputShapes;
-   Object kernelTimeMs; // int | {error: String} | Promise<int|{error: String}>
-   FutureOr<String> extraInfo;
+  final String name;
+  final int bytesAdded;
+  final int totalBytesSnapshot;
+  final int tensorsAdded;
+  final int totalTensorsSnapshot;
+  final List<List<int>> inputShapes;
+  final List<List<int>> outputShapes;
+  Object kernelTimeMs; // int | {error: String} | Promise<int|{error: String}>
+  FutureOr<String> extraInfo;
 
   KernelInfo({
     required this.name,
@@ -116,16 +118,15 @@ class KernelInfo {
 }
 
 class ProfileInfo {
-    int newBytes;
-    int newTensors;
-    int peakBytes;
-    List<KernelInfo> kernels;
-    TensorContainer? result;
-   
-   
-    Set<String> get kernelNames {
-          return this.kernels.map((k) => k.name).toSet();
-        }
+  int newBytes;
+  int newTensors;
+  int peakBytes;
+  List<KernelInfo> kernels;
+  TensorContainer? result;
+
+  Set<String> get kernelNames {
+    return this.kernels.map((k) => k.name).toSet();
+  }
 
   ProfileInfo({
     required this.newBytes,
@@ -149,17 +150,16 @@ class TimingInfo implements BackendTimingInfo {
 }
 
 /** @docalias Function */
- typedef ScopeFn<T extends TensorContainer> = T Function();
+typedef ScopeFn<T extends TensorContainer> = T Function();
 
- typedef NamedTensorMap  = Map<String, Tensor>;
+typedef NamedTensorMap = Map<String, Tensor>;
 
- abstract class NamedTensor {
+abstract class NamedTensor {
   String get name;
   Tensor get tensor;
 }
 
 typedef NamedVariableMap = Map<String, Variable>;
-
 
 typedef GradSaveFunc = void Function(List<Tensor> save);
 
@@ -168,17 +168,17 @@ typedef GradSaveFunc = void Function(List<Tensor> save);
  * string]:Tensor|number|string}
  */
 typedef TensorContainer = Object;
-    // void|Tensor|string|number|boolean|TensorContainerObject|
-    // TensorContainerArray|Float32Array|Int32Array|Uint8Array;
+// void|Tensor|string|number|boolean|TensorContainerObject|
+// TensorContainerArray|Float32Array|Int32Array|Uint8Array;
 
 typedef TensorContainerObject = Map<String, TensorContainer>;
 
 // export interface TensorContainerArray extends Array<TensorContainer> {}
 
 class ScopeState {
-   final List<Tensor> track;
+  final List<Tensor> track;
+  final int id;
   String name;
-   final int id;
   ScopeState({
     required this.track,
     required this.name,
@@ -186,10 +186,11 @@ class ScopeState {
   });
 }
 
-class RegisteredKernelInvocation<I extends NamedTensorMap> implements KernelInvocation<I> {
-   final String kernelName;
-   final I inputs;
-   final NamedAttrMap? attrs;
+class RegisteredKernelInvocation<I extends NamedTensorMap>
+    implements KernelInvocation<I> {
+  final String kernelName;
+  final I inputs;
+  final NamedAttrMap? attrs;
 
   RegisteredKernelInvocation({
     required this.kernelName,
@@ -198,14 +199,22 @@ class RegisteredKernelInvocation<I extends NamedTensorMap> implements KernelInvo
   });
 }
 
-class CustomGradKernelInvocation<T extends Tensors, I extends NamedTensorMap> implements KernelInvocation<I> {
+class CustomGradKernelInvocation<T extends Tensors, I extends NamedTensorMap>
+    implements KernelInvocation<I> {
   final String? kernelName;
   final ForwardFunc<T> forwardFunc;
-  final Map<String, Tensor Function()> Function(T dy, List<Tensor> saved) backwardsFunc;
+  final Map<String, Tensor Function()> Function(T dy, List<Tensor> saved)
+      backwardsFunc;
   final I inputs;
   final NamedAttrMap? attrs;
 
-  CustomGradKernelInvocation({this.kernelName, required this.forwardFunc, required this.backwardsFunc, required this.inputs, this.attrs,});
+  CustomGradKernelInvocation({
+    this.kernelName,
+    required this.forwardFunc,
+    required this.backwardsFunc,
+    required this.inputs,
+    this.attrs,
+  });
 }
 
 abstract class KernelInvocation<I extends NamedTensorMap> {
@@ -219,7 +228,6 @@ abstract class KernelInvocation<I extends NamedTensorMap> {
 //     KernelInvocation<I> kernelInvocation) {
 //   return kernelInvocation.kernelName != null;
 // }
-
 
 class TensorInfoWithBackend implements TensorInfo {
   KernelBackend backend;
@@ -301,7 +309,7 @@ class _BackendInit {
   });
 }
 
- class Engine implements TensorTracker, DataMover {
+class Engine implements TensorTracker, DataMover {
   EngineState state;
   String? backendName;
   Map<String, KernelBackend> registry = {};
@@ -335,23 +343,23 @@ class _BackendInit {
 
     throw Exception(
         'Could not initialize any backends, all backend initializations ' +
-        'failed.');
+            'failed.');
   }
 
   KernelBackend get backend {
     if (this._pendingBackendInit != null) {
       throw Exception(
           "Backend '${this.backendName}' has not yet been initialized. Make " +
-          'sure to await tf.ready() or await tf.setBackend() before calling ' +
-          'other methods');
+              'sure to await tf.ready() or await tf.setBackend() before calling ' +
+              'other methods');
     }
     if (this._backendInstance == null) {
       final _backEnd = this._initializeBackendsAndReturnBest();
       if (_backEnd.asyncInit) {
         throw Exception(
             "The highest priority backend '${_backEnd.name}' has not yet been " +
-            'initialized. Make sure to await tf.ready() or ' +
-            'await tf.setBackend() before calling other methods');
+                'initialized. Make sure to await tf.ready() or ' +
+                'await tf.setBackend() before calling other methods');
       }
       this.setBackend(_backEnd.name);
     }
@@ -379,8 +387,7 @@ class _BackendInit {
     return this.registry[backendName];
   }
 
-Future<KernelBackend> Function()? findBackendFactory(String backendName)
-        {
+  Future<KernelBackend> Function()? findBackendFactory(String backendName) {
     if (!this.registryFactory.containsKey(backendName)) {
       return null;
     }
@@ -388,12 +395,12 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
   }
 
   bool registerBackend(
-      String backendName,
-      Future<KernelBackend> Function() factory,
-      [int priority = 1,]) {
+    String backendName,
+    Future<KernelBackend> Function() factory, [
+    int priority = 1,
+  ]) {
     if (this.registryFactory.containsKey(backendName)) {
-      log.warning(
-          '${backendName} backend was already registered. ' +
+      log.warning('${backendName} backend was already registered. ' +
           'Reusing existing backend factory.');
       return false;
     }
@@ -431,7 +438,7 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
     });
   }
 
-  void _disposeRegisteredKernels(String backendName){
+  void _disposeRegisteredKernels(String backendName) {
     final kernels = getKernelsForBackend(backendName);
     kernels.forEach((kernel) {
       if (kernel.disposeFunc != null) {
@@ -446,7 +453,7 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
    * whether the initialization of the backend suceeded. Throws an error if
    * there is no backend in the factory registry.
    */
-  
+
   InitResult _initializeBackend(String backendName) {
     final registryFactoryEntry = this.registryFactory[backendName];
     if (registryFactoryEntry == null) {
@@ -463,36 +470,33 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
       implementations (e.g. Angular) */
       if (backend is Future<KernelBackend>) {
         final promiseId = ++this._pendingBackendInitId;
-        final success =
-            backend.then((backendInstance) {
-                  // Outdated promise. Another backend was set in the meantime.
-                  if (promiseId < this._pendingBackendInitId) {
-                    return false;
-                  }
-                  this.registry[backendName] = backendInstance;
-                  this._pendingBackendInit = null;
-                  return true;
-                })
-                .catchError((err) {
-                  // Outdated promise. Another backend was set in the meantime.
-                  if (promiseId < this._pendingBackendInitId) {
-                    return false;
-                  }
-                  this._pendingBackendInit = null;
-                  log.warning(
-                      'Initialization of backend ${backendName} failed');
-                  log.warning(err.stack ?? err.message);
-                  return false;
-                });
+        final success = backend.then((backendInstance) {
+          // Outdated promise. Another backend was set in the meantime.
+          if (promiseId < this._pendingBackendInitId) {
+            return false;
+          }
+          this.registry[backendName] = backendInstance;
+          this._pendingBackendInit = null;
+          return true;
+        }).catchError((err) {
+          // Outdated promise. Another backend was set in the meantime.
+          if (promiseId < this._pendingBackendInitId) {
+            return false;
+          }
+          this._pendingBackendInit = null;
+          log.warning('Initialization of backend ${backendName} failed');
+          log.warning(err.stack ?? err.message);
+          return false;
+        });
         this._pendingBackendInit = success;
         return InitResult(success: success, asyncInit: true);
       } else {
         this.registry[backendName] = backend as KernelBackend;
         return InitResult(success: true, asyncInit: false);
       }
-    } catch (err) {
-      log.warning('Initialization of backend ${backendName} failed');
-      log.warning(err.stackTrace ?? err.message);
+    } catch (err, stackTrace) {
+      log.warning(
+          'Initialization of backend ${backendName} failed', err, stackTrace);
       return InitResult(success: false, asyncInit: false);
     }
   }
@@ -527,15 +531,15 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
     if (this.registryFactory.length == 0) {
       throw Exception('No backend found in registry.');
     }
-    return this.registryFactory.keys.toList()..sort((a, b) {
-      // Highest priority comes first.
-      return this.registryFactory[b]!.priority -
-          this.registryFactory[a]!.priority;
-    });
+    return this.registryFactory.keys.toList()
+      ..sort((a, b) {
+        // Highest priority comes first.
+        return this.registryFactory[b]!.priority -
+            this.registryFactory[a]!.priority;
+      });
   }
 
-  
-  _BackendInit  _initializeBackendsAndReturnBest(){
+  _BackendInit _initializeBackendsAndReturnBest() {
     final sortedBackends = this._getSortedBackends();
 
     for (int i = 0; i < sortedBackends.length; i++) {
@@ -547,7 +551,7 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
     }
     throw Exception(
         'Could not initialize any backends, all backend initializations ' +
-        'failed.');
+            'failed.');
   }
 
   void moveData(KernelBackend backend, DataId dataId) {
@@ -567,13 +571,14 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
     }
   }
 
-    // // string|ScopeFn<T>
-    // Object nameOrFn , ScopeFn<T>? fn,)
+  // // string|ScopeFn<T>
+  // Object nameOrFn , ScopeFn<T>? fn,)
   T tidy<T extends TensorContainer>(
     ScopeFn<T> fn,
     // string|ScopeFn<T>
-    {String? name})
-       {
+    {
+    String? name,
+  }) {
     // if (fn == null) {
     //   // Called with only 1 argument.
     //   if (nameOrFn is! ScopeFn<T>) {
@@ -598,13 +603,16 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
     // }
     T? result;
     return this._scopedRun(
-        () => this.startScope(name), () => this.endScope(result), ()  {
-          result = fn();
-          if (result is Future) {
-            util.log.severe('Cannot return a Promise inside of tidy.');
-          }
-          return result as T;
-        });
+      () => this.startScope(name),
+      () => this.endScope(result),
+      () {
+        result = fn();
+        if (result is Future) {
+          util.log.severe('Cannot return a Promise inside of tidy.');
+        }
+        return result as T;
+      },
+    );
   }
 
   T _scopedRun<T>(void Function() start, void Function() end, T Function() f) {
@@ -636,22 +644,27 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
    * execution.
    */
   Tensor _clone(Tensor x) {
-    final Tensor y  = ENGINE.runKernel(Identity, {'x': x});
+    final Tensor y = ENGINE.runKernel(Identity, {'x': x});
     final inputs = {'x': x};
-    final grad = (Tensor dy) => ({
-      'x': () {
-        final dtype = 'float32';
-        final gradInputs = {x: dy};
-        final attrs = {dtype};
+    grad(Tensors dy, _, __) {
+      return {
+        'x': () {
+          final dtype = 'float32';
+          final gradInputs = {'x': dy};
+          final attrs = {'dtype': dtype};
 
-        return ENGINE.runKernel(
-                   Cast, gradInputs as {} as NamedTensorMap,
-                   // tslint:disable-next-line: no-unnecessary-type-assertion
-                   attrs as {} as NamedAttrMap) as Tensor;
-      }
-    });
+          return ENGINE.runKernel(
+            Cast, gradInputs as NamedTensorMap,
+            // tslint:disable-next-line: no-unnecessary-type-assertion
+            attrs,
+          ) as Tensor;
+        }
+      };
+    }
+
     final saved = <Tensor>[];
-    this._addTapeNode(this.state.activeScope!.name, inputs, [y], grad, saved, {});
+    this._addTapeNode(
+        this.state.activeScope!.name, inputs, [y], grad, saved, {});
     return y;
   }
 
@@ -669,7 +682,10 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
    * tensors are not visible to the user.
    */
   Tensors runKernel(
-      String kernelName, NamedTensorMap inputs, [NamedAttrMap? attrs,]) {
+    String kernelName,
+    NamedTensorMap inputs, [
+    NamedAttrMap? attrs,
+  ]) {
     if (this.backendName == null) {
       // backend has not been initialized yet (backend initialization is lazy
       // can be deferred until an op/ kernel is run).
@@ -680,10 +696,11 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
     }
     final hasKernel = getKernel(kernelName, this.backendName!) != null;
     if (!hasKernel) {
-      throw Exception("Kernel '${kernelName}' not registered for backend '${
-          this.backendName}'");
+      throw Exception(
+          "Kernel '${kernelName}' not registered for backend '${this.backendName}'");
     }
-    return this._runKernelFunc(RegisteredKernelInvocation(kernelName: kernelName, inputs: inputs, attrs: attrs));
+    return this._runKernelFunc(RegisteredKernelInvocation(
+        kernelName: kernelName, inputs: inputs, attrs: attrs));
   }
 
   bool _shouldCheckForMemLeaks() {
@@ -691,8 +708,10 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
   }
 
   void _checkKernelForMemLeak(
-      String kernelName, int numDataIdsBefore,
-      List<TensorInfo> outInfos) {
+    String kernelName,
+    int numDataIdsBefore,
+    List<TensorInfo> outInfos,
+  ) {
     final numDataIdsAfter = this.backend.numDataIds();
 
     // Count the number of data ids associated with the result of the kernel.
@@ -715,7 +734,7 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
     if (dataIdsLeaked > 0) {
       throw Exception(
           "Backend '${this.backendName}' has an internal memory leak " +
-          "(${dataIdsLeaked} data ids) after running '${kernelName}'");
+              "(${dataIdsLeaked} data ids) after running '${kernelName}'");
     }
   }
 
@@ -725,7 +744,8 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
    * Use `runKernel` to execute kernels from outside of engine.
    */
   T _runKernelFunc<T extends Tensors, I extends NamedTensorMap>(
-      KernelInvocation<I> kernelParams,) {
+    KernelInvocation<I> kernelParams,
+  ) {
     List<Tensor>? outputs;
     List<Tensor> saved = [];
     final isTapeOn = this.isTapeOn();
@@ -749,9 +769,9 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
 
     ListOrVal<TensorInfo> out;
 
-    final kernelOrScopeName = kernelParams is RegisteredKernelInvocation ?
-        kernelParams.kernelName! :
-        (this.state.activeScope?.name ?? '');
+    final kernelOrScopeName = kernelParams is RegisteredKernelInvocation
+        ? kernelParams.kernelName!
+        : (this.state.activeScope?.name ?? '');
 
     // Create the kernelFunc from either a registered kernel OR passed in
     // forward/backward functions (used by custom grad). In this context a
@@ -772,12 +792,13 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
       final kernel = getKernel(kernelName, this.backendName!)!;
       util.assert_(
           kernel != null,
-          () => "Cannot find registered kernel '${kernelName}' for backend '${
-              this.backendName}'");
+          () =>
+              "Cannot find registered kernel '${kernelName}' for backend '${this.backendName}'");
 
       kernelFunc = () {
         final numDataIdsBefore = this.backend.numDataIds();
-        out = kernel.kernelFunc(inputs: inputs, attrs: kernelParams.attrs, backend: this.backend);
+        out = kernel.kernelFunc(
+            inputs: inputs, attrs: kernelParams.attrs, backend: this.backend);
         final outInfos = out.asList;
         if (this._shouldCheckForMemLeaks()) {
           this._checkKernelForMemLeak(kernelName, numDataIdsBefore, outInfos);
@@ -790,7 +811,8 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
           if (outInfo is Tensor && outInfo.rank != null) {
             return outInfo as Tensor;
           }
-          return this.makeTensorFromDataId(outInfo.dataId, outInfo.shape, outInfo.dtype);
+          return this.makeTensorFromDataId(
+              outInfo.dataId, outInfo.shape, outInfo.dtype);
         }).toList();
 
         // Save any required inputs and outputs.
@@ -806,7 +828,8 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
         return outTensors;
       };
     } else {
-      final forwardFunc = (kernelParams as CustomGradKernelInvocation).forwardFunc;
+      final forwardFunc =
+          (kernelParams as CustomGradKernelInvocation).forwardFunc;
       // Running a customGrad op.
       final GradSaveFunc saveFunc = (tensors) {
         // Do not save unless we are recording to the tape. Otherwise it would
@@ -815,16 +838,21 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
         if (!isTapeOn) {
           return;
         }
-        saved = tensors.map((tensor) => this.keep(this._clone(tensor))).toList();
+        saved = tensors
+            .map(
+              (tensor) => this.keep(this._clone(tensor)),
+            )
+            .toList();
       };
 
-      kernelFunc = ()  {
+      kernelFunc = () {
         final numDataIdsBefore = this.backend.numDataIds();
         out = this.tidy(() => forwardFunc(this.backend, saveFunc));
         final outs = out.asList;
         if (this._shouldCheckForMemLeaks()) {
           // Scope name is used to print a more helpful error message if needed.
-          this._checkKernelForMemLeak(kernelOrScopeName, numDataIdsBefore, outs);
+          this._checkKernelForMemLeak(
+              kernelOrScopeName, numDataIdsBefore, outs);
         }
         return outs;
       };
@@ -835,44 +863,54 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
     //
     final inputs = kernelParams.inputs;
     final attrs = kernelParams.attrs;
-    
-    final backwardsFunc = kernelParams is CustomGradKernelInvocation<Tensors, I> ?
-        
-        kernelParams.backwardsFunc: null;
+
+    final backwardsFunc = kernelParams is CustomGradKernelInvocation<Tensors, I>
+        ? kernelParams.backwardsFunc
+        : null;
 
     KernelProfile kernelProfile;
     this._scopedRun(
-        // Stop recording to a tape when running a kernel.
-        () => this.state.kernelDepth++, () => this.state.kernelDepth--, () {
-          if (!this.ENV.getBool('DEBUG') && !this.state.profiling) {
-            outputs = kernelFunc();
-          } else {
-            kernelProfile = this.profiler.profileKernel(
-                kernelOrScopeName, inputs, () => kernelFunc());
-            if (this.ENV.getBool('DEBUG')) {
-              this.profiler.logKernelProfile(kernelProfile);
-            }
-            outputs = kernelProfile.outputs;
+      // Stop recording to a tape when running a kernel.
+      () => this.state.kernelDepth++,
+      () => this.state.kernelDepth--,
+      () {
+        if (!this.ENV.getBool('DEBUG') && !this.state.profiling) {
+          outputs = kernelFunc();
+        } else {
+          kernelProfile = this
+              .profiler
+              .profileKernel(kernelOrScopeName, inputs, () => kernelFunc());
+          if (this.ENV.getBool('DEBUG')) {
+            this.profiler.logKernelProfile(kernelProfile);
           }
-        });
+          outputs = kernelProfile.outputs;
+        }
+      },
+    );
 
     if (isTapeOn) {
       this._addTapeNode(
-          kernelOrScopeName, inputs, outputs, backwardsFunc, saved, attrs,);
+        kernelOrScopeName,
+        inputs,
+        outputs,
+        backwardsFunc == null ? null : (t, saved, _) => backwardsFunc(t, saved),
+        saved,
+        attrs,
+      );
     }
 
     if (this.state.profiling) {
       this.state.activeProfile.kernels.add(KernelInfo(
-        name: kernelOrScopeName,
-        bytesAdded: this.state.numBytes - startingBytecount,
-        totalBytesSnapshot: this.state.numBytes,
-        tensorsAdded: this.state.numTensors - startingNumTensors,
-        totalTensorsSnapshot: this.state.numTensors,
-        inputShapes: inputs.values.map((value) => value.shape).toList(),
-        outputShapes: outputs.map((item) => item.shape).toList(),
-        kernelTimeMs: kernelProfile.timeMs,
-        extraInfo: kernelProfile.extraInfo
-      ));
+            name: kernelOrScopeName,
+            bytesAdded: this.state.numBytes - startingBytecount,
+            totalBytesSnapshot: this.state.numBytes,
+            tensorsAdded: this.state.numTensors - startingNumTensors,
+            totalTensorsSnapshot: this.state.numTensors,
+            inputShapes: inputs.values.map((value) => value.shape).toList(),
+            outputShapes: outputs.map((item) => item.shape).toList(),
+            kernelTimeMs: kernelProfile.timeMs,
+            extraInfo: kernelProfile.extraInfo,
+          ));
     }
     return (out is List ? outputs : outputs[0]) as T;
   }
@@ -883,7 +921,11 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
    * @param tensors the list of tensors to save.
    */
   List<Tensor> _saveTensorsForBackwardMode(List<Tensor> tensors) {
-    final saved = tensors.map((tensor) => this.keep(this._clone(tensor))).toList();
+    final saved = tensors
+        .map(
+          (tensor) => this.keep(this._clone(tensor)),
+        )
+        .toList();
     return saved;
   }
 
@@ -895,27 +937,29 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
    * @param outputs an array of output tensors from forward mode of kernel.
    */
   List<Tensor> _getTensorsForGradient(
-      String kernelName, NamedTensorMap inputs,
-      List<Tensor> outputs,) {
+    String kernelName,
+    NamedTensorMap inputs,
+    List<Tensor> outputs,
+  ) {
     final gradConfig = getGradient(kernelName);
     if (gradConfig != null) {
       final List<String> inputsToSave = gradConfig.inputsToSave ?? [];
-      final List<bool>  outputsToSave = gradConfig.outputsToSave ?? [];
+      final List<bool> outputsToSave = gradConfig.outputsToSave ?? [];
 
       // If saveAllInputs is true, all inputs will be saved. Otherwise, inputs
       // specified in inputsToSave will be saved.
       final Iterable<Tensor> inputTensorsToSave;
       if (gradConfig.saveAllInputs == true) {
-        util.assert_(
-            inputs is List,
+        util.assert_(inputs is List,
             () => 'saveAllInputs is true, expected inputs to be an array.');
 
         inputTensorsToSave = inputs.values;
       } else {
-        inputTensorsToSave = inputsToSave.map((inputName) => inputs[inputName]!);
+        inputTensorsToSave =
+            inputsToSave.map((inputName) => inputs[inputName]!);
       }
 
-      int  i = 0;
+      int i = 0;
       final Iterable<Tensor> outputTensorsToSave =
           outputs.where((_) => outputsToSave[i++]);
 
@@ -936,8 +980,11 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
    * creates a new data id and writes the values to the underlying backend.
    */
   Tensor makeTensor(
-      DataValues values, List<int> shape, DataType? dtype,
-      [KernelBackend? backend,]) {
+    DataValues values,
+    List<int> shape,
+    DataType? dtype, [
+    KernelBackend? backend,
+  ]) {
     if (values == null) {
       throw Exception('Values passed to engine.makeTensor() are null');
     }
@@ -945,7 +992,8 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
     backend = backend ?? this.backend;
     var backendVals = values as BackendValues;
     if (dtype == 'string' && util.isString(values[0])) {
-      backendVals = (values as List<String>).map((d) => util.encodeString(d)).toList();
+      backendVals =
+          (values as List<String>).map((d) => util.encodeString(d)).toList();
     }
     final dataId = backend.write(backendVals, shape, dtype);
     final t = Tensor(shape, dtype, dataId, this._nextTensorId());
@@ -967,8 +1015,11 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
    * a new data id, only increments the ref count used in memory tracking.
    */
   Tensor makeTensorFromDataId(
-      DataId dataId, List<int> shape, DataType dtype,
-      [KernelBackend? backend,]) {
+    DataId dataId,
+    List<int> shape,
+    DataType dtype, [
+    KernelBackend? backend,
+  ]) {
     dtype = dtype ?? 'float32';
     final t = Tensor(shape, dtype, dataId, this._nextTensorId());
     this.trackTensor(t, backend);
@@ -976,13 +1027,16 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
   }
 
   Variable makeVariable(
-      Tensor initialValue, {bool trainable = true, String? name,
-      DataType? dtype}) {
+    Tensor initialValue, {
+    bool trainable = true,
+    String? name,
+    DataType? dtype,
+  }) {
     name = name ?? this._nextVariableId().toString();
     if (dtype != null && dtype != initialValue.dtype) {
       initialValue = initialValue.cast(dtype);
     }
-    final v =  Variable(initialValue, trainable, name, this._nextTensorId());
+    final v = Variable(initialValue, trainable, name, this._nextTensorId());
     if (this.state.registeredVariables[v.name] != null) {
       throw Exception('Variable with name ${v.name} was already registered');
     }
@@ -991,7 +1045,7 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
     return v;
   }
 
-  void trackTensor(Tensor a , KernelBackend? backend ) {
+  void trackTensor(Tensor a, KernelBackend? backend) {
     this.state.numTensors++;
     if (a.dtype == 'string') {
       this.state.numStringTensors++;
@@ -1006,7 +1060,7 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
 
     if (!this.state.tensorInfo.containsKey(a.dataId)) {
       this.state.numDataBuffers++;
-      this.state.tensorInfo[a.dataId] =  TensorInfoWithBackend(
+      this.state.tensorInfo[a.dataId] = TensorInfoWithBackend(
         backend: backend ?? this.backend,
         dtype: a.dtype,
         shape: a.shape,
@@ -1036,6 +1090,7 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
       this.state.numDataBuffers--;
     }
   }
+
   void disposeTensor(Tensor a) {
     final info = this.state.tensorInfo[a.dataId];
     if (info == null) {
@@ -1084,17 +1139,15 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
     info.numBytes = this.state.numBytes;
     if (this.state.numStringTensors > 0) {
       info.unreliable = true;
-      
+
       info.reasons ??= [];
-      info.reasons!.add(
-          'Memory usage by string tensors is approximate ' +
+      info.reasons!.add('Memory usage by string tensors is approximate ' +
           '(2 bytes per character)');
     }
     return info;
   }
 
-  Future<ProfileInfo> profile(Future<TensorContainer> Function() query) async 
-       {
+  Future<ProfileInfo> profile(Future<TensorContainer> Function() query) async {
     this.state.profiling = true;
 
     final startBytes = this.state.numBytes;
@@ -1105,12 +1158,14 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
 
     this.state.profiling = false;
 
-    activeProfile.peakBytes = activeProfile.kernels.map((d) => d.totalBytesSnapshot).reduce(math.max);
+    activeProfile.peakBytes =
+        activeProfile.kernels.map((d) => d.totalBytesSnapshot).reduce(math.max);
     activeProfile.newBytes = this.state.numBytes - startBytes;
-    activeProfile.newTensors =
-        this.state.numTensors - startNumTensors;
+    activeProfile.newTensors = this.state.numTensors - startNumTensors;
     for (final kernel in activeProfile.kernels) {
-      kernel.kernelTimeMs = kernel.kernelTimeMs is Future ? await kernel.kernelTimeMs: kernel.kernelTimeMs;
+      kernel.kernelTimeMs = kernel.kernelTimeMs is Future
+          ? await kernel.kernelTimeMs
+          : kernel.kernelTimeMs;
       kernel.extraInfo = await kernel.extraInfo;
     }
     return activeProfile;
@@ -1121,17 +1176,27 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
   }
 
   void _addTapeNode(
-      String kernelName, NamedTensorMap inputs, List<Tensor> outputs,
-      GradFunc gradientsFunc, List<Tensor> saved, NamedAttrMap attrs,) {
-    final tapeNode =
-        TapeNode(id: this.state.nextTapeNodeId++, kernelName: kernelName, inputs: inputs, outputs: outputs, saved: saved,);
+    String kernelName,
+    NamedTensorMap inputs,
+    List<Tensor> outputs,
+    GradFunc? gradientsFunc,
+    List<Tensor> saved,
+    NamedAttrMap attrs,
+  ) {
+    final tapeNode = TapeNode(
+      id: this.state.nextTapeNodeId++,
+      kernelName: kernelName,
+      inputs: inputs,
+      outputs: outputs,
+      saved: saved,
+    );
 
     final gradConfig = getGradient(kernelName);
     if (gradConfig != null) {
       gradientsFunc = gradConfig.gradFunc;
     }
     if (gradientsFunc != null) {
-      tapeNode.gradient = (List<Tensor> dys)  {
+      tapeNode.gradient = (List<Tensor> dys) {
         // TODO(smilkov): To optimize back-prop, pass dys that are not used in
         // the backprop graph to the user as null instead of zeros
         dys = dys.mapIndexed((i, dy) {
@@ -1144,13 +1209,17 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
         }).toList();
         // Grad functions of ops with single outputs expect a dy, while ops
         // with multiple outputs expect dys (array of dy).
-        return gradientsFunc(dys.length > 1 ? dys : dys[0], saved, attrs);
+        return gradientsFunc!(
+          dys.length > 1 ? TensorList(dys) : dys[0],
+          saved,
+          attrs,
+        );
       };
     }
     this.state.activeTape!.add(tapeNode);
   }
 
-  T keep<T extends Tensor>(T result){
+  T keep<T extends Tensor>(T result) {
     result.kept = true;
     return result;
   }
@@ -1174,7 +1243,7 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
     final scopeInfo = ScopeState(
       track: [],
       name: 'unnamed scope',
-      id: this.state.nextScopeId++
+      id: this.state.nextScopeId++,
     );
     if (name != null) {
       scopeInfo.name = name;
@@ -1190,7 +1259,7 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
   endScope([TensorContainer? result]) {
     final tensorsToTrackInParent = getTensorsInContainer(result);
     final tensorsToTrackInParentSet =
-         tensorsToTrackInParent.map((t) => t.id).toSet();
+        tensorsToTrackInParent.map((t) => t.id).toSet();
 
     // Dispose the arrays tracked in this scope.
     for (int i = 0; i < this.state.activeScope!.track.length; i++) {
@@ -1201,9 +1270,9 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
     }
 
     final oldScope = this.state.scopeStack.removeLast();
-    this.state.activeScope = this.state.scopeStack.length == 0 ?
-        null :
-        this.state.scopeStack[this.state.scopeStack.length - 1];
+    this.state.activeScope = this.state.scopeStack.length == 0
+        ? null
+        : this.state.scopeStack[this.state.scopeStack.length - 1];
 
     // Track the current result in the parent scope.
     tensorsToTrackInParent.forEach((tensor) {
@@ -1221,9 +1290,12 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
    * was not a function of that `x`. It also takes optional dy to multiply the
    * gradient, which defaults to `1`.
    */
-   WithGradients gradients<T extends Tensor>(
-      T Function() f, List<Tensor> xs, {T? dy,
-      bool allowNoGradients = false}) {
+  WithGradients gradients<T extends Tensor>(
+    T Function() f,
+    List<Tensor> xs, {
+    T? dy,
+    bool allowNoGradients = false,
+  }) {
     util.assert_(
         xs.length > 0, () => 'gradients() received an empty list of xs.');
     if (dy != null && dy.dtype != 'float32') {
@@ -1231,32 +1303,35 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
     }
 
     final y = this._scopedRun(
-        () => this._startTape(), () => this._endTape(),
-        () => this.tidy(f, name: 'forward'));
+      () => this._startTape(),
+      () => this._endTape(),
+      () => this.tidy(f, name: 'forward'),
+    );
 
     util.assert_(
-        y is Tensor,
-        () => 'The result y returned by f() must be a tensor.');
+        y is Tensor, () => 'The result y returned by f() must be a tensor.');
     // Filter out the nodes that don't connect x => y.
     final filteredTape = getFilteredNodesXToY(this.state.activeTape!, xs, y);
     if (!allowNoGradients && filteredTape.length == 0 && xs.length > 0) {
       throw Exception(
           'Cannot compute gradient of y=f(x) with respect to x. Make sure ' +
-          'that the f you passed encloses all operations that lead from x ' +
-          'to y.');
+              'that the f you passed encloses all operations that lead from x ' +
+              'to y.');
     }
 
-    return this.tidy(()  {
+    return this.tidy(() {
       final accumulatedGradientMap = <int, Tensor>{};
       accumulatedGradientMap[y.id] = (dy == null) ? ones(y.shape) : dy;
 
       // Backprop gradients through the filtered nodes.
       backpropagateGradients(
-          accumulatedGradientMap, filteredTape,
-          // Pass the tidy function to avoid circular dep with `tape.ts`.
-          (f) => this.tidy(f as ScopeFn<Tensor>),
-          // Pass an add function to avoide a circular dep with `tape.ts`.
-          add);
+        accumulatedGradientMap,
+        filteredTape,
+        // Pass the tidy function to avoid circular dep with `tape.ts`.
+        (f) => this.tidy(f as ScopeFn<Tensor>),
+        // Pass an add function to avoide a circular dep with `tape.ts`.
+        add,
+      );
       final grads = xs.map((x) => accumulatedGradientMap[x.id]!).toList();
 
       if (this.state.gradientDepth == 0) {
@@ -1273,21 +1348,22 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
     }, name: 'backward');
   }
 
-  
-      // TODO: (...args: Array<Tensor|GradSaveFunc>) => T 
-       T Function(List<Tensor>) customGrad<T extends Tensor>(CustomGradientFunc<T> f) {
-    util.assert_(
-        util.isFunction(f),
+  // TODO: (...args: Array<Tensor|GradSaveFunc>) => T
+  T Function(List<Tensor>) customGrad<T extends Tensor>(
+    CustomGradientFunc<T> f,
+  ) {
+    util.assert_(f is Function,
         () => 'The f passed in customGrad(f) must be a function.');
-    return  (List<Tensor> inputs) {
+    return (List<Tensor> inputs) {
       util.assert_(
           inputs.every((t) => t is Tensor),
-          () => 'The args passed in customGrad(f)(x1, x2,...) must all be ' +
+          () =>
+              'The args passed in customGrad(f)(x1, x2,...) must all be ' +
               'tensors');
 
       Gradient res;
       final NamedTensorMap inputMap = {};
-      inputs.forEachIndexed((i, input)  {
+      inputs.forEachIndexed((i, input) {
         inputMap[i.toString()] = input; // TODO: wasn't i.toString()
       });
 
@@ -1295,26 +1371,33 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
         res = f([...inputs, save]);
         util.assert_(
             res.value is Tensor,
-            () => 'The function f passed in customGrad(f) must return an ' +
+            () =>
+                'The function f passed in customGrad(f) must return an ' +
                 'object where `obj.value` is a tensor');
         util.assert_(
-            util.isFunction(res.gradFunc),
-            () => 'The function f passed in customGrad(f) must return an ' +
+            res.gradFunc is Function,
+            () =>
+                'The function f passed in customGrad(f) must return an ' +
                 'object where `obj.gradFunc` is a function.');
         return res.value;
       };
 
       backwardsFunc(T dy, List<Tensor> saved) {
         final gradRes = res.gradFunc(dy, saved);
-        final List<Tensor> grads = gradRes.match((gradRes) => [gradRes], (gradRes) => gradRes);
+        final List<Tensor> grads = gradRes.match(
+          (gradRes) => [gradRes],
+          (gradRes) => gradRes,
+        );
         util.assert_(
             grads.length == inputs.length,
-            () => 'The function f passed in customGrad(f) must return an ' +
+            () =>
+                'The function f passed in customGrad(f) must return an ' +
                 'object where `obj.gradFunc` is a function that returns ' +
                 'the same number of tensors as inputs passed to f(...).');
         util.assert_(
             grads.every((t) => t is Tensor),
-            () => 'The function f passed in customGrad(f) must return an ' +
+            () =>
+                'The function f passed in customGrad(f) must return an ' +
                 'object where `obj.gradFunc` is a function that returns ' +
                 'a list of only tensors.');
         final gradMap = <String, Tensor Function()>{};
@@ -1344,11 +1427,15 @@ Future<KernelBackend> Function()? findBackendFactory(String backendName)
     return info.backend.read(dataId);
   }
 
-  Future<TimingInfo> time(void Function() query) async  {
+  Future<TimingInfo> time(void Function() query) async {
     final start = util.now();
     final timingInfo = await this.backend.time(query);
     final wallMs = util.now() - start;
-    return TimingInfo(kernelMs: timingInfo.kernelMs, getExtraProfileInfo: timingInfo.getExtraProfileInfo, wallMs: wallMs,);
+    return TimingInfo(
+      kernelMs: timingInfo.kernelMs,
+      getExtraProfileInfo: timingInfo.getExtraProfileInfo,
+      wallMs: wallMs,
+    );
   }
 
   /**
@@ -1407,16 +1494,17 @@ Tensor ones(List<int> shape) {
 
 Engine getOrMakeEngine() {
   final ns = getGlobalNamespace();
-  if (ns._tfengine == null) {
+  if (ns.tfengine == null) {
     final environment = Environment(ns);
-    ns._tfengine = Engine(environment);
+    ns.tfengine = Engine(environment);
   }
-  setEnvironmentGlobal(ns._tfengine.ENV);
+  final engine = ns.tfengine!;
+  setEnvironmentGlobal(engine.ENV);
 
   // Tell the current tensor interface that the global engine is responsible
   // for tracking.
-  setTensorTracker(() => ns._tfengine);
-  return ns._tfengine;
+  setTensorTracker(() => engine);
+  return engine;
 }
 
 final ENGINE = getOrMakeEngine();

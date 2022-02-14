@@ -46,7 +46,10 @@ typedef KernelFunc = ListOrVal<TensorInfo> Function({
 
 /** The function to run when computing a gradient during backprop. */
 typedef GradFunc = NamedGradientMap Function(
-    Tensors dy, List<Tensor> saved, NamedAttrMap attrs);
+  Tensors dy,
+  List<Tensor> saved,
+  NamedAttrMap attrs,
+);
 
 /** Function that gets called after the backend initializes. */
 typedef KernelSetupFunc = void Function(Object backend);

@@ -104,7 +104,8 @@ class TensorBuffer<R extends Rank, D extends DataType> {
   final D dtype;
 
   TensorBuffer(this.shape, this.dtype, [List? values])
-      : size = util.sizeFromShape(shape) {
+      : size = util.sizeFromShape(shape),
+        strides = util.computeStrides(shape) {
     if (values != null) {
       final n = values.length;
       util.assert_(
@@ -120,7 +121,6 @@ class TensorBuffer<R extends Rank, D extends DataType> {
               'call tf.complex(real, imag).');
     }
     this.values = values ?? util.getArrayFromDType(dtype, this.size);
-    this.strides = computeStrides(shape);
   }
 
   /**

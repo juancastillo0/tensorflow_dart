@@ -1,3 +1,5 @@
+import 'package:tensorflow_wasm/src/engine.dart' show Engine;
+
 /**
  * @license
  * Copyright 2020 Google LLC. All Rights Reserved.
@@ -23,6 +25,7 @@ final globalNameSpace = GlobalNamespace();
 
 class GlobalNamespace {
   Map<String, Object?>? _tfGlobals;
+  Engine? tfengine;
 }
 
 // tslint:disable-next-line:no-any
