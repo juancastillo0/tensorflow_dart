@@ -127,7 +127,7 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
       if (argv.length > 1) {
         thisProgram = argv[1].replaceAll(RegExp(r'\\'), "/");
       }
-      arguments_ = argv.sublist(2);
+      arguments_ = argv.length > 2 ? argv.sublist(2) : [];
       // TODO:
       // process["on"]("uncaughtException", (ex) {
       //   if (!(ex is ExitStatus)) {
@@ -314,7 +314,7 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
 
     late Function ___wasm_call_ctors;
     ___wasm_call_ctors =
-        (Module["___wasm_call_ctors"] = VarArgsFunction((arguments, _) {
+        (Module["___wasm_call_ctors"] = varArgsFunction((arguments, _) {
       return Function.apply(
           ___wasm_call_ctors = Module["___wasm_call_ctors"] = exports["k"],
           arguments);
@@ -338,6 +338,8 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
             } else {
               wasmTable.get(func)(callback['arg']);
             }
+          } else if (func is Function()) {
+            func();
           } else {
             func(callback['arg']);
           }
@@ -386,7 +388,7 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
 
     var runDependencies = 0;
     var runDependencyWatcher = null;
-    var dependenciesFulfilled = null;
+    Function()? dependenciesFulfilled;
     addRunDependency(id) {
       runDependencies++;
       final monitor = Module["monitorRunDependencies"];
@@ -406,8 +408,8 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
           // TODO: clearInterval(runDependencyWatcher);
           runDependencyWatcher = null;
         }
-        if (dependenciesFulfilled) {
-          var callback = dependenciesFulfilled;
+        if (dependenciesFulfilled != null) {
+          final callback = dependenciesFulfilled!;
           dependenciesFulfilled = null;
           callback();
         }
@@ -486,18 +488,15 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
 
     late Function ___errno_location;
     ___errno_location =
-        (Module["___errno_location"] = VarArgsFunction((arguments, _) {
+        (Module["___errno_location"] = varArgsFunction((arguments, _) {
       return Function.apply(
           ___errno_location = Module["___errno_location"] = exports["Ya"],
           arguments);
     }));
 
     final asmLibraryArg = asmLibraryArgs(
-      HEAP8,
-      HEAP32,
       () => wasmMemory!,
       abort,
-      buffer,
       (size) {
         try {
           wasmMemory!.grow((size - buffer.lengthInBytes + 65535) >>> 16);
@@ -595,34 +594,34 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
 
     final asm = createWasm();
 
-    (Module["_init"] = VarArgsFunction((arguments, _) {
+    (Module["_init"] = varArgsFunction((arguments, _) {
       return Function.apply(Module["_init"] = exports["l"], arguments);
     }));
-    (Module["_init_with_threads_count"] = VarArgsFunction((arguments, _) {
+    (Module["_init_with_threads_count"] = varArgsFunction((arguments, _) {
       return Function.apply(
           Module["_init_with_threads_count"] = exports["m"], arguments);
     }));
-    (Module["_get_threads_count"] = VarArgsFunction((arguments, _) {
+    (Module["_get_threads_count"] = varArgsFunction((arguments, _) {
       return Function.apply(
           Module["_get_threads_count"] = exports["n"], arguments);
     }));
-    (Module["_register_tensor"] = VarArgsFunction((arguments, _) {
+    (Module["_register_tensor"] = varArgsFunction((arguments, _) {
       return Function.apply(
           Module["_register_tensor"] = exports["o"], arguments);
     }));
-    (Module["_dispose_data"] = VarArgsFunction((arguments, _) {
+    (Module["_dispose_data"] = varArgsFunction((arguments, _) {
       return Function.apply(Module["_dispose_data"] = exports["p"], arguments);
     }));
-    (Module["_dispose"] = VarArgsFunction((arguments, _) {
+    (Module["_dispose"] = varArgsFunction((arguments, _) {
       return Function.apply(Module["_dispose"] = exports["q"], arguments);
     }));
 
     addTensorFlowFunctions(Module);
 
-    (Module["_malloc"] = VarArgsFunction((arguments, _) {
+    (Module["_malloc"] = varArgsFunction((arguments, _) {
       return Function.apply(Module["_malloc"] = exports["Wa"], arguments);
     }));
-    (Module["_free"] = VarArgsFunction((arguments, _) {
+    (Module["_free"] = varArgsFunction((arguments, _) {
       return Function.apply(Module["_free"] = exports["Xa"], arguments);
     }));
     late Function() stackSave;
@@ -630,12 +629,12 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
       return (stackSave = Module["stackSave"] = exports["Za"])();
     });
     late Function stackRestore;
-    stackRestore = (Module["stackRestore"] = VarArgsFunction((arguments, _) {
+    stackRestore = (Module["stackRestore"] = varArgsFunction((arguments, _) {
       return Function.apply(
           (stackRestore = Module["stackRestore"] = exports["_a"]), arguments);
     }));
     late Function stackAlloc;
-    stackAlloc = (Module["stackAlloc"] = VarArgsFunction((arguments, _) {
+    stackAlloc = (Module["stackAlloc"] = varArgsFunction((arguments, _) {
       return Function.apply(
           (stackAlloc = Module["stackAlloc"] = exports[r"$a"]), arguments);
     }));
@@ -722,13 +721,13 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
         // && opts == null
         return getCFunc(ident);
       }
-      return VarArgsFunction((arguments, _) {
+      return varArgsFunction((arguments, _) {
         return ccall(ident, returnType, argTypes!, arguments, null);
       });
     }
 
     Module["cwrap"] = cwrap;
-    var calledRun;
+    bool calledRun = false;
 
     run([args]) {
       args = args ?? arguments_;
@@ -913,11 +912,8 @@ alignUp(int x, int multiple) {
 }
 
 Map<String, Function> asmLibraryArgs(
-  Int8List HEAPU8,
-  Int32List HEAP32,
   WasmMemory Function() wasmMemory,
   Function abort,
-  ByteBuffer buffer,
   int? Function(int size) reallocBuffer,
   void Function(String message, {required bool isError}) printMsg,
   int Function() ___errno_location,
@@ -928,11 +924,12 @@ Map<String, Function> asmLibraryArgs(
 
   _emscripten_memcpy_big(int dest, int src, int num) {
     // TODO: HEAPU8.copyWithin(dest, src, src + num);
+    final HEAPU8 = wasmMemory().view;
     HEAPU8.setAll(dest, HEAPU8.sublist(src, src + num));
   }
 
   _emscripten_get_heap_size() {
-    return HEAPU8.length;
+    return wasmMemory().view.length;
   }
 
   emscripten_realloc_buffer(int size) {
@@ -1003,11 +1000,12 @@ Map<String, Function> asmLibraryArgs(
   _fd_seek(fd, offset_low, offset_high, whence, newOffset) {}
   _fd_write(fd, iov, iovcnt, pnum) {
     var num = 0;
+    final HEAP32 = Int32List.view(wasmMemory().view.buffer);
     for (var i = 0; i < iovcnt; i++) {
       var ptr = HEAP32[(iov + i * 8) >> 2];
       var len = HEAP32[(iov + (i * 8 + 4)) >> 2];
       for (var j = 0; j < len; j++) {
-        SYSCALLSprintChar(fd, HEAPU8[ptr + j]);
+        SYSCALLSprintChar(fd, wasmMemory().view[ptr + j]);
       }
       num += len;
     }
@@ -1024,7 +1022,7 @@ Map<String, Function> asmLibraryArgs(
   }
 
   setErrNo(int value) {
-    HEAP32[___errno_location() >> 2] = value;
+    Int32List.view(wasmMemory().view.buffer)[___errno_location() >> 2] = value;
     return value;
   }
 
@@ -1205,8 +1203,10 @@ Map<String, Function> asmLibraryArgs(
   };
 }
 
-void addTensorFlowFunctions(Map Module) {
-  final exports = Module['asm'] as Map<String, dynamic>;
+void addTensorFlowFunctions(Map Module) async {
+  // TODO:
+  await Future.delayed(Duration(seconds: 1));
+  final exports = Module['asm'] as Map<String, Object?>;
   for (final entry in tfNames.entries) {
     Module[entry.key] = exports[entry.value];
   }
@@ -1319,7 +1319,7 @@ class WasmFactoryConfig {
     this.wasmBinary,
   });
 
-  Map<String, dynamic> toMap() {
+  Map<String, Object?> toMap() {
     return {
       'mainScriptUrlOrBlob': mainScriptUrlOrBlob,
       'locateFile': locateFile,
@@ -1351,13 +1351,17 @@ class ExitStatus implements Exception {
 }
 
 typedef VarArgsCallback<T> = T Function(
-    List<dynamic> args, Map<String, dynamic> kwargs);
+    List<dynamic> args, Map<String, Object?> kwargs);
+
+Function varArgsFunction<T>(VarArgsCallback<T> callback) {
+  return VarArgsFunction._(callback);
+}
 
 class VarArgsFunction<T> {
   final VarArgsCallback<T> callback;
   static final _symbolOffset = 'Symbol("'.length;
 
-  VarArgsFunction(this.callback);
+  VarArgsFunction._(this.callback);
 
   T call() => callback([], {});
 
