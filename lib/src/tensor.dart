@@ -39,6 +39,8 @@ typedef DataId = Map; // object instead of {} to force non-primitive.
 typedef DataType = String;
 typedef BackendValues
     = List; //  Float32Array|Int32Array|Uint8Array|Uint8Array[];
+typedef DataValues
+    = List; // Float32Array|Int32Array|Uint8Array|Float32Array|string[];
 
 class TensorList extends DelegatingList<Tensor> with Tensors {
   TensorList(List<Tensor<Rank>> base) : super(base);
@@ -221,10 +223,14 @@ abstract class TensorTracker {
     DataValues values,
     List<int> shape,
     DataType dtype, [
-    Backend? backend,
+    KernelBackend? backend,
   ]);
-  Variable makeVariable(Tensor initialValue,
-      {bool? trainable, String? name, DataType? dtype});
+  Variable makeVariable(
+    Tensor initialValue, {
+    bool trainable,
+    String? name,
+    DataType? dtype,
+  });
   void incRef(Tensor a, KernelBackend? backend);
   void disposeTensor(Tensor t);
   void disposeVariable(Variable v);

@@ -15,6 +15,7 @@
 //  * =============================================================================
 //  */
 
+import 'dart:convert' show utf8;
 import 'dart:typed_data';
 import 'dart:math' as math;
 
@@ -778,3 +779,27 @@ List<num> makeZerosTypedArray<D extends DataType>(int size, D dtype) {
 //   //  pre-patched Promise.
 //   return object && object.then && typeof object.then === 'function';
 // }
+
+/**
+ * Encodes the provided string into bytes using the provided encoding scheme.
+ *
+ * @param s The string to encode.
+ * @param encoding The encoding scheme. Defaults to utf-8.
+ *
+ * @doc {heading: 'Util'}
+ */
+Uint8List encodeString(String s, {String encoding = 'utf-8'}) {
+  return utf8.encoder.convert(s);
+}
+
+/**
+ * Decodes the provided bytes into a string using the provided encoding scheme.
+ * @param bytes The bytes to decode.
+ *
+ * @param encoding The encoding scheme. Defaults to utf-8.
+ *
+ * @doc {heading: 'Util'}
+ */
+String decodeString(Uint8List bytes, {String encoding = 'utf-8'}) {
+  return utf8.decode(bytes);
+}

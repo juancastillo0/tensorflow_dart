@@ -15,29 +15,32 @@
  * =============================================================================
  */
 
-import {Tensor} from './tensor';
-import {TensorContainer, TensorContainerArray} from './tensor_types';
-import {upcastType} from './types';
-import {assert} from './util';
+import 'package:tensorflow_wasm/src/engine.dart';
+import 'package:tensorflow_wasm/src/tensor.dart';
 
-export function makeTypesMatch<T extends Tensor>(a: T, b: T): [T, T] {
-  if (a.dtype === b.dtype) {
-    return [a, b];
-  }
-  const dtype = upcastType(a.dtype, b.dtype);
-  return [a.cast(dtype), b.cast(dtype)];
-}
+// import {Tensor} from './tensor';
+// import {TensorContainer, TensorContainerArray} from './tensor_types';
+// import {upcastType} from './types';
+// import {assert} from './util';
 
-export function assertTypesMatch(a: Tensor, b: Tensor): void {
-  assert(
-      a.dtype === b.dtype,
-      () => `The dtypes of the first(${a.dtype}) and` +
-          ` second(${b.dtype}) input must match`);
-}
+// export function makeTypesMatch<T extends Tensor>(a: T, b: T): [T, T] {
+//   if (a.dtype === b.dtype) {
+//     return [a, b];
+//   }
+//   const dtype = upcastType(a.dtype, b.dtype);
+//   return [a.cast(dtype), b.cast(dtype)];
+// }
 
-export function isTensorInList(tensor: Tensor, tensorList: Tensor[]): boolean {
-  return tensorList.some(x => x.id === tensor.id);
-}
+// export function assertTypesMatch(a: Tensor, b: Tensor): void {
+//   assert(
+//       a.dtype === b.dtype,
+//       () => `The dtypes of the first(${a.dtype}) and` +
+//           ` second(${b.dtype}) input must match`);
+// }
+
+// export function isTensorInList(tensor: Tensor, tensorList: Tensor[]): boolean {
+//   return tensorList.some(x => x.id === tensor.id);
+// }
 
 /**
  * Extracts any `Tensor`s found within the provided object.
@@ -51,37 +54,40 @@ export function isTensorInList(tensor: Tensor, tensorList: Tensor[]): boolean {
  *   returned. If the object is not a `Tensor` or does not
  *   contain `Tensors`, an empty list is returned.
  */
-export function getTensorsInContainer(result: TensorContainer): Tensor[] {
-  const list: Tensor[] = [];
-  const seen = new Set<{}|void>();
-  walkTensorContainer(result, list, seen);
+List<Tensor> getTensorsInContainer(TensorContainer result) {
+  final list = <Tensor>[];
+  final seen = <Map?>{};
+  _walkTensorContainer(result, list, seen);
   return list;
 }
 
-function walkTensorContainer(
-    container: TensorContainer, list: Tensor[], seen: Set<{}|void>): void {
+void _walkTensorContainer(
+  TensorContainer container,
+  List<Tensor> list,
+  Set<Map<dynamic, dynamic>?> seen,
+) {
   if (container == null) {
     return;
   }
-  if (container instanceof Tensor) {
-    list.push(container);
+  if (container is Tensor) {
+    list.add(container);
     return;
   }
-  if (!isIterable(container)) {
+  if (container is! Iterable && container is! Map) {
     return;
   }
   // Iteration over keys works also for arrays.
-  const iterable = container as TensorContainerArray;
-  for (const k in iterable) {
-    const val = iterable[k];
-    if (!seen.has(val)) {
+  final iterable = container is Map ? container.values : container as Iterable;
+  for (final val in iterable) {
+    // final val = iterable[k];
+    if (!seen.contains(val)) {
       seen.add(val);
-      walkTensorContainer(val, list, seen);
+      _walkTensorContainer(val, list, seen);
     }
   }
 }
 
-// tslint:disable-next-line:no-any
-function isIterable(obj: any): boolean {
-  return Array.isArray(obj) || typeof obj === 'object';
-}
+// // tslint:disable-next-line:no-any
+// function isIterable(obj: any): boolean {
+//   return Array.isArray(obj) || typeof obj === 'object';
+// }
