@@ -36,6 +36,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:collection/collection.dart';
+import 'package:tensorflow_wasm/src/kernel_names.dart' show Add, Cast, Identity;
 import 'package:tensorflow_wasm/src/profile.dart';
 import 'package:tensorflow_wasm/src/tape.dart';
 import 'package:tensorflow_wasm/src/tensor.dart';
@@ -646,7 +647,7 @@ class Engine implements TensorTracker, DataMover {
    * execution.
    */
   Tensor _clone(Tensor x) {
-    final Tensor y = ENGINE.runKernel(Identity, {'x': x});
+    final y = ENGINE.runKernel(Identity, {'x': x}) as Tensor;
     final inputs = {'x': x};
     grad(Tensors dy, _, __) {
       return {
@@ -1526,5 +1527,5 @@ final ENGINE = getOrMakeEngine();
 Tensor add(Tensor a, Tensor b) {
   // We duplicate Add here to avoid a circular dependency with add.ts.
   final inputs = {'a': a, 'b': b};
-  return ENGINE.runKernel(Add, inputs);
+  return ENGINE.runKernel(Add, inputs) as Tensor;
 }

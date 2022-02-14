@@ -51,7 +51,10 @@ class Profiler {
       : logger = logger ?? ProfileLogger();
 
   KernelProfile profileKernel(
-      String kernelName, NamedTensorMap inputs, List<Tensor> Function() f) {
+    String kernelName,
+    NamedTensorMap inputs,
+    List<Tensor> Function() f,
+  ) {
     late List<Tensor> outputs;
     final holdResultWrapperFn = () {
       outputs = f();
