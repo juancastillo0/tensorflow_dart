@@ -36,8 +36,10 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:collection/collection.dart';
+import 'package:tensorflow_wasm/src/profile.dart';
 import 'package:tensorflow_wasm/src/tape.dart';
 import 'package:tensorflow_wasm/src/tensor.dart';
+import 'package:tensorflow_wasm/src/tensor_util.dart';
 
 import 'backend.dart';
 import 'global_util.dart';
@@ -59,7 +61,7 @@ typedef ForwardFunc<T> = T Function(KernelBackend backend, GradSaveFunc? save);
  * }
  */
 typedef CustomGradientFunc<T extends Tensor> = Gradient<T> Function(
-  List<Tensor> inputs,
+  List<Object> inputs,
 ); // inputs: Tensor|GradSaveFunc
 
 class Gradient<T> {
@@ -167,7 +169,7 @@ typedef GradSaveFunc = void Function(List<Tensor> save);
  * @docalias void|number|string|TypedArray|Tensor|Tensor[]|{[key:
  * string]:Tensor|number|string}
  */
-typedef TensorContainer = Object;
+typedef TensorContainer = Object?;
 // void|Tensor|string|number|boolean|TensorContainerObject|
 // TensorContainerArray|Float32Array|Int32Array|Uint8Array;
 
@@ -315,7 +317,7 @@ class Engine implements TensorTracker, DataMover {
   Map<String, KernelBackend> registry = {};
   Map<String, RegistryFactory> registryFactory = {};
 
-  Profiler _profiler;
+  late Profiler profiler;
   KernelBackend? _backendInstance;
   Future<bool>? _pendingBackendInit;
   int _pendingBackendInitId = 0;
@@ -424,7 +426,7 @@ class Engine implements TensorTracker, DataMover {
     this._backendInstance = this.registry[backendName];
     this._setupRegisteredKernels();
     // Reset the profiler.
-    this.profiler = Profiler(this._backendInstance);
+    this.profiler = Profiler(this._backendInstance!);
 
     return true;
   }
@@ -746,7 +748,7 @@ class Engine implements TensorTracker, DataMover {
   T _runKernelFunc<T extends Tensors, I extends NamedTensorMap>(
     KernelInvocation<I> kernelParams,
   ) {
-    List<Tensor>? outputs;
+    late List<Tensor> outputs;
     List<Tensor> saved = [];
     final isTapeOn = this.isTapeOn();
 
@@ -767,7 +769,7 @@ class Engine implements TensorTracker, DataMover {
       this.backend;
     }
 
-    ListOrVal<TensorInfo> out;
+    late ListOrVal<TensorInfo> out;
 
     final kernelOrScopeName = kernelParams is RegisteredKernelInvocation
         ? kernelParams.kernelName!
@@ -831,6 +833,7 @@ class Engine implements TensorTracker, DataMover {
       final forwardFunc =
           (kernelParams as CustomGradKernelInvocation).forwardFunc;
       // Running a customGrad op.
+      // ignore: prefer_function_declarations_over_variables
       final GradSaveFunc saveFunc = (tensors) {
         // Do not save unless we are recording to the tape. Otherwise it would
         // cause a mem leak since we would never run backprop, which disposes
@@ -847,14 +850,17 @@ class Engine implements TensorTracker, DataMover {
 
       kernelFunc = () {
         final numDataIdsBefore = this.backend.numDataIds();
-        out = this.tidy(() => forwardFunc(this.backend, saveFunc));
+        out = this.tidy(() => forwardFunc(this.backend, saveFunc)).match(
+              (tensor) => ListOrVal.val(tensor),
+              (list) => ListOrVal.list(list),
+            );
         final outs = out.asList;
         if (this._shouldCheckForMemLeaks()) {
           // Scope name is used to print a more helpful error message if needed.
           this._checkKernelForMemLeak(
               kernelOrScopeName, numDataIdsBefore, outs);
         }
-        return outs;
+        return outs.cast();
       };
     }
 
@@ -868,7 +874,7 @@ class Engine implements TensorTracker, DataMover {
         ? kernelParams.backwardsFunc
         : null;
 
-    KernelProfile kernelProfile;
+    late KernelProfile kernelProfile;
     this._scopedRun(
       // Stop recording to a tape when running a kernel.
       () => this.state.kernelDepth++,
@@ -895,7 +901,7 @@ class Engine implements TensorTracker, DataMover {
         outputs,
         backwardsFunc == null ? null : (t, saved, _) => backwardsFunc(t, saved),
         saved,
-        attrs,
+        attrs ?? {}, // TODO: didn't have "?? {}"
       );
     }
 
@@ -912,7 +918,7 @@ class Engine implements TensorTracker, DataMover {
             extraInfo: kernelProfile.extraInfo,
           ));
     }
-    return (out is List ? outputs : outputs[0]) as T;
+    return (out.isList ? outputs : outputs[0]) as T;
   }
 
   /**
@@ -991,7 +997,7 @@ class Engine implements TensorTracker, DataMover {
     dtype = dtype ?? 'float32';
     backend = backend ?? this.backend;
     var backendVals = values as BackendValues;
-    if (dtype == 'string' && util.isString(values[0])) {
+    if (dtype == 'string' && values[0] is String) {
       backendVals =
           (values as List<String>).map((d) => util.encodeString(d)).toList();
     }
@@ -1002,7 +1008,8 @@ class Engine implements TensorTracker, DataMover {
     // Count bytes for string tensors.
     if (dtype == 'string') {
       final info = this.state.tensorInfo[dataId]!;
-      final newBytes = bytesFromStringArray(backendVals as List<Uint8List>);
+      final newBytes =
+          util.bytesFromStringArray(backendVals as List<Uint8List>);
       this.state.numBytes += newBytes - info.bytes;
       info.bytes = newBytes;
     }
@@ -1264,7 +1271,7 @@ class Engine implements TensorTracker, DataMover {
     // Dispose the arrays tracked in this scope.
     for (int i = 0; i < this.state.activeScope!.track.length; i++) {
       final tensor = this.state.activeScope!.track[i];
-      if (!tensor.kept && !tensorsToTrackInParentSet.has(tensor.id)) {
+      if (!tensor.kept && !tensorsToTrackInParentSet.contains(tensor.id)) {
         tensor.dispose();
       }
     }
@@ -1361,14 +1368,15 @@ class Engine implements TensorTracker, DataMover {
               'The args passed in customGrad(f)(x1, x2,...) must all be ' +
               'tensors');
 
-      Gradient res;
+      late Gradient res;
       final NamedTensorMap inputMap = {};
       inputs.forEachIndexed((i, input) {
         inputMap[i.toString()] = input; // TODO: wasn't i.toString()
       });
 
+      // ignore: prefer_function_declarations_over_variables
       final ForwardFunc<T> forwardFunc = (_, save) {
-        res = f([...inputs, save]);
+        res = f([...inputs, save!]);
         util.assert_(
             res.value is Tensor,
             () =>
