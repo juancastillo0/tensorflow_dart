@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:tensorflow_wasm/src/backend.dart';
+import 'package:tensorflow_wasm/src/engine.dart';
 import 'package:tensorflow_wasm/src/tensor.dart';
 
 import 'emscripten_module.dart';
@@ -68,7 +69,7 @@ class BackendWasm extends KernelBackend {
   }
 
   DataId write(
-    BackendValues values,
+    BackendValues? values,
     List<int> shape,
     DataType dtype,
   ) {
@@ -90,7 +91,7 @@ class BackendWasm extends KernelBackend {
 
   void move(
     DataId dataId,
-    BackendValues values,
+    BackendValues? values,
     List<int> shape,
     DataType dtype,
     int refCount,
@@ -128,13 +129,14 @@ class BackendWasm extends KernelBackend {
     this.wasm.tfjs.registerTensor(id, size, memoryOffset);
 
     if (values != null) {
-      this.wasm.HEAPU8.set(
-            Uint8Array(
+      this.wasm.HEAPU8.setRange(
+            memoryOffset,
+            memoryOffset + numBytes,
+            Uint8List.view(
               (values as TypedData).buffer,
               (values as TypedData).offsetInBytes,
               numBytes,
             ),
-            memoryOffset,
           );
     }
   }
@@ -154,7 +156,7 @@ class BackendWasm extends KernelBackend {
       // Slice all elements.
       if ((start == null || start == 0) &&
           (end == null || end >= stringBytes!.length)) {
-        return stringBytes;
+        return stringBytes!;
       }
       return stringBytes!.sublist(start!, end);
     }
@@ -357,17 +359,19 @@ Future<BackendWasmModule> init() async {
      * @param prefix The path to the main JavaScript file's directory.
      */
   String locateFile(String path, String prefix) {
-    if (path.endsWith('.worker.js')) {
-      final response = wasmWorkerContents;
-      final blob = Blob([response], {'type': 'application/javascript'});
-      return URL.createObjectURL(blob);
-    }
+    // TODO:
+    // if (path.endsWith('.worker.js')) {
+    //   final response = wasmWorkerContents;
+    //   final blob = Blob([response], {'type': 'application/javascript'});
+    //   return URL.createObjectURL(blob);
+    // }
 
     if (path.endsWith('.wasm')) {
       return getPathToWasmBinary(
-          simdSupported as bool,
-          threadsSupported as bool,
-          wasmPathPrefix != null ? wasmPathPrefix! : prefix);
+        simdSupported,
+        threadsSupported,
+        wasmPathPrefix != null ? wasmPathPrefix! : prefix,
+      );
     }
     return prefix + path;
   }

@@ -15,21 +15,31 @@
  * =============================================================================
  */
 
-import {Platform} from './platforms/platform';
-import {isPromise} from './util_base';
+import 'dart:async';
+
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
+
+// import {Platform} from './platforms/platform';
+// import {isPromise} from './util_base';
 
 // Expects flags from URL in the format ?tfjsflags=FLAG1:1,FLAG2:true.
 const TENSORFLOWJS_FLAGS_PREFIX = 'tfjsflags';
 
-type FlagValue = number|boolean;
-type FlagEvaluationFn = (() => FlagValue)|(() => Promise<FlagValue>);
-export type Flags = {
-  [featureName: string]: FlagValue
-};
-export type FlagRegistryEntry = {
-  evaluationFn: FlagEvaluationFn;
-  setHook?: (value: FlagValue) => void;
-};
+typedef FlagValue = Object; // number|boolean;
+typedef FlagEvaluationFn = FutureOr<FlagValue> Function();
+typedef Flags = Map<String, FlagValue>;
+
+class FlagRegistryEntry {
+  final FlagEvaluationFn evaluationFn;
+  final void Function(FlagValue value)? setHook;
+
+  FlagRegistryEntry({
+    required this.evaluationFn,
+    this.setHook,
+  });
+}
+
+typedef Platform = Map;
 
 /**
  * The environment contains evaluated flags as well as the registered platform.
@@ -38,29 +48,29 @@ export type FlagRegistryEntry = {
  *
  * @doc {heading: 'Environment'}
  */
-export class Environment {
-  private flags: Flags = {};
-  private flagRegistry: {[flagName: string]: FlagRegistryEntry} = {};
+class Environment {
+  Flags flags = {};
+  final flagRegistry = <String, FlagRegistryEntry>{};
 
-  private urlFlags: Flags = {};
+  Flags urlFlags = {};
 
-  platformName: string;
-  platform: Platform;
-
+  String? platformName;
+  Platform? platform;
+  final Object global;
   // Jasmine spies on this in 'environment_test.ts'
-  getQueryParams = getQueryParams;
+  // getQueryParams = getQueryParams;
 
   // tslint:disable-next-line: no-any
-  constructor(public global: any) {
-    this.populateURLFlags();
+  Environment(this.global) {
+    // this.populateURLFlags(); // TODO:
   }
 
-  setPlatform(platformName: string, platform: Platform) {
+  setPlatform(String platformName, Platform platform) {
     if (this.platform != null) {
       if (!(env().getBool('IS_TEST') || env().getBool('PROD'))) {
-        console.warn(
-            `Platform ${this.platformName} has already been set. ` +
-            `Overwriting the platform with ${platformName}.`);
+        util.log.warning(
+            'Platform ${this.platformName} has already been set. ' +
+                'Overwriting the platform with ${platformName}.');
       }
     }
     this.platformName = platformName;
@@ -68,133 +78,137 @@ export class Environment {
   }
 
   registerFlag(
-      flagName: string, evaluationFn: FlagEvaluationFn,
-      setHook?: (value: FlagValue) => void) {
-    this.flagRegistry[flagName] = {evaluationFn, setHook};
+    String flagName,
+    FlagEvaluationFn evaluationFn, {
+    void Function(FlagValue)? setHook,
+  }) {
+    this.flagRegistry[flagName] =
+        FlagRegistryEntry(evaluationFn: evaluationFn, setHook: setHook);
 
     // Override the flag value from the URL. This has to happen here because
     // the environment is initialized before flags get registered.
     if (this.urlFlags[flagName] != null) {
-      const flagValue = this.urlFlags[flagName];
+      final flagValue = this.urlFlags[flagName]!;
       if (!(env().getBool('IS_TEST') || env().getBool('PROD'))) {
-        console.warn(
-            `Setting feature override from URL ${flagName}: ${flagValue}.`);
+        util.log.warning(
+            'Setting feature override from URL ${flagName}: ${flagValue}.');
       }
       this.set(flagName, flagValue);
     }
   }
 
-  async getAsync(flagName: string): Promise<FlagValue> {
-    if (flagName in this.flags) {
-      return this.flags[flagName];
+  Future<FlagValue> getAsync(String flagName) async {
+    if (this.flags.containsKey(flagName)) {
+      return this.flags[flagName]!;
     }
 
-    this.flags[flagName] = await this.evaluateFlag(flagName);
-    return this.flags[flagName];
+    this.flags[flagName] = await this._evaluateFlag(flagName);
+    return this.flags[flagName]!;
   }
 
-  get(flagName: string): FlagValue {
-    if (flagName in this.flags) {
-      return this.flags[flagName];
+  FlagValue get(String flagName) {
+    if (this.flags.containsKey(flagName)) {
+      return this.flags[flagName]!;
     }
 
-    const flagValue = this.evaluateFlag(flagName);
-    if (isPromise(flagValue)) {
-      throw new Error(
-          `Flag ${flagName} cannot be synchronously evaluated. ` +
-          `Please use getAsync() instead.`);
+    final flagValue = this._evaluateFlag(flagName);
+    if (flagValue is Future) {
+      throw Exception('Flag ${flagName} cannot be synchronously evaluated. ' +
+          'Please use getAsync() instead.');
     }
 
     this.flags[flagName] = flagValue;
-    return this.flags[flagName];
+    return this.flags[flagName]!;
   }
 
-  getNumber(flagName: string): number {
-    return this.get(flagName) as number;
+  num getNumber(String flagName) {
+    return this.get(flagName) as num;
   }
 
-  getBool(flagName: string): boolean {
-    return this.get(flagName) as boolean;
+  bool getBool(String flagName) {
+    return this.get(flagName) as bool;
   }
 
-  getFlags(): Flags {
+  Flags getFlags() {
     return this.flags;
   }
+
   // For backwards compatibility.
-  get features(): Flags {
+  Flags get features {
     return this.flags;
   }
 
-  set(flagName: string, value: FlagValue): void {
+  void set(String flagName, FlagValue value) {
     if (this.flagRegistry[flagName] == null) {
-      throw new Error(
-          `Cannot set flag ${flagName} as it has not been registered.`);
+      throw Exception(
+          'Cannot set flag ${flagName} as it has not been registered.');
     }
     this.flags[flagName] = value;
-    if (this.flagRegistry[flagName].setHook != null) {
-      this.flagRegistry[flagName].setHook(value);
+    if (this.flagRegistry[flagName]!.setHook != null) {
+      this.flagRegistry[flagName]!.setHook!(value);
     }
   }
 
-  private evaluateFlag(flagName: string): FlagValue|Promise<FlagValue> {
+  FutureOr<FlagValue> _evaluateFlag(String flagName) {
     if (this.flagRegistry[flagName] == null) {
-      throw new Error(
-          `Cannot evaluate flag '${flagName}': no evaluation function found.`);
+      throw Exception(
+          "Cannot evaluate flag '${flagName}': no evaluation function found.");
     }
-    return this.flagRegistry[flagName].evaluationFn();
+    return this.flagRegistry[flagName]!.evaluationFn();
   }
 
-  setFlags(flags: Flags) {
-    this.flags = Object.assign({}, flags);
+  void setFlags(Flags flags) {
+    this.flags = {...flags};
   }
 
   reset() {
     this.flags = {};
     this.urlFlags = {};
-    this.populateURLFlags();
+    // TODO:
+    // this.populateURLFlags();
   }
 
-  private populateURLFlags(): void {
-    if (typeof this.global === 'undefined' ||
-        typeof this.global.location === 'undefined' ||
-        typeof this.global.location.search === 'undefined') {
-      return;
-    }
+  // private populateURLFlags(): void {
+  //   if (typeof this.global === 'undefined' ||
+  //       typeof this.global.location === 'undefined' ||
+  //       typeof this.global.location.search === 'undefined') {
+  //     return;
+  //   }
 
-    const urlParams = this.getQueryParams(this.global.location.search);
-    if (TENSORFLOWJS_FLAGS_PREFIX in urlParams) {
-      const keyValues = urlParams[TENSORFLOWJS_FLAGS_PREFIX].split(',');
-      keyValues.forEach(keyValue => {
-        const [key, value] = keyValue.split(':') as [string, string];
-        this.urlFlags[key] = parseValue(key, value);
-      });
-    }
-  }
+  //   final urlParams = this.getQueryParams(this.global.location.search);
+  //   if (TENSORFLOWJS_FLAGS_PREFIX in urlParams) {
+  //     final keyValues = urlParams[TENSORFLOWJS_FLAGS_PREFIX].split(',');
+  //     keyValues.forEach((keyValue) => {
+  //       final [key, value] = keyValue.split(':') as [string, string];
+  //       this.urlFlags[key] = parseValue(key, value);
+  //     });
+  //   }
+  // }
 }
 
-export function getQueryParams(queryString: string): {[key: string]: string} {
-  const params = {};
-  queryString.replace(/[?&]([^=?&]+)(?:=([^&]*))?/g, (s, ...t) => {
-    decodeParam(params, t[0], t[1]);
-    return t.join('=');
-  });
-  return params;
-}
+// export function getQueryParams(queryString: string): {[key: string]: string} {
+//   final params = {};
+//   queryString.replace(/[?&]([^=?&]+)(?:=([^&]*))?/g, (s, ...t) => {
+//     decodeParam(params, t[0], t[1]);
+//     return t.join('=');
+//   });
+//   return params;
+// }
 
-function decodeParam(
-    params: {[key: string]: string}, name: string, value?: string) {
-  params[decodeURIComponent(name)] = decodeURIComponent(value || '');
-}
+// function decodeParam(
+//     params: {[key: string]: string}, name: string, value?: string) {
+//   params[decodeURIComponent(name)] = decodeURIComponent(value || '');
+// }
 
-function parseValue(flagName: string, value: string): FlagValue {
+FlagValue parseValue(String flagName, String value) {
   value = value.toLowerCase();
-  if (value === 'true' || value === 'false') {
-    return value === 'true';
-  } else if (`${+ value}` === value) {
-    return +value;
+  if (value == 'true' || value == 'false') {
+    return value == 'true';
+  } else if ('${value}' == value) {
+    return value;
   }
-  throw new Error(
-      `Could not parse value flag value ${value} for flag ${flagName}.`);
+  throw Exception(
+      'Could not parse value flag value ${value} for flag ${flagName}.');
 }
 
 /**
@@ -205,11 +219,11 @@ function parseValue(flagName: string, value: string): FlagValue {
  *
  * @doc {heading: 'Environment'}
  */
-export function env() {
-  return ENV;
+Environment env() {
+  return ENV!;
 }
 
-export let ENV: Environment = null;
-export function setEnvironmentGlobal(environment: Environment) {
+Environment? ENV = null;
+void setEnvironmentGlobal(Environment environment) {
   ENV = environment;
 }

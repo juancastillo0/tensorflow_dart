@@ -1,3 +1,4 @@
+import 'package:tensorflow_wasm/src/environment.dart';
 import 'package:tensorflow_wasm/src/tape.dart';
 import 'package:tensorflow_wasm/src/util_base.dart' as util;
 import 'package:tensorflow_wasm/src/global_util.dart';

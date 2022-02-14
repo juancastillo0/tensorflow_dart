@@ -36,6 +36,7 @@ class BackendTimingInfo {
 class MemoryInfo {
   final bool unreliable;
   final List<String>? reasons;
+
   MemoryInfo({
     required this.unreliable,
     this.reasons,
@@ -45,7 +46,7 @@ class MemoryInfo {
 abstract class TensorStorage {
   Future<BackendValues> read(DataId dataId);
   BackendValues readSync(DataId dataId);
-  bool disposeData(DataId dataId, {bool? force});
+  bool disposeData(DataId dataId, {bool force});
   DataId write(BackendValues values, List<int> shape, DataType dtype);
   void move(DataId dataId, BackendValues values, List<int> shape,
       DataType dtype, int refCount);
@@ -145,7 +146,7 @@ class KernelBackend implements TensorStorage, Backend, BackendTimer {
     return notYetImplemented('numDataIds');
   }
 
-  bool disposeData(DataId dataId, {bool? force}) {
+  bool disposeData(DataId dataId, {bool force = false}) {
     return notYetImplemented('disposeData');
   }
 

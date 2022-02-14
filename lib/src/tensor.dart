@@ -218,6 +218,27 @@ class TensorBuffer<R extends Rank, D extends DataType> {
   }
 }
 
+class DataToGPUWebGLOption {
+  final List<int>? customTexShape;
+
+  DataToGPUWebGLOption(this.customTexShape);
+}
+
+typedef DataToGPUOptions = DataToGPUWebGLOption;
+typedef WebGLTexture = Object;
+
+class GPUData {
+  Tensor tensorRef;
+  WebGLTexture texture;
+  List<int>? texShape;
+
+  GPUData({
+    required this.tensorRef,
+    required this.texture,
+    this.texShape,
+  });
+}
+
 abstract class TensorTracker {
   Tensor makeTensor(
     DataValues values,
@@ -513,7 +534,9 @@ class Tensor<R extends Rank> with Tensors implements TensorInfo {
    */
   String toString({bool verbose = false}) {
     final vals = this.dataSync();
-    return tensorToString(vals, this.shape, this.dtype, verbose);
+    return '{vals: $vals, shape: $shape, dtype: $dtype}';
+    // TODO:
+    // return tensorToString(vals, this.shape, this.dtype, verbose);
   }
 
   T cast<T extends Tensor>(DataType dtype) {

@@ -36,6 +36,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:collection/collection.dart';
+import 'package:tensorflow_wasm/src/environment.dart';
 import 'package:tensorflow_wasm/src/kernel_names.dart' show Add, Cast, Identity;
 import 'package:tensorflow_wasm/src/profile.dart';
 import 'package:tensorflow_wasm/src/tape.dart';
@@ -80,18 +81,18 @@ class WithGradients<T> {
   WithGradients(this.value, this.grads);
 }
 
-class MemoryInfo {
+class MemoryInfoEngine implements MemoryInfo {
   int numTensors;
   int numDataBuffers;
   int numBytes;
-  bool? unreliable;
+  bool unreliable;
   List<String>? reasons;
 
-  MemoryInfo({
+  MemoryInfoEngine({
     required this.numTensors,
     required this.numDataBuffers,
     required this.numBytes,
-    this.unreliable,
+    required this.unreliable,
     this.reasons,
   });
 }
@@ -1140,11 +1141,15 @@ class Engine implements TensorTracker, DataMover {
     }
   }
 
-  MemoryInfo memory() {
-    final info = this.backend.memory() as MemoryInfo;
-    info.numTensors = this.state.numTensors;
-    info.numDataBuffers = this.state.numDataBuffers;
-    info.numBytes = this.state.numBytes;
+  MemoryInfoEngine memory() {
+    final _info = this.backend.memory();
+    final info = MemoryInfoEngine(
+      numTensors: this.state.numTensors,
+      numDataBuffers: this.state.numDataBuffers,
+      numBytes: this.state.numBytes,
+      unreliable: _info.unreliable,
+      reasons: _info.reasons,
+    );
     if (this.state.numStringTensors > 0) {
       info.unreliable = true;
 
@@ -1517,6 +1522,9 @@ Engine getOrMakeEngine() {
 }
 
 final ENGINE = getOrMakeEngine();
+
+// TODO: globals
+Engine engine() => ENGINE;
 
 /**
  * A implementation of the add op for use within engine and tape.
