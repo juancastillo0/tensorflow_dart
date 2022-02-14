@@ -1,3 +1,8 @@
+import 'package:tensorflow_wasm/src/backend.dart';
+import 'package:tensorflow_wasm/src/engine.dart';
+import 'package:tensorflow_wasm/src/tensor.dart';
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
+
 /**
  * @license
  * Copyright 2018 Google LLC. All Rights Reserved.
@@ -15,128 +20,150 @@
  * =============================================================================
  */
 
-import {BackendTimer, BackendTimingInfo} from './backends/backend';
-import {env} from './environment';
-import {Tensor} from './tensor';
-import {NamedTensorMap} from './tensor_types';
-import {DataType, DataTypeMap, TypedArray} from './types';
-import * as util from './util';
+// import {BackendTimer, BackendTimingInfo} from './backends/backend';
+// import {env} from './environment';
+// import {Tensor} from './tensor';
+// import {NamedTensorMap} from './tensor_types';
+// import {DataType, DataTypeMap, TypedArray} from './types';
+// import * as util from './util';
 
-export type KernelProfile = {
-  kernelName: string,
-  outputs: Tensor[],
-  inputs: NamedTensorMap,
-  timeMs: Promise<number|{error: string}>,
-  extraInfo: Promise<string>
-};
+class KernelProfile {
+  final String kernelName;
+  final List<Tensor> outputs;
+  final NamedTensorMap inputs;
+  final Future<Object> timeMs; // number|{error: String}
+  final Future<String> extraInfo;
 
-export class Profiler {
-  constructor(private backendTimer: BackendTimer, private logger?: Logger) {
-    if (logger == null) {
-      this.logger = new Logger();
-    }
-  }
+  KernelProfile({
+    required this.kernelName,
+    required this.outputs,
+    required this.inputs,
+    required this.timeMs,
+    required this.extraInfo,
+  });
+}
 
-  profileKernel(kernelName: string, inputs: NamedTensorMap, f: () => Tensor[]):
-      KernelProfile {
-    let outputs: Tensor[];
-    const holdResultWrapperFn = () => {
+class Profiler {
+  final ProfileLogger logger;
+  final BackendTimer backendTimer;
+
+  Profiler(this.backendTimer, {ProfileLogger? logger})
+      : logger = logger ?? ProfileLogger();
+
+  KernelProfile profileKernel(
+      String kernelName, NamedTensorMap inputs, List<Tensor> Function() f) {
+    late List<Tensor> outputs;
+    final holdResultWrapperFn = () {
       outputs = f();
     };
-    let timer: Promise<BackendTimingInfo>;
-    const start = util.now();
+    Future<BackendTimingInfo> timer;
+    final start = util.now();
     if (this.backendTimer.timerAvailable()) {
       timer = this.backendTimer.time(holdResultWrapperFn);
     } else {
       holdResultWrapperFn();
-      for (const output of outputs) {
+      for (final output in outputs) {
         output.dataSync();
       }
-      timer = Promise.resolve({kernelMs: util.now() - start});
+      timer = Future.value(BackendTimingInfo(util.now() - start));
     }
     if (env().getBool('CHECK_COMPUTATION_FOR_ERRORS')) {
-      for (let i = 0; i < outputs.length; i++) {
-        const output = outputs[i];
+      for (int i = 0; i < outputs.length; i++) {
+        final output = outputs[i];
         // Dangling promise here because we don't want to propagate up
         // asynchronicity.
-        output.data().then(tensorVals => {
+        output.data().then((tensorVals) {
           checkComputationForErrors(tensorVals, output.dtype, kernelName);
         });
       }
     }
 
-    const kernelProfile = {
-      kernelName,
-      outputs,
-      inputs,
-      timeMs: timer.then(timing => timing.kernelMs),
-      extraInfo: timer.then(
-          timing => timing.getExtraProfileInfo != null ?
-              timing.getExtraProfileInfo() :
-              '')
-    };
+    final kernelProfile = KernelProfile(
+      kernelName: kernelName,
+      outputs: outputs,
+      inputs: inputs,
+      timeMs: timer.then((timing) => timing.kernelMs),
+      extraInfo: timer.then((timing) => timing.getExtraProfileInfo != null
+          ? timing.getExtraProfileInfo!()
+          : ''),
+    );
     return kernelProfile;
   }
 
-  logKernelProfile(kernelProfile: KernelProfile): void {
-    const {kernelName, outputs, timeMs, inputs, extraInfo} = kernelProfile;
-
-    outputs.forEach(result => {
-      Promise.all([result.data(), timeMs, extraInfo]).then(valueContainer => {
+  void logKernelProfile(KernelProfile kernelProfile) {
+    kernelProfile.outputs.forEach((result) {
+      Future.wait([
+        result.data(),
+        kernelProfile.timeMs,
+        kernelProfile.extraInfo,
+      ]).then((valueContainer) {
         this.logger.logKernelProfile(
-            kernelName, result, valueContainer[0], valueContainer[1], inputs,
-            valueContainer[2]);
+              kernelProfile.kernelName,
+              result,
+              valueContainer[0] as List,
+              valueContainer[1],
+              kernelProfile.inputs,
+              valueContainer[2] as String,
+            );
       });
     });
   }
 }
 
-export function checkComputationForErrors<D extends DataType>(
-    vals: DataTypeMap[D], dtype: D, kernelName: string): boolean {
-  if (dtype !== 'float32') {
+bool checkComputationForErrors<D extends DataType>(
+  // DataTypeMap[D]
+  Object vals,
+  D dtype,
+  String kernelName,
+) {
+  if (dtype != 'float32') {
     // Only floating point computations will generate NaN values
     return false;
   }
-  for (let i = 0; i < vals.length; i++) {
-    const num = vals[i] as number;
-    if (isNaN(num) || !isFinite(num)) {
+  for (int i = 0; i < (vals as List).length; i++) {
+    final num_ = vals[i] as num;
+    if (num_.isNaN || !num_.isFinite) {
       // Throwing custom exception so behavior is testable.
-      console.warn(`Found ${num} in the result of '${kernelName}'`);
+      util.log.warning("Found ${num_} in the result of '${kernelName}'");
       return true;
     }
   }
   return false;
 }
 
-export class Logger {
+class ProfileLogger {
   logKernelProfile(
-      name: string, result: Tensor, vals: TypedArray,
-      timeMs: number|{error: string}, inputs: NamedTensorMap,
-      extraInfo?: string) {
-    const time = typeof timeMs === 'number' ? util.rightPad(`${timeMs}ms`, 9) :
-                                              timeMs['error'];
-    const paddedName = util.rightPad(name, 25);
-    const rank = result.rank;
-    const size = result.size;
-    const shape = util.rightPad(result.shape.toString(), 14);
-    let inputShapesDescription = '';
+    String name,
+    Tensor result,
+    List vals,
+    // number|{error: string}
+    Object timeMs,
+    NamedTensorMap inputs,
+    String? extraInfo,
+  ) {
+    final time = timeMs is num
+        ? util.rightPad('${timeMs}ms', 9)
+        : (timeMs as Map)['error'];
+    final paddedName = util.rightPad(name, 25);
+    final rank = result.rank;
+    final size = result.size;
+    final shape = util.rightPad(result.shape.toString(), 14);
+    String inputShapesDescription = '';
 
-    for (const name in inputs) {
-      const input = inputs[name];
+    for (final name in inputs.keys) {
+      final input = inputs[name];
       if (input != null) {
         // The input might be a non-tensor (e.g HTMLImageElement), in which case
         // we claim the output shape as input shape.
-        const inputShape = input.shape || result.shape;
-        const inputRank = inputShape.length;
+        final inputShape = input.shape ?? result.shape;
+        final inputRank = inputShape.length;
         inputShapesDescription +=
-            `${name}: ${inputRank}D ${inputRank > 0 ? inputShape : ''} `;
+            '${name}: ${inputRank}D ${inputRank > 0 ? inputShape : ''} ';
       }
     }
 
-    console.log(
-        `%c${paddedName}\t%c${time}\t%c${rank}D ${shape}\t%c${size}\t%c${
-            inputShapesDescription}\t%c${extraInfo}`,
-        'font-weight:bold', 'color:red', 'color:blue', 'color: orange',
-        'color: green', 'color: steelblue');
+    util.log.info(
+      '%c${paddedName}\t%c${time}\t%c${rank}D ${shape}\t%c${size}\t%c${inputShapesDescription}\t%c${extraInfo}',
+    );
   }
 }

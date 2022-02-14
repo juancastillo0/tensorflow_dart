@@ -233,9 +233,9 @@ int sizeFromShape(List<int> shape) {
   return size;
 }
 
-// export function isScalarShape(shape: number[]): boolean {
-//   return shape.length === 0;
-// }
+bool isScalarShape(List<int> shape) {
+  return shape.length == 0;
+}
 
 bool arraysEqual(List? n1, List? n2) {
   if (n1 == n2) {
@@ -302,12 +302,12 @@ bool arraysEqual(List? n1, List? n2) {
 //   return shuffledIndices;
 // }
 
-// export function rightPad(a: string, size: number): string {
-//   if (size <= a.length) {
-//     return a;
-//   }
-//   return a + ' '.repeat(size - a.length);
-// }
+String rightPad(String a, int size) {
+  if (size <= a.length) {
+    return a;
+  }
+  return a + ' ' * (size - a.length);
+}
 
 // export function repeatedTry(
 //     checkFn: () => boolean, delayFn = (counter: number) => 0,
@@ -545,20 +545,20 @@ int bytesPerElement(DataType dtype) {
   }
 }
 
-// /**
-//  * Returns the approximate number of bytes allocated in the string array - 2
-//  * bytes per character. Computing the exact bytes for a native string in JS is
-//  * not possible since it depends on the encoding of the html page that serves
-//  * the website.
-//  */
-// export function bytesFromStringArray(arr: Uint8Array[]): number {
-//   if (arr == null) {
-//     return 0;
-//   }
-//   let bytes = 0;
-//   arr.forEach(x => bytes += x.length);
-//   return bytes;
-// }
+/**
+ * Returns the approximate number of bytes allocated in the string array - 2
+ * bytes per character. Computing the exact bytes for a native string in JS is
+ * not possible since it depends on the encoding of the html page that serves
+ * the website.
+ */
+int bytesFromStringArray(List<Uint8List>? arr) {
+  if (arr == null) {
+    return 0;
+  }
+  int bytes = 0;
+  arr.forEach((x) => bytes += x.length);
+  return bytes;
+}
 
 // /** Returns true if the value is a string. */
 // export function isString(value: {}): value is string {

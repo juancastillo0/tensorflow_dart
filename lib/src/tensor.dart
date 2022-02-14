@@ -48,8 +48,8 @@ class Tensors {
   bool get isList => this is TensorList;
 
   O match<O>(
-    O Function(Tensor) tensor,
-    O Function(TensorList) list,
+    O Function(Tensor tensor) tensor,
+    O Function(TensorList list) list,
   ) =>
       isList ? list(this as TensorList) : tensor(this as Tensor);
 }
