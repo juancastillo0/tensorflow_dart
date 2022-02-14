@@ -925,7 +925,8 @@ Map<String, Function> asmLibraryArgs(
   _emscripten_memcpy_big(int dest, int src, int num) {
     // TODO: HEAPU8.copyWithin(dest, src, src + num);
     final HEAPU8 = wasmMemory().view;
-    HEAPU8.setAll(dest, HEAPU8.sublist(src, src + num));
+    // HEAPU8.setAll(dest, HEAPU8.sublist(src, src + num));
+    List.copyRange(HEAPU8, dest, HEAPU8, src, src + num);
   }
 
   _emscripten_get_heap_size() {
