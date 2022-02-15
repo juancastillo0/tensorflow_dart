@@ -21,7 +21,7 @@ import 'package:tensorflow_wasm/src/engine.dart' show Engine;
 // always resolve to the same global object regardless of how the module is
 // resolved.
 // tslint:disable-next-line:no-any
-final globalNameSpace = GlobalNamespace();
+final _globalNameSpace = GlobalNamespace();
 
 class GlobalNamespace {
   Map<String, Object?>? _tfGlobals;
@@ -30,7 +30,7 @@ class GlobalNamespace {
 
 // tslint:disable-next-line:no-any
 GlobalNamespace getGlobalNamespace() {
-  if (globalNameSpace == null) {
+  if (_globalNameSpace == null) {
     // TODO:
     // tslint:disable-next-line:no-any
     // let ns: any;
@@ -47,7 +47,7 @@ GlobalNamespace getGlobalNamespace() {
     // }
     // globalNameSpace = ns;
   }
-  return globalNameSpace;
+  return _globalNameSpace;
 }
 
 // tslint:disable-next-line:no-any

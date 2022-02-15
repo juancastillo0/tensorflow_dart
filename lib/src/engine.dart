@@ -36,8 +36,9 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:collection/collection.dart';
+import 'package:tensorflow_wasm/src/base.dart'
+    show Add, Cast, Identity, setUpOpHandler;
 import 'package:tensorflow_wasm/src/environment.dart';
-import 'package:tensorflow_wasm/src/kernel_names.dart' show Add, Cast, Identity;
 import 'package:tensorflow_wasm/src/profile.dart';
 import 'package:tensorflow_wasm/src/tape.dart';
 import 'package:tensorflow_wasm/src/tensor.dart';
@@ -156,28 +157,10 @@ class TimingInfo implements BackendTimingInfo {
 /** @docalias Function */
 typedef ScopeFn<T extends TensorContainer> = T Function();
 
-typedef NamedTensorMap = Map<String, Tensor>;
-
 abstract class NamedTensor {
   String get name;
   Tensor get tensor;
 }
-
-typedef NamedVariableMap = Map<String, Variable>;
-
-typedef GradSaveFunc = void Function(List<Tensor> save);
-
-/**
- * @docalias void|number|string|TypedArray|Tensor|Tensor[]|{[key:
- * string]:Tensor|number|string}
- */
-typedef TensorContainer = Object?;
-// void|Tensor|string|number|boolean|TensorContainerObject|
-// TensorContainerArray|Float32Array|Int32Array|Uint8Array;
-
-typedef TensorContainerObject = Map<String, TensorContainer>;
-
-// export interface TensorContainerArray extends Array<TensorContainer> {}
 
 class ScopeState {
   final List<Tensor> track;
@@ -298,7 +281,7 @@ class EngineState {
 }
 
 class RegistryFactory {
-  final Future<KernelBackend> Function() factoryFn;
+  final FutureOr<KernelBackend> Function() factoryFn;
   final int priority;
 
   RegistryFactory(this.factoryFn, this.priority);
@@ -391,7 +374,7 @@ class Engine implements TensorTracker, DataMover {
     return this.registry[backendName];
   }
 
-  Future<KernelBackend> Function()? findBackendFactory(String backendName) {
+  FutureOr<KernelBackend> Function()? findBackendFactory(String backendName) {
     if (!this.registryFactory.containsKey(backendName)) {
       return null;
     }
@@ -400,7 +383,7 @@ class Engine implements TensorTracker, DataMover {
 
   bool registerBackend(
     String backendName,
-    Future<KernelBackend> Function() factory, [
+    FutureOr<KernelBackend> Function() factory, [
     int priority = 1,
   ]) {
     if (this.registryFactory.containsKey(backendName)) {
@@ -495,7 +478,7 @@ class Engine implements TensorTracker, DataMover {
         this._pendingBackendInit = success;
         return InitResult(success: success, asyncInit: true);
       } else {
-        this.registry[backendName] = backend as KernelBackend;
+        this.registry[backendName] = backend;
         return InitResult(success: true, asyncInit: false);
       }
     } catch (err, stackTrace) {
@@ -1160,7 +1143,9 @@ class Engine implements TensorTracker, DataMover {
     return info;
   }
 
-  Future<ProfileInfo> profile(Future<TensorContainer> Function() query) async {
+  Future<ProfileInfo> profile(
+    FutureOr<TensorContainer> Function() query,
+  ) async {
     this.state.profiling = true;
 
     final startBytes = this.state.numBytes;
@@ -1399,8 +1384,8 @@ class Engine implements TensorTracker, DataMover {
       backwardsFunc(T dy, List<Tensor> saved) {
         final gradRes = res.gradFunc(dy, saved);
         final List<Tensor> grads = gradRes.match(
-          (gradRes) => [gradRes],
-          (gradRes) => gradRes,
+          (tensor) => [tensor],
+          (list) => list,
         );
         util.assert_(
             grads.length == inputs.length,
@@ -1506,11 +1491,12 @@ Tensor ones(List<int> shape) {
   return ENGINE.makeTensor(values, shape, 'float32');
 }
 
-Engine getOrMakeEngine() {
+Engine _getOrMakeEngine() {
   final ns = getGlobalNamespace();
   if (ns.tfengine == null) {
     final environment = Environment(ns);
     ns.tfengine = Engine(environment);
+    setUpOpHandler();
   }
   final engine = ns.tfengine!;
   setEnvironmentGlobal(engine.ENV);
@@ -1521,10 +1507,7 @@ Engine getOrMakeEngine() {
   return engine;
 }
 
-final ENGINE = getOrMakeEngine();
-
-// TODO: globals
-Engine engine() => ENGINE;
+final ENGINE = _getOrMakeEngine();
 
 /**
  * A implementation of the add op for use within engine and tape.

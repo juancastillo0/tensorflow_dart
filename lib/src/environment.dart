@@ -39,7 +39,7 @@ class FlagRegistryEntry {
   });
 }
 
-typedef Platform = Map;
+typedef TFPlatform = Map;
 
 /**
  * The environment contains evaluated flags as well as the registered platform.
@@ -55,7 +55,7 @@ class Environment {
   Flags urlFlags = {};
 
   String? platformName;
-  Platform? platform;
+  TFPlatform? platform;
   final Object global;
   // Jasmine spies on this in 'environment_test.ts'
   // getQueryParams = getQueryParams;
@@ -65,7 +65,7 @@ class Environment {
     // this.populateURLFlags(); // TODO:
   }
 
-  setPlatform(String platformName, Platform platform) {
+  setPlatform(String platformName, TFPlatform platform) {
     if (this.platform != null) {
       if (!(env().getBool('IS_TEST') || env().getBool('PROD'))) {
         util.log.warning(

@@ -42,18 +42,34 @@ typedef BackendValues
 typedef DataValues
     = List; // Float32Array|Int32Array|Uint8Array|Float32Array|string[];
 
+typedef NamedVariableMap = Map<String, Variable>;
+
+typedef GradSaveFunc = void Function(List<Tensor> save);
+
+typedef NamedTensorMap = Map<String, Tensor>;
+
+/**
+ * @docalias void|number|string|TypedArray|Tensor|Tensor[]|{[key:
+ * string]:Tensor|number|string}
+ */
+typedef TensorContainer = Object?;
+// void|Tensor|string|number|boolean|TensorContainerObject|
+// TensorContainerArray|Float32Array|Int32Array|Uint8Array;
+
+typedef TensorContainerObject = Map<String, TensorContainer>;
+
+typedef TensorContainerArray = List<TensorContainer>;
+
 class TensorList extends DelegatingList<Tensor> with Tensors {
   TensorList(List<Tensor<Rank>> base) : super(base);
 }
 
 class Tensors {
-  bool get isList => this is TensorList;
-
   O match<O>(
     O Function(Tensor tensor) tensor,
     O Function(TensorList list) list,
   ) =>
-      isList ? list(this as TensorList) : tensor(this as Tensor);
+      this is TensorList ? list(this as TensorList) : tensor(this as Tensor);
 }
 
 class ListOrVal<T> {
@@ -67,8 +83,8 @@ class ListOrVal<T> {
   T? get asVal => !isList ? _value as T : null;
 
   O match<O>(
-    O Function(T) val,
-    O Function(List<T>) list,
+    O Function(T val) val,
+    O Function(List<T> list) list,
   ) =>
       isList ? list(_value as List<T>) : val(_value as T);
 }
@@ -262,12 +278,17 @@ abstract class TensorTracker {
 /**
  * The Tensor class calls into this handler to delegate chaining operations.
  */
-abstract class OpHandler {
-  T cast<T extends Tensor>(T x, DataType dtype);
-  TensorBuffer<R, D> buffer<R extends Rank, D extends DataType>(
-      List<int> shape, D dtype, List? values);
-  void print<T extends Tensor>(T x, bool verbose);
-  T clone<T extends Tensor>(T x);
+class OpHandler {
+  final T Function<T extends Tensor>(T x, DataType dtype) cast;
+  final TensorBuffer<R, D> Function<R extends Rank, D extends DataType>(
+    List<int> shape,
+    D dtype,
+    List? values,
+  ) buffer;
+  final void Function<T extends Tensor>(T x, {bool verbose}) print;
+  final T Function<T extends Tensor>(T x) clone;
+
+  OpHandler(this.buffer, this.cast, this.clone, this.print);
   // TODO(yassogba) bring reshape back?
 }
 
@@ -515,7 +536,7 @@ class Tensor<R extends Rank> with Tensors implements TensorInfo {
    * @doc {heading: 'Tensors', subheading: 'Classes'}
    */
   void print({bool verbose = false}) {
-    return opHandler.print(this, verbose);
+    return opHandler.print(this, verbose: verbose);
   }
 
   /**
