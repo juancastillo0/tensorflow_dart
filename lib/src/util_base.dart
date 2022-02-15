@@ -20,7 +20,9 @@ import 'dart:typed_data';
 import 'dart:math' as math;
 
 import 'package:logging/logging.dart';
+import 'package:tensorflow_wasm/src/environment.dart';
 import 'package:tensorflow_wasm/src/tensor.dart';
+import 'package:tensorflow_wasm/src/tensor_util_env.dart';
 
 final log = Logger('tf_dart');
 
@@ -176,40 +178,44 @@ void assert_(bool expr, Object msg) {
 //       () => `The input to the tensor constructor must be a non-null value.`);
 // }
 
-// // NOTE: We explicitly type out what T extends instead of any so that
-// // util.flatten on a nested array of number doesn't try to infer T as a
-// // number[][], causing us to explicitly type util.flatten<number>().
-// /**
-//  *  Flattens an arbitrarily nested array.
-//  *
-//  * ```js
-//  * const a = [[1, 2], [3, 4], [5, [6, [7]]]];
-//  * const flat = tf.util.flatten(a);
-//  * console.log(flat);
-//  * ```
-//  *
-//  *  @param arr The nested array to flatten.
-//  *  @param result The destination array which holds the elements.
-//  *  @param skipTypedArray If true, avoids flattening the typed arrays. Defaults
-//  *      to false.
-//  *
-//  * @doc {heading: 'Util', namespace: 'util'}
-//  */
-// export function
-// flatten<T extends number|boolean|string|Promise<number>|TypedArray>(
-//     arr: T|RecursiveArray<T>, result: T[] = [], skipTypedArray = false): T[] {
-//   if (result == null) {
-//     result = [];
-//   }
-//   if (Array.isArray(arr) || isTypedArray(arr) && !skipTypedArray) {
-//     for (let i = 0; i < arr.length; ++i) {
-//       flatten(arr[i], result, skipTypedArray);
-//     }
-//   } else {
-//     result.push(arr as T);
-//   }
-//   return result;
-// }
+// NOTE: We explicitly type out what T extends instead of any so that
+// util.flatten on a nested array of number doesn't try to infer T as a
+// number[][], causing us to explicitly type util.flatten<number>().
+/**
+ *  Flattens an arbitrarily nested array.
+ *
+ * ```js
+ * const a = [[1, 2], [3, 4], [5, [6, [7]]]];
+ * const flat = tf.util.flatten(a);
+ * console.log(flat);
+ * ```
+ *
+ *  @param arr The nested array to flatten.
+ *  @param result The destination array which holds the elements.
+ *  @param skipTypedArray If true, avoids flattening the typed arrays. Defaults
+ *      to false.
+ *
+ * @doc {heading: 'Util', namespace: 'util'}
+ */
+List<T> flatten<T extends Object>(
+  Object arr, {
+  List<T>? result,
+  bool skipTypedArray = false,
+}) {
+  // number|boolean|string|Promise<number>|TypedArray
+
+  result ??= [];
+
+  if (arr is List || arr is TypedData && !skipTypedArray) {
+    arr = arr as List;
+    for (int i = 0; i < arr.length; ++i) {
+      flatten(arr[i], result: result, skipTypedArray: skipTypedArray);
+    }
+  } else {
+    result.add(arr as T);
+  }
+  return result;
+}
 
 /**
  * Returns the size (number of elements) of the tensor given its shape.
@@ -477,41 +483,47 @@ List getArrayFromDType<D extends DataType>(D dtype, int size) {
   return values;
 }
 
-// export function checkConversionForErrors<D extends DataType>(
-//     vals: DataTypeMap[D]|number[], dtype: D): void {
-//   for (let i = 0; i < vals.length; i++) {
-//     const num = vals[i] as number;
-//     if (isNaN(num) || !isFinite(num)) {
-//       throw Error(`A tensor of type ${dtype} being uploaded contains ${num}.`);
-//     }
-//   }
-// }
+void checkConversionForErrors<D extends DataType>(
+  List<num> vals,
+  D dtype,
+) {
+  for (int i = 0; i < vals.length; i++) {
+    final num_ = vals[i];
+    if (num_.isNaN || num_.isInfinite) {
+      throw Exception(
+          'A tensor of type ${dtype} being uploaded contains ${num_}.');
+    }
+  }
+}
 
-// /** Returns true if the dtype is valid. */
-// export function isValidDtype(dtype: DataType): boolean {
-//   return dtype === 'bool' || dtype === 'complex64' || dtype === 'float32' ||
-//       dtype === 'int32' || dtype === 'string';
-// }
+/** Returns true if the dtype is valid. */
+bool isValidDtype(DataType dtype) {
+  return dtype == 'bool' ||
+      dtype == 'complex64' ||
+      dtype == 'float32' ||
+      dtype == 'int32' ||
+      dtype == 'string';
+}
 
-// /**
-//  * Returns true if the new type can't encode the old type without loss of
-//  * precision.
-//  */
-// export function hasEncodingLoss(oldType: DataType, newType: DataType): boolean {
-//   if (newType === 'complex64') {
-//     return false;
-//   }
-//   if (newType === 'float32' && oldType !== 'complex64') {
-//     return false;
-//   }
-//   if (newType === 'int32' && oldType !== 'float32' && oldType !== 'complex64') {
-//     return false;
-//   }
-//   if (newType === 'bool' && oldType === 'bool') {
-//     return false;
-//   }
-//   return true;
-// }
+/**
+ * Returns true if the new type can't encode the old type without loss of
+ * precision.
+ */
+bool hasEncodingLoss(DataType oldType, DataType newType) {
+  if (newType == 'complex64') {
+    return false;
+  }
+  if (newType == 'float32' && oldType != 'complex64') {
+    return false;
+  }
+  if (newType == 'int32' && oldType != 'float32' && oldType != 'complex64') {
+    return false;
+  }
+  if (newType == 'bool' && oldType == 'bool') {
+    return false;
+  }
+  return true;
+}
 
 /**
  * Returns the current high-resolution time in milliseconds relative to an
@@ -574,25 +586,25 @@ int bytesFromStringArray(List<Uint8List>? arr) {
 //   return typeof value === 'number';
 // }
 
-// export function inferDtype(values: TensorLike): DataType {
-//   if (Array.isArray(values)) {
-//     return inferDtype(values[0]);
-//   }
-//   if (values instanceof Float32Array) {
-//     return 'float32';
-//   } else if (values instanceof Int32Array
-//              || values instanceof Uint8Array
-//              || values instanceof Uint8ClampedArray) {
-//     return 'int32';
-//   } else if (isNumber(values)) {
-//     return 'float32';
-//   } else if (isString(values)) {
-//     return 'string';
-//   } else if (isBoolean(values)) {
-//     return 'bool';
-//   }
-//   return 'float32';
-// }
+DataType inferDtype(Object values) {
+  if (values is List) {
+    return inferDtype(values[0]);
+  }
+  if (values is Float32List) {
+    return 'float32';
+  } else if (values is Int32List ||
+      values is Uint8List ||
+      values is Uint8ClampedList) {
+    return 'int32';
+  } else if (values is num) {
+    return 'float32';
+  } else if (values is String) {
+    return 'string';
+  } else if (values is bool) {
+    return 'bool';
+  }
+  return 'float32';
+}
 
 // export function isFunction(f: Function) {
 //   return !!(f && f.constructor && f.call && f.apply);
@@ -709,15 +721,16 @@ List<num> makeZerosTypedArray<D extends DataType>(int size, D dtype) {
 //   }
 // }
 
-// export function assertNonNegativeIntegerDimensions(shape: number[]) {
-//   shape.forEach(dimSize => {
-//     assert(
-//         Number.isInteger(dimSize) && dimSize >= 0,
-//         () =>
-//             `Tensor must have a shape comprised of positive integers but got ` +
-//             `shape [${shape}].`);
-//   });
-// }
+void assertNonNegativeIntegerDimensions(List<int> shape) {
+  shape.forEach((dimSize) {
+    assert_(
+      dimSize == dimSize.toInt() && dimSize >= 0,
+      () =>
+          'Tensor must have a shape comprised of positive integers but got ' +
+          'shape [${shape}].',
+    );
+  });
+}
 
 // /**
 //  * Computes flat index for a given location (multidimentionsal index) in a
@@ -779,6 +792,55 @@ List<num> makeZerosTypedArray<D extends DataType>(int size, D dtype) {
 //   //  pre-patched Promise.
 //   return object && object.then && typeof object.then === 'function';
 // }
+
+/**
+ * Create typed array for scalar value. Used for storing in `DataStorage`.
+ */
+BackendValues createScalarValue(DataType value, DataType dtype) {
+  if (dtype == 'string') {
+    return encodeString(value);
+  }
+
+  return toTypedArray([value], dtype) as BackendValues;
+}
+
+bool noConversionNeeded(TensorLike a, DataType dtype) {
+  return (a is Float32List && dtype == 'float32') ||
+      (a is Int32List && dtype == 'int32') ||
+      (a is Uint8List && dtype == 'bool');
+}
+
+TypedData toTypedArray(TensorLike a, DataType dtype) {
+  if (dtype == 'string') {
+    throw Exception('Cannot convert a string[] to a TypedArray');
+  }
+  if (a is List) {
+    a = flatten(a);
+  }
+
+  if (env().getBool('DEBUG')) {
+    checkConversionForErrors((a as List).cast(), dtype);
+  }
+  if (noConversionNeeded(a, dtype)) {
+    return a as TypedData;
+  }
+  a = a as List;
+  if (dtype == null || dtype == 'float32' || dtype == 'complex64') {
+    return Float32List.fromList(a.cast());
+  } else if (dtype == 'int32') {
+    return Int32List.fromList(a.cast());
+  } else if (dtype == 'bool') {
+    final bool_ = Uint8List((a).length);
+    for (int i = 0; i < bool_.length; ++i) {
+      if (a[i] != 0) {
+        bool_[i] = 1;
+      }
+    }
+    return bool_;
+  } else {
+    throw Exception('Unknown data type ${dtype}');
+  }
+}
 
 /**
  * Encodes the provided string into bytes using the provided encoding scheme.
