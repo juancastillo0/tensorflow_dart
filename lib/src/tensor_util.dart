@@ -15,32 +15,41 @@
  * =============================================================================
  */
 
-import 'package:tensorflow_wasm/src/engine.dart';
 import 'package:tensorflow_wasm/src/tensor.dart';
+import 'package:tensorflow_wasm/src/types.dart';
+import 'package:tensorflow_wasm/src/util_base.dart';
 
 // import {Tensor} from './tensor';
 // import {TensorContainer, TensorContainerArray} from './tensor_types';
 // import {upcastType} from './types';
 // import {assert} from './util';
 
-// export function makeTypesMatch<T extends Tensor>(a: T, b: T): [T, T] {
-//   if (a.dtype === b.dtype) {
-//     return [a, b];
-//   }
-//   const dtype = upcastType(a.dtype, b.dtype);
-//   return [a.cast(dtype), b.cast(dtype)];
-// }
+class Tuple<F, S> {
+  final F first;
+  final S second;
 
-// export function assertTypesMatch(a: Tensor, b: Tensor): void {
-//   assert(
-//       a.dtype === b.dtype,
-//       () => `The dtypes of the first(${a.dtype}) and` +
-//           ` second(${b.dtype}) input must match`);
-// }
+  Tuple(this.first, this.second);
+}
 
-// export function isTensorInList(tensor: Tensor, tensorList: Tensor[]): boolean {
-//   return tensorList.some(x => x.id === tensor.id);
-// }
+Tuple<T, T> makeTypesMatch<T extends Tensor>(T a, T b) {
+  if (a.dtype == b.dtype) {
+    return Tuple(a, b);
+  }
+  final dtype = upcastType(a.dtype, b.dtype);
+  return Tuple(a.cast(dtype), b.cast(dtype));
+}
+
+void assertTypesMatch(Tensor a, Tensor b) {
+  assert_(
+      a.dtype == b.dtype,
+      () =>
+          'The dtypes of the first(${a.dtype}) and' +
+          ' second(${b.dtype}) input must match');
+}
+
+bool isTensorInList(Tensor tensor, List<Tensor> tensorList) {
+  return tensorList.any((x) => x.id == tensor.id);
+}
 
 /**
  * Extracts any `Tensor`s found within the provided object.

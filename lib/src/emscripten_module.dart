@@ -1205,11 +1205,13 @@ Map<String, Function> asmLibraryArgs(
 }
 
 void addTensorFlowFunctions(Map Module) async {
-  // TODO:
-  await Future.delayed(Duration(seconds: 1));
-  final exports = Module['asm'] as Map<String, Object?>;
   for (final entry in tfNames.entries) {
-    Module[entry.key] = exports[entry.value];
+    Module[entry.key] = varArgsFunction(
+      (args, _) => Function.apply(
+        (Module[entry.key] = Module['asm'][entry.value]) as Function,
+        args,
+      ),
+    );
   }
 }
 

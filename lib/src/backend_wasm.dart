@@ -2,11 +2,17 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:tensorflow_wasm/src/backend.dart';
-import 'package:tensorflow_wasm/src/engine.dart';
+import 'package:tensorflow_wasm/src/globals.dart' show BackendFactory, engine;
 import 'package:tensorflow_wasm/src/tensor.dart';
 
 import 'emscripten_module.dart';
 import 'util_base.dart' as util;
+
+// This enum must align with the enum defined in cc/backend.h.
+enum CppDType { float32, int32, bool, string, complex64 }
+
+// Must match enum in cc/fusable_activations.h.
+enum FusableActivation { linear, relu, relu6, prelu, leakyrelu, sigmoid, elu }
 
 /**
  * @license
@@ -35,6 +41,19 @@ import 'util_base.dart' as util;
 // import {wasmWorkerContents} from '../wasm-out/tfjs-backend-wasm-threaded-simd.worker.js';
 // import wasmFactory from '../wasm-out/tfjs-backend-wasm.js';
 
+const WASM_PRIORITY = 2;
+
+const wasmBackendFactory = BackendFactory(
+  'wasm',
+  _initFactory,
+  priority: WASM_PRIORITY,
+);
+
+Future<BackendWasm> _initFactory() async {
+  final wasm = await init();
+  return BackendWasm(wasm);
+}
+
 class TensorData {
   final int id;
   final int? memoryOffset;
@@ -55,7 +74,6 @@ class TensorData {
 }
 
 class BackendWasm extends KernelBackend {
-  // TODO: extends KernelBackend
   // 0 is reserved for null data ids.
   int dataIdNextNumber = 1;
   final BackendWasmModule wasm; // |BackendWasmThreadedSimdModule
@@ -236,7 +254,7 @@ class BackendWasm extends KernelBackend {
    * is present, the memory was allocated elsewhere (in c++) and we just record
    * the pointer where that memory lives.
    */
-  TensorInfo makeOutput(List<int> shape, DataType dtype, int? memoryOffset) {
+  TensorInfo makeOutput(List<int> shape, DataType dtype, [int? memoryOffset]) {
     final Map dataId;
     if (memoryOffset == null) {
       dataId = this.write(null /* values */, shape, dtype);
