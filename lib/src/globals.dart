@@ -15,14 +15,24 @@
  * =============================================================================
  */
 
-import {KernelBackend} from './backends/backend';
-import {ENGINE, Engine, MemoryInfo, ProfileInfo, ScopeFn, TimingInfo} from './engine';
-import {env} from './environment';
+// import {KernelBackend} from './backends/backend';
+// import {ENGINE, Engine, MemoryInfo, ProfileInfo, ScopeFn, TimingInfo} from './engine';
+// import {env} from './environment';
 
-import {Platform} from './platforms/platform';
-import {setDeprecationWarningFn, Tensor} from './tensor';
-import {TensorContainer} from './tensor_types';
-import {getTensorsInContainer} from './tensor_util';
+// import {Platform} from './platforms/platform';
+// import {setDeprecationWarningFn, Tensor} from './tensor';
+// import {TensorContainer} from './tensor_types';
+// import {getTensorsInContainer} from './tensor_util';
+
+import 'dart:async';
+
+import 'package:tensorflow_wasm/src/backend.dart';
+import 'package:tensorflow_wasm/src/engine.dart';
+import 'package:tensorflow_wasm/src/environment.dart';
+import 'package:tensorflow_wasm/src/tensor.dart';
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
+import 'package:tensorflow_wasm/src/tensor_util.dart'
+    show getTensorsInContainer;
 
 /**
  * Enables production mode which disables correctness checks in favor of
@@ -30,7 +40,7 @@ import {getTensorsInContainer} from './tensor_util';
  *
  * @doc {heading: 'Environment'}
  */
-export function enableProdMode(): void {
+void enableProdMode() {
   env().set('PROD', true);
 }
 
@@ -48,32 +58,31 @@ export function enableProdMode(): void {
  *
  * @doc {heading: 'Environment'}
  */
-export function enableDebugMode(): void {
+void enableDebugMode() {
   env().set('DEBUG', true);
 }
 
 /** Globally disables deprecation warnings */
-export function disableDeprecationWarnings(): void {
+void disableDeprecationWarnings() {
   env().set('DEPRECATION_WARNINGS_ENABLED', false);
-  console.warn(`TensorFlow.js deprecation warnings have been disabled.`);
+  util.log.warning('TensorFlow.js deprecation warnings have been disabled.');
 }
 
 /** Warn users about deprecated functionality. */
-export function deprecationWarn(msg: string) {
+void deprecationWarn(String msg) {
   if (env().getBool('DEPRECATION_WARNINGS_ENABLED')) {
-    console.warn(
-        msg + ' You can disable deprecation warnings with ' +
+    util.log.warning(msg +
+        ' You can disable deprecation warnings with ' +
         'tf.disableDeprecationWarnings().');
   }
 }
-setDeprecationWarningFn(deprecationWarn);
 
 /**
  * Dispose all variables kept in backend engine.
  *
  * @doc {heading: 'Environment'}
  */
-export function disposeVariables(): void {
+void disposeVariables() {
   ENGINE.disposeVariables();
 }
 
@@ -82,7 +91,7 @@ export function disposeVariables(): void {
  *
  * @doc {heading: 'Environment'}
  */
-export function engine(): Engine {
+Engine engine() {
   return ENGINE;
 }
 
@@ -107,7 +116,7 @@ export function engine(): Engine {
  *
  * @doc {heading: 'Performance', subheading: 'Memory'}
  */
-export function memory(): MemoryInfo {
+MemoryInfo memory() {
   return ENGINE.memory();
 }
 
@@ -142,8 +151,7 @@ export function memory(): MemoryInfo {
  *
  * @doc {heading: 'Performance', subheading: 'Profile'}
  */
-export function profile(f: () => (TensorContainer | Promise<TensorContainer>)):
-    Promise<ProfileInfo> {
+Future<ProfileInfo> profile(FutureOr<TensorContainer> Function() f) {
   return ENGINE.profile(f);
 }
 
@@ -187,9 +195,11 @@ export function profile(f: () => (TensorContainer | Promise<TensorContainer>)):
  *
  * @doc {heading: 'Performance', subheading: 'Memory'}
  */
-export function tidy<T extends TensorContainer>(
-    nameOrFn: string|ScopeFn<T>, fn?: ScopeFn<T>): T {
-  return ENGINE.tidy(nameOrFn, fn);
+T tidy<T extends TensorContainer>(
+  ScopeFn<T> fn, {
+  String? name,
+}) {
+  return ENGINE.tidy(fn, name: name);
 }
 
 /**
@@ -203,9 +213,9 @@ export function tidy<T extends TensorContainer>(
  *
  * @doc {heading: 'Performance', subheading: 'Memory'}
  */
-export function dispose(container: TensorContainer) {
-  const tensors = getTensorsInContainer(container);
-  tensors.forEach(tensor => tensor.dispose());
+void dispose(TensorContainer container) {
+  final tensors = getTensorsInContainer(container);
+  tensors.forEach((tensor) => tensor.dispose());
 }
 
 /**
@@ -240,7 +250,7 @@ export function dispose(container: TensorContainer) {
  *
  * @doc {heading: 'Performance', subheading: 'Memory'}
  */
-export function keep<T extends Tensor>(result: T): T {
+T keep<T extends Tensor>(T result) {
   return ENGINE.keep(result);
 }
 
@@ -269,7 +279,7 @@ export function keep<T extends Tensor>(result: T): T {
  *
  * @doc {heading: 'Performance', subheading: 'Timing'}
  */
-export function time(f: () => void): Promise<TimingInfo> {
+Future<TimingInfo> time(void Function() f) {
   return ENGINE.time(f);
 }
 
@@ -288,8 +298,14 @@ export function time(f: () => void): Promise<TimingInfo> {
  *
  * @doc {heading: 'Backends'}
  */
-export function setBackend(backendName: string): Promise<boolean> {
-  return ENGINE.setBackend(backendName);
+Future<bool> setBackend(BackendFactory factory) async {
+  final prev = findBackendFactory(factory.name);
+  if (prev == null) {
+    if (!registerBackend(factory)) {
+      return false;
+    }
+  }
+  return ENGINE.setBackend(factory.name);
 }
 
 /**
@@ -299,7 +315,7 @@ export function setBackend(backendName: string): Promise<boolean> {
  *
  * @doc {heading: 'Backends'}
  */
-export function ready(): Promise<void> {
+Future<void> ready() {
   return ENGINE.ready();
 }
 
@@ -309,8 +325,8 @@ export function ready(): Promise<void> {
  *
  * @doc {heading: 'Backends'}
  */
-export function getBackend(): string {
-  return ENGINE.backendName;
+String getBackend() {
+  return ENGINE.backendName!;
 }
 
 /**
@@ -318,7 +334,7 @@ export function getBackend(): string {
  *
  * @doc {heading: 'Backends'}
  */
-export function removeBackend(name: string): void {
+void removeBackend(String name) {
   ENGINE.removeBackend(name);
 }
 
@@ -326,7 +342,7 @@ export function removeBackend(name: string): void {
  * Finds the backend registered under the provided name. Returns null if the
  * name is not in the registry, or the registration hasn't finished yet.
  */
-export function findBackend(name: string): KernelBackend {
+KernelBackend? findBackend(String name) {
   return ENGINE.findBackend(name);
 }
 
@@ -335,8 +351,7 @@ export function findBackend(name: string): KernelBackend {
  * function that produces a new backend when called. Returns null if the name
  * is not in the registry.
  */
-export function findBackendFactory(name: string): () =>
-    KernelBackend | Promise<KernelBackend> {
+FutureOr<KernelBackend> Function()? findBackendFactory(String name) {
   return ENGINE.findBackendFactory(name);
 }
 
@@ -355,10 +370,21 @@ export function findBackendFactory(name: string): () =>
  *
  * @doc {heading: 'Backends'}
  */
-export function registerBackend(
-    name: string, factory: () => KernelBackend | Promise<KernelBackend>,
-    priority = 1): boolean {
-  return ENGINE.registerBackend(name, factory, priority);
+bool registerBackend(BackendFactory factory) {
+  return ENGINE.registerBackend(
+      factory.name, factory.factory, factory.priority);
+}
+
+class BackendFactory {
+  final String name;
+  final FutureOr<KernelBackend> Function() factory;
+  final int priority;
+
+  const BackendFactory(
+    this.name,
+    this.factory, {
+    this.priority = 1,
+  });
 }
 
 /**
@@ -369,7 +395,7 @@ export function registerBackend(
  *
  * @doc {heading: 'Backends'}
  */
-export function backend(): KernelBackend {
+KernelBackend backend() {
   return ENGINE.backend;
 }
 
@@ -379,6 +405,6 @@ export function backend(): KernelBackend {
  * @param platformName The name of this platform.
  * @param platform A platform implementation.
  */
-export function setPlatform(platformName: string, platform: Platform) {
+void setPlatform(String platformName, TFPlatform platform) {
   env().setPlatform(platformName, platform);
 }

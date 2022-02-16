@@ -39,6 +39,7 @@ import 'package:collection/collection.dart';
 import 'package:tensorflow_wasm/src/base.dart'
     show Add, Cast, Identity, setUpOpHandler;
 import 'package:tensorflow_wasm/src/environment.dart';
+import 'package:tensorflow_wasm/src/flags.dart';
 import 'package:tensorflow_wasm/src/profile.dart';
 import 'package:tensorflow_wasm/src/tape.dart';
 import 'package:tensorflow_wasm/src/tensor.dart';
@@ -1496,10 +1497,11 @@ Engine _getOrMakeEngine() {
   if (ns.tfengine == null) {
     final environment = Environment(ns);
     ns.tfengine = Engine(environment);
+    setEnvironmentGlobal(environment);
     setUpOpHandler();
+    setUpFlags();
   }
   final engine = ns.tfengine!;
-  setEnvironmentGlobal(engine.ENV);
 
   // Tell the current tensor interface that the global engine is responsible
   // for tracking.

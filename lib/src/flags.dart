@@ -1,3 +1,7 @@
+import 'package:tensorflow_wasm/src/environment.dart';
+import 'package:universal_html/html.dart' as html;
+import 'util_base.dart' show log;
+
 /**
  * @license
  * Copyright 2019 Google LLC. All Rights Reserved.
@@ -14,65 +18,67 @@
  * limitations under the License.
  * =============================================================================
  */
-import './engine';
+// import './engine';
 
-import * as device_util from './device_util';
-import {env} from './environment';
+// import * as device_util from './device_util';
+// import {env} from './environment';
 
-const ENV = env();
+final ENV = env();
 
 /**
  * This file contains environment-related flag registrations.
  */
 
+void setUpFlags() {
 /** Whether to enable debug mode. */
-ENV.registerFlag('DEBUG', () => false, debugValue => {
-  if (debugValue) {
-    console.warn(
-        'Debugging mode is ON. The output of every math call will ' +
-        'be downloaded to CPU and checked for NaNs. ' +
-        'This significantly impacts performance.');
-  }
-});
+  ENV.registerFlag('DEBUG', () => false, (debugValue) {
+    if (debugValue == true || debugValue != 0) {
+      log.warning('Debugging mode is ON. The output of every math call will ' +
+          'be downloaded to CPU and checked for NaNs. ' +
+          'This significantly impacts performance.');
+    }
+  });
+  const kIsWeb = identical(0, 0.0);
 
 /** Whether we are in a browser (as versus, say, node.js) environment. */
-ENV.registerFlag('IS_BROWSER', () => device_util.isBrowser());
+  ENV.registerFlag('IS_BROWSER', () => kIsWeb); // TODO: device_util.isBrowser()
 
 /** Whether we are in a browser (as versus, say, node.js) environment. */
-ENV.registerFlag(
-    'IS_NODE',
-    () => (typeof process !== 'undefined') &&
-        (typeof process.versions !== 'undefined') &&
-        (typeof process.versions.node !== 'undefined'));
+  ENV.registerFlag('IS_NODE', () => !kIsWeb);
 
 /** Whether this browser is Chrome. */
-ENV.registerFlag(
-    'IS_CHROME',
-    () => typeof navigator !== 'undefined' && navigator != null &&
-        navigator.userAgent != null && /Chrome/.test(navigator.userAgent) &&
-        /Google Inc/.test(navigator.vendor));
-
+  ENV.registerFlag(
+      'IS_CHROME',
+      () =>
+          kIsWeb &&
+          html.window.navigator.userAgent.isNotEmpty &&
+          RegExp('Chrome').hasMatch(html.window.navigator.userAgent) &&
+          RegExp('Google Inc').hasMatch(html.window.navigator.vendor));
+// typeof navigator != 'undefined' && navigator != null &&
+//         navigator.userAgent != null && /Chrome/.test(navigator.userAgent) &&
+//         /Google Inc/.test(navigator.vendor)
 /**
  * True when the environment is "production" where we disable safety checks
  * to gain performance.
  */
-ENV.registerFlag('PROD', () => false);
+  ENV.registerFlag('PROD', () => false);
 
 /**
  * Whether to do sanity checks when inferring a shape from user-provided
  * values, used when creating a new tensor.
  */
-ENV.registerFlag(
-    'TENSORLIKE_CHECK_SHAPE_CONSISTENCY', () => ENV.getBool('DEBUG'));
+  ENV.registerFlag(
+      'TENSORLIKE_CHECK_SHAPE_CONSISTENCY', () => ENV.getBool('DEBUG'));
 
 /** Whether deprecation warnings are enabled. */
-ENV.registerFlag('DEPRECATION_WARNINGS_ENABLED', () => true);
+  ENV.registerFlag('DEPRECATION_WARNINGS_ENABLED', () => true);
 
 /** True if running unit tests. */
-ENV.registerFlag('IS_TEST', () => false);
+  ENV.registerFlag('IS_TEST', () => false);
 
 /** Whether to check computation result for errors. */
-ENV.registerFlag('CHECK_COMPUTATION_FOR_ERRORS', () => true);
+  ENV.registerFlag('CHECK_COMPUTATION_FOR_ERRORS', () => true);
 
 /** Whether the backend needs to wrap input to imageBitmap. */
-ENV.registerFlag('WRAP_TO_IMAGEBITMAP', () => false);
+  ENV.registerFlag('WRAP_TO_IMAGEBITMAP', () => false);
+}

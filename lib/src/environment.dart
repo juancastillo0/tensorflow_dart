@@ -79,9 +79,9 @@ class Environment {
 
   registerFlag(
     String flagName,
-    FlagEvaluationFn evaluationFn, {
+    FlagEvaluationFn evaluationFn, [
     void Function(FlagValue)? setHook,
-  }) {
+  ]) {
     this.flagRegistry[flagName] =
         FlagRegistryEntry(evaluationFn: evaluationFn, setHook: setHook);
 
