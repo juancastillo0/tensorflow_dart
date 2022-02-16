@@ -81,8 +81,8 @@ class BackendWasm extends KernelBackend {
 
   BackendWasm(this.wasm) {
     // super();
-    this.wasm.tfjs.initWithThreadsCount(threadsCount);
-    actualThreadsCount = this.wasm.tfjs.getThreadsCount();
+    this.wasm.tfjs.initWithThreadsCount([threadsCount]);
+    actualThreadsCount = this.wasm.tfjs.getThreadsCount([]) as int;
     this.dataIdMap = DataStorage(this, engine());
   }
 
@@ -144,7 +144,7 @@ class BackendWasm extends KernelBackend {
           ),
         );
 
-    this.wasm.tfjs.registerTensor(id, size, memoryOffset);
+    this.wasm.tfjs.registerTensor([id, size, memoryOffset]);
 
     if (values != null) {
       this.wasm.HEAPU8.setRange(
@@ -203,7 +203,7 @@ class BackendWasm extends KernelBackend {
       }
 
       this.wasm.free(data.memoryOffset!);
-      this.wasm.tfjs.disposeData(data.id);
+      this.wasm.tfjs.disposeData([data.id]);
       this.dataIdMap.delete(dataId);
     }
     return true;
@@ -236,7 +236,7 @@ class BackendWasm extends KernelBackend {
   }
 
   void dispose() {
-    this.wasm.tfjs.dispose();
+    this.wasm.tfjs.dispose([]);
     // TODO:
     // if ('PThread' in this.wasm) {
     //   this.wasm.PThread.terminateAllThreads();
@@ -271,7 +271,7 @@ class BackendWasm extends KernelBackend {
                 refCount: 1),
           );
       final size = util.sizeFromShape(shape);
-      this.wasm.tfjs.registerTensor(id, size, memoryOffset);
+      this.wasm.tfjs.registerTensor([id, size, memoryOffset]);
     }
     return TensorInfo(
       dataId: dataId,
@@ -406,7 +406,7 @@ Future<BackendWasmModule> init() async {
   // }
 
   bool initialized = false;
-  onAbort(String error) {
+  onAbort(Object? error) {
     if (initialized) {
       // Emscripten already called console.warn so no need to double log.
       return;

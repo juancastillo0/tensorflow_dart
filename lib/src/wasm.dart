@@ -1,8 +1,6 @@
 export 'package:wasm/wasm.dart' if (dart.library.html) '_wasm_interop_web.dart';
 
 import 'dart:collection';
-
-import 'package:tensorflow_wasm/src/emscripten_module.dart';
 import 'package:wasm/wasm.dart';
 
 extension WasmInstanceBuildAsync on WasmInstanceBuilder {
@@ -33,7 +31,7 @@ class _Export extends UnmodifiableMapBase<String, Object?> {
     if (key is! String) return null;
     final fn = instance.lookupFunction(key);
     if (fn is WasmFunction) {
-      return varArgsFunction((args, _) => fn.apply(args));
+      return fn.apply;
     }
     return instance.lookupGlobal(key);
   }

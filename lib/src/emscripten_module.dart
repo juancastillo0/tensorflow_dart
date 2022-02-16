@@ -21,19 +21,15 @@ class EmscriptenModule {
 
   Uint8List get HEAPU8 => map['HEAPU8'] as Uint8List;
 
-  Function cwrap(
+  Object? Function(List) cwrap(
     String ident,
     String? returnType,
     List<String>? argTypes,
   ) =>
-      map['cwrap'](
-        ident,
-        returnType,
-        argTypes,
-      );
+      map['cwrap'](ident, returnType, argTypes);
 
-  int malloc(int size) => map['_malloc'](size);
-  void free(int size) => map['_free'](size);
+  int malloc(int size) => map['_malloc']([size]);
+  void free(int size) => map['_free']([size]);
 }
 
 final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
@@ -312,16 +308,14 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
     var __ATPOSTRUN__ = [];
     var runtimeInitialized = false;
 
-    late Function ___wasm_call_ctors;
-    ___wasm_call_ctors =
-        (Module["___wasm_call_ctors"] = varArgsFunction((arguments, _) {
-      return Function.apply(
-          ___wasm_call_ctors = Module["___wasm_call_ctors"] = exports["k"],
-          arguments);
-    }));
+    late Function(List) ___wasm_call_ctors;
+    ___wasm_call_ctors = (Module["___wasm_call_ctors"] = (arguments) {
+      return (___wasm_call_ctors =
+          Module["___wasm_call_ctors"] = exports["k"])(arguments);
+    });
     __ATINIT__.add({
       'func': () {
-        ___wasm_call_ctors();
+        ___wasm_call_ctors([]);
       },
     });
 
@@ -486,13 +480,11 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
     Module["preloadedImages"] = {};
     Module["preloadedAudios"] = {};
 
-    late Function ___errno_location;
-    ___errno_location =
-        (Module["___errno_location"] = varArgsFunction((arguments, _) {
-      return Function.apply(
-          ___errno_location = Module["___errno_location"] = exports["Ya"],
-          arguments);
-    }));
+    late Function(List) ___errno_location;
+    ___errno_location = (Module["___errno_location"] = (arguments) {
+      return (___errno_location =
+          Module["___errno_location"] = exports["Ya"])(arguments);
+    });
 
     final asmLibraryArg = asmLibraryArgs(
       () => wasmMemory!,
@@ -513,7 +505,7 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
           out(msg);
         }
       },
-      () => ___errno_location(),
+      () => ___errno_location([]),
     );
 
     createWasm() {
@@ -594,49 +586,45 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
 
     final asm = createWasm();
 
-    (Module["_init"] = varArgsFunction((arguments, _) {
-      return Function.apply(Module["_init"] = exports["l"], arguments);
+    (Module["_init"] = ((arguments) {
+      return (Module["_init"] = exports["l"])(arguments);
     }));
-    (Module["_init_with_threads_count"] = varArgsFunction((arguments, _) {
-      return Function.apply(
-          Module["_init_with_threads_count"] = exports["m"], arguments);
+    (Module["_init_with_threads_count"] = ((arguments) {
+      return (Module["_init_with_threads_count"] = exports["m"])(arguments);
     }));
-    (Module["_get_threads_count"] = varArgsFunction((arguments, _) {
-      return Function.apply(
-          Module["_get_threads_count"] = exports["n"], arguments);
+    (Module["_get_threads_count"] = ((arguments) {
+      return (Module["_get_threads_count"] = exports["n"])(arguments);
     }));
-    (Module["_register_tensor"] = varArgsFunction((arguments, _) {
-      return Function.apply(
-          Module["_register_tensor"] = exports["o"], arguments);
+    (Module["_register_tensor"] = ((arguments) {
+      return (Module["_register_tensor"] = exports["o"])(arguments);
     }));
-    (Module["_dispose_data"] = varArgsFunction((arguments, _) {
-      return Function.apply(Module["_dispose_data"] = exports["p"], arguments);
+    (Module["_dispose_data"] = ((arguments) {
+      return (Module["_dispose_data"] = exports["p"])(arguments);
     }));
-    (Module["_dispose"] = varArgsFunction((arguments, _) {
-      return Function.apply(Module["_dispose"] = exports["q"], arguments);
+    (Module["_dispose"] = ((arguments) {
+      return (Module["_dispose"] = exports["q"])(arguments);
     }));
 
     addTensorFlowFunctions(Module);
 
-    (Module["_malloc"] = varArgsFunction((arguments, _) {
-      return Function.apply(Module["_malloc"] = exports["Wa"], arguments);
+    (Module["_malloc"] = ((arguments) {
+      return (Module["_malloc"] = exports["Wa"])(arguments);
     }));
-    (Module["_free"] = varArgsFunction((arguments, _) {
-      return Function.apply(Module["_free"] = exports["Xa"], arguments);
+    (Module["_free"] = ((arguments) {
+      return (Module["_free"] = exports["Xa"])(arguments);
     }));
-    late Function() stackSave;
-    stackSave = (Module["stackSave"] = () {
-      return (stackSave = Module["stackSave"] = exports["Za"])();
+    late Function(List) stackSave;
+    stackSave = (Module["stackSave"] = (args) {
+      return (stackSave = Module["stackSave"] = exports["Za"])(args);
     });
-    late Function stackRestore;
-    stackRestore = (Module["stackRestore"] = varArgsFunction((arguments, _) {
-      return Function.apply(
-          (stackRestore = Module["stackRestore"] = exports["_a"]), arguments);
+    late Function(List) stackRestore;
+    stackRestore = (Module["stackRestore"] = ((arguments) {
+      return ((stackRestore =
+          Module["stackRestore"] = exports["_a"]))(arguments);
     }));
-    late Function stackAlloc;
-    stackAlloc = (Module["stackAlloc"] = varArgsFunction((arguments, _) {
-      return Function.apply(
-          (stackAlloc = Module["stackAlloc"] = exports[r"$a"]), arguments);
+    late Function(List) stackAlloc;
+    stackAlloc = (Module["stackAlloc"] = ((arguments) {
+      return ((stackAlloc = Module["stackAlloc"] = exports[r"$a"]))(arguments);
     }));
 
     assertC(bool condition, String text) {
@@ -645,13 +633,13 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
       }
     }
 
-    Function getCFunc(String ident) {
+    Function(List) getCFunc(String ident) {
       var func = Module["_" + ident];
       assertC(
-        func is Function,
+        func is Function(List),
         "Cannot call unknown function " + ident + ", make sure it is exported",
       );
-      return func as Function;
+      return func as Function(List);
     }
 
     final toC = {
@@ -660,13 +648,13 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
         if (str is String) {
           // && str != undefined
           var len = (str.length << 2) + 1;
-          ret = stackAlloc(len);
+          ret = stackAlloc([len]);
           stringToUTF8(str, ret, len);
         }
         return ret;
       },
       'array': (arr) {
-        var ret = stackAlloc((arr as List).length);
+        var ret = stackAlloc([(arr as List).length]);
         writeArrayToMemory(arr as List<int>, ret);
         return ret;
       },
@@ -693,20 +681,20 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
         for (var i = 0; i < args.length; i++) {
           var converter = toC[argTypes[i]];
           if (converter != null) {
-            if (stack == 0) stack = stackSave();
-            cArgs[i] = converter(args[i]);
+            if (stack == 0) stack = stackSave([]);
+            cArgs.add(converter(args[i]));
           } else {
-            cArgs[i] = args[i];
+            cArgs.add(args[i]);
           }
         }
       }
-      var ret = Function.apply(func, cArgs);
+      var ret = func(cArgs);
       ret = convertReturnValue(ret);
-      if (stack != 0) stackRestore(stack);
+      if (stack != 0) stackRestore([stack]);
       return ret;
     }
 
-    Function cwrap(
+    Function(List) cwrap(
       String ident,
       String? returnType,
       List<String>? argTypes,
@@ -721,9 +709,9 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
         // && opts == null
         return getCFunc(ident);
       }
-      return varArgsFunction((arguments, _) {
+      return (arguments) {
         return ccall(ident, returnType, argTypes!, arguments, null);
-      });
+      };
     }
 
     Module["cwrap"] = cwrap;
@@ -1206,18 +1194,14 @@ Map<String, Function> asmLibraryArgs(
 
 void addTensorFlowFunctions(Map Module) async {
   for (final entry in tfNames.entries) {
-    Module[entry.key] = varArgsFunction(
-      (args, _) => Function.apply(
-        (Module[entry.key] = Module['asm'][entry.value]) as Function,
-        args,
-      ),
-    );
+    Module[entry.key] = (args) =>
+        ((Module[entry.key] = Module['asm'][entry.value]) as Function)(args);
   }
 }
 
 const tfNames = {
-  '_Abs': 't',
-  '_Add': 's',
+  '_Abs': 's',
+  '_Add': 't',
   '_AddN': 'u',
   '_All': 'v',
   '_Any': 'w',
@@ -1310,7 +1294,7 @@ class WasmFactoryConfig {
     void Function(WasmInstance, WasmModule),
   )? instantiateWasm;
   final void Function()? onRuntimeInitialized;
-  final void Function(String)? onAbort;
+  final void Function(Object?)? onAbort;
   final ByteBuffer? wasmBinary;
 
   const WasmFactoryConfig({
@@ -1353,31 +1337,31 @@ class ExitStatus implements Exception {
   const ExitStatus(this.status);
 }
 
-typedef VarArgsCallback<T> = T Function(
-    List<dynamic> args, Map<String, Object?> kwargs);
+// typedef VarArgsCallback<T> = T Function(
+//     List<dynamic> args, Map<String, Object?> kwargs);
 
-Function varArgsFunction<T>(VarArgsCallback<T> callback) {
-  return VarArgsFunction._(callback);
-}
+// Function varArgsFunction<T>(VarArgsCallback<T> callback) {
+//   return VarArgsFunction._(callback);
+// }
 
-class VarArgsFunction<T> {
-  final VarArgsCallback<T> callback;
-  static final _symbolOffset = 'Symbol("'.length;
+// class VarArgsFunction<T> {
+//   final VarArgsCallback<T> callback;
+//   static final _symbolOffset = 'Symbol("'.length;
 
-  VarArgsFunction._(this.callback);
+//   VarArgsFunction._(this.callback);
 
-  T call() => callback([], {});
+//   T call() => callback([], {});
 
-  @override
-  dynamic noSuchMethod(Invocation inv) {
-    return callback(
-      inv.positionalArguments,
-      inv.namedArguments.map(
-        (_k, v) {
-          var k = _k.toString();
-          return MapEntry(k.substring(_symbolOffset, k.length - 2), v);
-        },
-      ),
-    );
-  }
-}
+//   @override
+//   dynamic noSuchMethod(Invocation inv) {
+//     return callback(
+//       inv.positionalArguments,
+//       inv.namedArguments.map(
+//         (_k, v) {
+//           var k = _k.toString();
+//           return MapEntry(k.substring(_symbolOffset, k.length - 2), v);
+//         },
+//       ),
+//     );
+//   }
+// }
