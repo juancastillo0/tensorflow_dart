@@ -370,7 +370,7 @@ class Tensor<R extends Rank> with Tensors implements TensorInfo {
   /** The data type for the array. */
   late final DataType dtype;
   /** The rank type for the array (see `Rank` enum). */
-  late final R rankType;
+  late final String rankType; // TODO: R
 
   /** Whether this tensor has been globally kept. */
   bool kept = false;
@@ -389,7 +389,7 @@ class Tensor<R extends Rank> with Tensors implements TensorInfo {
     this.dtype = dtype ?? 'float32';
     this.size = util.sizeFromShape(shape);
     this.strides = util.computeStrides(shape);
-    this.rankType = (this.rank < 5 ? this.rank.toString() : 'higher') as R;
+    this.rankType = (this.rank < 5 ? this.rank.toString() : 'higher');
   }
 
   int get rank {

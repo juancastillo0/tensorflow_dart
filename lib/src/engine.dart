@@ -903,7 +903,7 @@ class Engine implements TensorTracker, DataMover {
             extraInfo: kernelProfile.extraInfo,
           ));
     }
-    return (out.isList ? outputs : outputs[0]) as T;
+    return (out.isList ? TensorList(outputs) : outputs[0]) as T;
   }
 
   /**

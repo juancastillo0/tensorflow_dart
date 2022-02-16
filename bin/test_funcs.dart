@@ -1,7 +1,9 @@
 import 'dart:io';
 
+import 'package:tensorflow_wasm/src/backend_wasm.dart';
 import 'package:tensorflow_wasm/src/emscripten_module.dart';
 import 'package:wasm/wasm.dart';
+import 'package:tensorflow_wasm/tensorflow_wasm.dart' as tf;
 
 void main() async {
   final moduleBytes = File('./tfjs-backend-wasm.wasm').readAsBytesSync();
@@ -12,14 +14,18 @@ void main() async {
   // print(instance.lookupFunction('getThreadsCount'));
   // print(instance.lookupFunction('cwrap'));
 
-  final mod = await wasmFactory(
-    WasmFactoryConfig(wasmBinary: moduleBytes.buffer),
-  );
-  await Future.delayed(Duration(seconds: 2));
-  for (final d in mod.map.entries.where(
+  // final mod = await wasmFactory(
+  //   WasmFactoryConfig(wasmBinary: moduleBytes.buffer),
+  // );
+
+  setWasmPath('./tfjs-backend-wasm.wasm');
+  await tf.setBackend(wasmBackendFactory);
+
+  for (final d in (tf.backend() as BackendWasm).wasm.map.entries.where(
       (element) => element.value is! List && element.value is! WasmMemory)) {
     print(d);
   }
+  tf.add(tf.tensor([2.3, 1, -4]), tf.tensor(5)).print();
 }
 
 // init(): void,
