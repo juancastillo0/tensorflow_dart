@@ -15,16 +15,18 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../engine';
-import {Pack, PackAttrs, PackInputs} from '../kernel_names';
-import {NamedAttrMap} from '../kernel_registry';
-import {Tensor} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {convertToTensorArray} from '../tensor_util_env';
-import {TensorLike} from '../types';
-import * as util from '../util';
+// import {ENGINE} from '../engine';
+// import {Pack, PackAttrs, PackInputs} from '../kernel_names';
+// import {NamedAttrMap} from '../kernel_registry';
+// import {Tensor} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {convertToTensorArray} from '../tensor_util_env';
+// import {TensorLike} from '../types';
+// import * as util from '../util';
 
-import {op} from './operation';
+// import {op} from './operation';
+import '_prelude.dart';
+import '../util_base.dart' as util;
 
 /**
  * Stacks a list of rank-`R` `tf.Tensor`s into one rank-`(R+1)` `tf.Tensor`.
@@ -41,24 +43,29 @@ import {op} from './operation';
  *
  * @doc {heading: 'Tensors', subheading: 'Slicing and Joining'}
  */
-function stack_<T extends Tensor>(
-    tensors: Array<T|TensorLike>, axis = 0): Tensor {
-  const $tensors =
-      convertToTensorArray(tensors, 'tensors', 'stack', 'string_or_numeric');
+Tensor stack<T extends Tensor>(
+  List<T> tensors, [
+  int axis = 0,
+]) {
+  return execOp('stack', () {
+    final $tensors =
+        convertToTensorArray(tensors, 'tensors', 'stack', 'string_or_numeric');
 
-  util.assert(
-      $tensors.length >= 1, () => 'Pass at least one tensor to tf.stack');
+    util.assert_(
+        $tensors.length >= 1, () => 'Pass at least one tensor to tf.stack');
 
-  if ($tensors.length > 0) {
-    util.assert(
-        axis <= $tensors[0].rank, () => 'Axis must be <= rank of the tensor');
-  }
+    if ($tensors.length > 0) {
+      util.assert_(
+          axis <= $tensors[0].rank, () => 'Axis must be <= rank of the tensor');
+    }
 
-  const inputs: PackInputs = $tensors;
-  const attrs: PackAttrs = {axis};
+    final inputs = {'x': $tensors}; // TODO: PackInputs was a List
+    final attrs = {'axis': axis}; // PackAttrs
 
-  return ENGINE.runKernel(
-      Pack, inputs as {} as NamedTensorMap, attrs as {} as NamedAttrMap);
+    return ENGINE.runKernel(
+      Pack,
+      inputs,
+      attrs,
+    ) as T;
+  });
 }
-
-export const stack = op({stack_});

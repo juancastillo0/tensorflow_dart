@@ -15,62 +15,73 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../engine';
-import {Tensor} from '../tensor';
-import {TensorLike, TypedArray} from '../types';
-import {DataType} from '../types';
-import {assert, assertNonNegativeIntegerDimensions, flatten, inferDtype, isTypedArray, sizeFromShape, toTypedArray} from '../util';
+// import {ENGINE} from '../engine';
+// import {Tensor} from '../tensor';
+// import {TensorLike, TypedArray} from '../types';
+// import {DataType} from '../types';
+// import {assert, assertNonNegativeIntegerDimensions, flatten, inferDtype, isTypedArray, sizeFromShape, toTypedArray} from '../util';
+
+import 'dart:typed_data';
+
+import 'package:tensorflow_wasm/src/engine.dart';
+import 'package:tensorflow_wasm/src/tensor.dart';
+import 'package:tensorflow_wasm/src/tensor_util_env.dart';
+import 'package:tensorflow_wasm/src/util_base.dart';
 
 /** This is shared code across all tensor creation methods. */
-export function makeTensor(
-    values: TensorLike, shape: number[], inferredShape: number[],
-    dtype?: DataType): Tensor {
-  if (dtype == null) {
-    dtype = inferDtype(values);
+Tensor makeTensor(
+  TensorLike values,
+  List<int>? shape,
+  List<int> inferredShape, [
+  DataType? dtype,
+]) {
+  dtype ??= inferDtype(values);
+
+  if (dtype == 'complex64') {
+    throw Exception('Cannot construct a complex64 tensor directly. ' +
+        'Please use tf.complex(real, imag).');
   }
-  if (dtype === 'complex64') {
-    throw new Error(
-        `Cannot construct a complex64 tensor directly. ` +
-        `Please use tf.complex(real, imag).`);
-  }
-  if (!isTypedArray(values) && !Array.isArray(values) &&
-      typeof values !== 'number' && typeof values !== 'boolean' &&
-      typeof values !== 'string') {
-    throw new Error(
+  if (values is! TypedData &&
+      values is! List &&
+      values is! num &&
+      values is! bool &&
+      values is! String) {
+    throw Exception(
         'values passed to tensor(values) must be a number/boolean/string or ' +
-        'an array of numbers/booleans/strings, or a TypedArray');
+            'an array of numbers/booleans/strings, or a TypedArray');
   }
   if (shape != null) {
     assertNonNegativeIntegerDimensions(shape);
 
-    const providedSize = sizeFromShape(shape);
-    const inferredSize = sizeFromShape(inferredShape);
-    assert(
-        providedSize === inferredSize,
+    final providedSize = sizeFromShape(shape);
+    final inferredSize = sizeFromShape(inferredShape);
+    assert_(
+        providedSize == inferredSize,
         () =>
-            `Based on the provided shape, [${shape}], the tensor should have ` +
-            `${providedSize} values but has ${inferredSize}`);
+            'Based on the provided shape, [${shape}], the tensor should have ' +
+            '${providedSize} values but has ${inferredSize}');
 
-    for (let i = 0; i < inferredShape.length; ++i) {
-      const inferred = inferredShape[i];
-      const flatDimsDontMatch = i === inferredShape.length - 1 ?
-          inferred !== sizeFromShape(shape.slice(i)) :
-          true;
+    for (int i = 0; i < inferredShape.length; ++i) {
+      final inferred = inferredShape[i];
+      final flatDimsDontMatch = i == inferredShape.length - 1
+          ? inferred != sizeFromShape(shape.sublist(i))
+          : true;
       assert(
-          inferredShape[i] === shape[i] || !flatDimsDontMatch,
-          () => `Error creating a new Tensor. Inferred shape ` +
-              `(${inferredShape}) does not match the provided ` +
-              `shape (${shape}). `);
+          inferredShape[i] == shape[i] || !flatDimsDontMatch,
+          () =>
+              'Error creating a new Tensor. Inferred shape ' +
+              '(${inferredShape}) does not match the provided ' +
+              'shape (${shape}). ');
     }
   }
 
-  if (!isTypedArray(values) && !Array.isArray(values)) {
-    values = [values] as number[];
+  if (values is! TypedData && values is! List) {
+    values = [values];
   }
 
-  shape = shape || inferredShape;
-  values = dtype !== 'string' ?
-      toTypedArray(values, dtype) :
-      flatten(values as string[], [], true) as string[];
-  return ENGINE.makeTensor(values as TypedArray, shape, dtype);
+  shape = shape ?? inferredShape;
+  values = dtype != 'string'
+      ? toTypedArray(values, dtype)
+      : flatten(values as List<String>, skipTypedArray: true) as List<String>;
+  return ENGINE.makeTensor(values as List, shape, dtype);
 }

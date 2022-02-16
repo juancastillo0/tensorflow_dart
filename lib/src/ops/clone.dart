@@ -15,14 +15,20 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../engine';
-import {Identity, IdentityInputs} from '../kernel_names';
-import {Tensor} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
+// import {ENGINE} from '../engine';
+// import {Identity, IdentityInputs} from '../kernel_names';
+// import {Tensor} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
 
-import {op} from './operation';
+// import {op} from './operation';
+
+import 'package:tensorflow_wasm/src/engine.dart';
+import 'package:tensorflow_wasm/src/kernel_names.dart';
+import 'package:tensorflow_wasm/src/ops/operation.dart';
+import 'package:tensorflow_wasm/src/tensor.dart';
+import 'package:tensorflow_wasm/src/tensor_util_env.dart';
 
 /**
  * Creates a new tensor with the same values and shape as the specified
@@ -38,13 +44,16 @@ import {op} from './operation';
  *
  * @doc {heading: 'Tensors', subheading: 'Creation'}
  */
-function clone_<T extends Tensor>(x: T|TensorLike): T {
-  const $x = convertToTensor(x, 'x', 'clone', 'string_or_numeric');
-  const inputs: IdentityInputs = {x: $x};
+T clone<T extends Tensor>(T x) {
+  // TODO: | TensorLike
+  return execOp('clone', () {
+    final $x = convertToTensor(x, 'x', 'clone', 'string_or_numeric');
+    final inputs = {'x': $x};
 
-  // Note this op is called tf.identity in python. Hence the kernel name used
-  // here.
-  return ENGINE.runKernel(Identity, inputs as {} as NamedTensorMap);
+    // Note this op is called tf.identity in python. Hence the kernel name used
+    // here.
+    return ENGINE.runKernel(Identity, inputs) as T;
+  });
 }
 
-export const clone = op({clone_});
+// final clone = op({'clone_': _clone});

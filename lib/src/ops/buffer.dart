@@ -15,9 +15,12 @@
  * =============================================================================
  */
 
-import {TensorBuffer} from '../tensor';
-import {DataType, DataTypeMap, Rank, ShapeMap} from '../types';
-import * as util from '../util';
+// import {TensorBuffer} from '../tensor';
+// import {DataType, DataTypeMap, Rank, ShapeMap} from '../types';
+// import * as util from '../util';
+
+import 'package:tensorflow_wasm/src/tensor.dart';
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
 
 /**
  * Creates an empty `tf.TensorBuffer` with the specified `shape` and `dtype`.
@@ -45,10 +48,12 @@ import * as util from '../util';
  *
  * @doc {heading: 'Tensors', subheading: 'Creation'}
  */
-export function buffer<R extends Rank, D extends DataType = 'float32'>(
-    shape: ShapeMap[R], dtype: D = 'float32' as D,
-    values?: DataTypeMap[D]): TensorBuffer<R, D> {
-  dtype = dtype || 'float32' as D;
+TensorBuffer<R, D> buffer<R extends Rank, D extends DataType>(
+  List<int> shape,
+  D dtype,
+  List? values,
+) {
+  dtype = dtype ?? 'float32' as D;
   util.assertNonNegativeIntegerDimensions(shape);
-  return new TensorBuffer<R, D>(shape, dtype, values);
+  return TensorBuffer(shape, dtype, values);
 }

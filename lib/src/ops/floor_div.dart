@@ -15,15 +15,16 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../engine';
-import {FloorDiv, FloorDivInputs} from '../kernel_names';
-import {Tensor} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {makeTypesMatch} from '../tensor_util';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
+// import {ENGINE} from '../engine';
+// import {FloorDiv, FloorDivInputs} from '../kernel_names';
+// import {Tensor} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {makeTypesMatch} from '../tensor_util';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
 
-import {op} from './operation';
+// import {op} from './operation';
+import '_prelude.dart';
 
 /**
  * Divides two `tf.Tensor`s element-wise, A / B. Supports broadcasting.
@@ -51,15 +52,16 @@ import {op} from './operation';
  *
  * @doc {heading: 'Operations', subheading: 'Arithmetic'}
  */
-function floorDiv_<T extends Tensor>(
-    a: Tensor|TensorLike, b: Tensor|TensorLike): T {
-  let $a = convertToTensor(a, 'a', 'floorDiv');
-  let $b = convertToTensor(b, 'b', 'floorDiv');
-  [$a, $b] = makeTypesMatch($a, $b);
+T floorDiv<T extends Tensor>(Tensor a, Tensor b) {
+  return execOp('floorDiv', () {
+    var $a = convertToTensor(a, 'a', 'floorDiv');
+    var $b = convertToTensor(b, 'b', 'floorDiv');
+    final t = makeTypesMatch($a, $b);
+    $a = t.first;
+    $b = t.second;
 
-  const inputs: FloorDivInputs = {a: $a, b: $b};
+    final inputs = {'a': $a, 'b': $b};
 
-  return ENGINE.runKernel(FloorDiv, inputs as {} as NamedTensorMap);
+    return ENGINE.runKernel(FloorDiv, inputs) as T;
+  });
 }
-
-export const floorDiv = op({floorDiv_});

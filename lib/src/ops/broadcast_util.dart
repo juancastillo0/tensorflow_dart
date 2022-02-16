@@ -15,6 +15,15 @@
  * =============================================================================
  */
 
+import 'dart:math' as math;
+
+typedef Shape = List<int>;
+
+extension IndexOrNull<T> on List<T> {
+  T? getIndexOrNull(int index) =>
+      index >= length || index < 0 ? null : this[index];
+}
+
 /**
  * Returns the dimensions in the input shape that are broadcasted to
  * produce the provided output shape.
@@ -24,16 +33,15 @@
  * outShape = [5, 4, 3, 3]
  * result = [1]. Dimension 1 (2nd dimension of input) gets broadcasted 1 => 3.
  */
-export function getBroadcastDims(
-    inShape: number[], outShape: number[]): number[] {
-  const inRank = inShape.length;
-  const dims: number[] = [];
-  for (let i = 0; i < inRank; i++) {
-    const dim = inRank - 1 - i;
-    const a = inShape[dim] || 1;
-    const b = outShape[outShape.length - 1 - i] || 1;
-    if (b > 1 && a === 1) {
-      dims.unshift(dim);
+Shape getBroadcastDims(Shape inShape, Shape outShape) {
+  final inRank = inShape.length;
+  final Shape dims = [];
+  for (int i = 0; i < inRank; i++) {
+    final dim = inRank - 1 - i;
+    final a = inShape.getIndexOrNull(dim) ?? 1;
+    final b = outShape.getIndexOrNull(outShape.length - 1 - i) ?? 1;
+    if (b > 1 && a == 1) {
+      dims.insert(0, dim);
     }
   }
   return dims;
@@ -43,44 +51,46 @@ export function getBroadcastDims(
  * Returns the axes in the output space that should be reduced to produce
  * the input space.
  */
-export function getReductionAxes(
-    inShape: number[], outShape: number[]): number[] {
-  const result: number[] = [];
-  for (let i = 0; i < outShape.length; i++) {
-    const inDim = inShape[inShape.length - i - 1];
-    const outAxis = outShape.length - i - 1;
-    const outDim = outShape[outAxis];
-    if (inDim == null || (inDim === 1 && outDim > 1)) {
-      result.unshift(outAxis);
+Shape getReductionAxes(
+  Shape inShape,
+  Shape outShape,
+) {
+  final Shape result = [];
+  for (int i = 0; i < outShape.length; i++) {
+    final inDim = inShape.getIndexOrNull(inShape.length - i - 1);
+    final outAxis = outShape.length - i - 1;
+    final outDim = outShape[outAxis];
+    if (inDim == null || (inDim == 1 && outDim > 1)) {
+      result.insert(0, outAxis);
     }
   }
   return result;
 }
 
-export function assertAndGetBroadcastShape(
-    shapeA: number[], shapeB: number[]): number[] {
-  const result: number[] = [];
-  const l = Math.max(shapeA.length, shapeB.length);
+Shape assertAndGetBroadcastShape(
+  Shape shapeA,
+  Shape shapeB,
+) {
+  final Shape result = [];
+  final l = math.max(shapeA.length, shapeB.length);
 
-  for (let i = 0; i < l; i++) {
-    let a = shapeA[shapeA.length - i - 1];
-    if (a == null) {
-      a = 1;
-    }
-    let b = shapeB[shapeB.length - i - 1];
-    if (b == null) {
-      b = 1;
-    }
-    if (a === 1) {
-      result.unshift(b);
-    } else if (b === 1) {
-      result.unshift(a);
-    } else if (a !== b) {
-      const errMsg = `Operands could not be broadcast together with shapes ` +
-          `${shapeA} and ${shapeB}.`;
-      throw Error(errMsg);
+  for (int i = 0; i < l; i++) {
+    int? a = shapeA.getIndexOrNull(shapeA.length - i - 1);
+    a ??= 1;
+
+    int? b = shapeB.getIndexOrNull(shapeB.length - i - 1);
+    b ??= 1;
+
+    if (a == 1) {
+      result.insert(0, b);
+    } else if (b == 1) {
+      result.insert(0, a);
+    } else if (a != b) {
+      final errMsg = 'Operands could not be broadcast together with shapes ' +
+          '${shapeA} and ${shapeB}.';
+      throw Exception(errMsg);
     } else {
-      result.unshift(a);
+      result.insert(0, a);
     }
   }
   return result;

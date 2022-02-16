@@ -15,16 +15,18 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../engine';
-import {Unpack, UnpackAttrs, UnpackInputs} from '../kernel_names';
-import {NamedAttrMap} from '../kernel_registry';
-import {Tensor} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
-import * as util from '../util';
+// import {ENGINE} from '../engine';
+// import {Unpack, UnpackAttrs, UnpackInputs} from '../kernel_names';
+// import {NamedAttrMap} from '../kernel_registry';
+// import {Tensor} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
+// import * as util from '../util';
 
-import {op} from './operation';
+// import {op} from './operation';
+import '_prelude.dart';
+import '../util_base.dart' as util;
 
 /**
  * Unstacks a `tf.Tensor` of rank-`R` into a list of rank-`(R-1)` `tf.Tensor`s.
@@ -40,18 +42,17 @@ import {op} from './operation';
  *
  * @doc {heading: 'Tensors', subheading: 'Slicing and Joining'}
  */
-function unstack_(x: Tensor|TensorLike, axis = 0): Tensor[] {
-  const $x = convertToTensor(x, 'x', 'unstack', 'string_or_numeric');
-  util.assert(
-      axis >= -$x.shape.length && axis < $x.shape.length,
-      () =>
-          `Axis = ${axis} is not in [-${$x.shape.length}, ${$x.shape.length})`);
+TensorList unstack(Tensor x, [int axis = 0]) {
+  return execOp('unstack', () {
+    final $x = convertToTensor(x, 'x', 'unstack', 'string_or_numeric');
+    util.assert_(
+        axis >= -$x.shape.length && axis < $x.shape.length,
+        () =>
+            'Axis = ${axis} is not in [-${$x.shape.length}, ${$x.shape.length})');
 
-  const inputs: UnpackInputs = {value: $x};
-  const attrs: UnpackAttrs = {axis};
+    final inputs = {'value': $x}; // UnpackInputs
+    final attrs = {'axis': axis}; // UnpackAttrs
 
-  return ENGINE.runKernel(
-      Unpack, inputs as {} as NamedTensorMap, attrs as {} as NamedAttrMap);
+    return ENGINE.runKernel(Unpack, inputs, attrs) as TensorList;
+  });
 }
-
-export const unstack = op({unstack_});

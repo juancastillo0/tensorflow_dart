@@ -15,10 +15,16 @@
  * =============================================================================
  */
 
-import {Scalar} from '../tensor';
-import {DataType} from '../types';
-import {isTypedArray} from '../util';
-import {makeTensor} from './tensor_ops_util';
+import 'dart:typed_data';
+
+import 'package:tensorflow_wasm/src/ops/tensor_ops_util.dart';
+import 'package:tensorflow_wasm/src/tensor.dart';
+import 'package:tensorflow_wasm/src/util_base.dart';
+
+// import {Scalar} from '../tensor';
+// import {DataType} from '../types';
+// import {isTypedArray} from '../util';
+// import {makeTensor} from './tensor_ops_util';
 
 /**
  * Creates rank-0 `tf.Tensor` (scalar) with the provided value and dtype.
@@ -35,21 +41,22 @@ import {makeTensor} from './tensor_ops_util';
  *
  * @doc {heading: 'Tensors', subheading: 'Creation'}
  */
-export function scalar(
-    value: number|boolean|string|Uint8Array, dtype?: DataType): Scalar {
-  if (((isTypedArray(value) && dtype !== 'string') || Array.isArray(value)) &&
-      dtype !== 'complex64') {
-    throw new Error(
-        'Error creating a new Scalar: value must be a primitive ' +
+Tensor scalar(
+  // number|boolean|string|Uint8List
+  Object value, [
+  DataType? dtype,
+]) {
+  // TODO: return Scalar tensor type
+  if (((isTypedArray(value) && dtype != 'string') || value is List) &&
+      dtype != 'complex64') {
+    throw Exception('Error creating a new Scalar: value must be a primitive ' +
         '(number|boolean|string)');
   }
-  if (dtype === 'string' && isTypedArray(value) &&
-      !(value instanceof Uint8Array)) {
-    throw new Error(
-        'When making a scalar from encoded string, ' +
-        'the value must be `Uint8Array`.');
+  if (dtype == 'string' && isTypedArray(value) && value is! Uint8List) {
+    throw Exception('When making a scalar from encoded string, ' +
+        'the value must be `Uint8List`.');
   }
-  const shape: number[] = [];
-  const inferredShape: number[] = [];
-  return makeTensor(value, shape, inferredShape, dtype) as Scalar;
+  final List<int> shape = [];
+  final List<int> inferredShape = [];
+  return makeTensor(value, shape, inferredShape, dtype);
 }

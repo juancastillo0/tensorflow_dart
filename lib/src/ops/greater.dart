@@ -14,16 +14,17 @@
  * limitations under the License.
  * =============================================================================
  */
-import {ENGINE} from '../engine';
-import {Greater, GreaterInputs} from '../kernel_names';
-import {Tensor} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {makeTypesMatch} from '../tensor_util';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
+// import {ENGINE} from '../engine';
+// import {Greater, GreaterInputs} from '../kernel_names';
+// import {Tensor} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {makeTypesMatch} from '../tensor_util';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
 
-import {assertAndGetBroadcastShape} from './broadcast_util';
-import {op} from './operation';
+// import {assertAndGetBroadcastShape} from './broadcast_util';
+// import {op} from './operation';
+import '_prelude.dart';
 
 /**
  * Returns the truth value of (a > b) element-wise. Supports broadcasting.
@@ -40,17 +41,7 @@ import {op} from './operation';
  *
  * @doc {heading: 'Operations', subheading: 'Logical'}
  */
-function greater_<T extends Tensor>(
-    a: Tensor|TensorLike, b: Tensor|TensorLike): T {
-  let $a = convertToTensor(a, 'a', 'greater', 'string_or_numeric');
-  let $b = convertToTensor(b, 'b', 'greater', 'string_or_numeric');
-  [$a, $b] = makeTypesMatch($a, $b);
-
-  assertAndGetBroadcastShape($a.shape, $b.shape);
-
-  const inputs: GreaterInputs = {a: $a, b: $b};
-
-  return ENGINE.runKernel(Greater, inputs as {} as NamedTensorMap);
+T greater<T extends Tensor>(Tensor a, Tensor b) {
+  return execOpBinary('greater', Greater, a, b,
+      parseAsDtype: 'string_or_numeric');
 }
-
-export const greater = op({greater_});

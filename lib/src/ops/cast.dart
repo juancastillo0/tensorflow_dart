@@ -14,16 +14,22 @@
  * limitations under the License.
  * =============================================================================
  */
-import {ENGINE} from '../engine';
-import {Cast, CastAttrs, CastInputs} from '../kernel_names';
-import {NamedAttrMap} from '../kernel_registry';
-import {Tensor} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {convertToTensor} from '../tensor_util_env';
-import {DataType, TensorLike} from '../types';
-import * as util from '../util';
+import 'package:tensorflow_wasm/src/engine.dart';
+import 'package:tensorflow_wasm/src/ops/operation.dart';
+import 'package:tensorflow_wasm/src/tensor_util_env.dart';
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
+import 'package:tensorflow_wasm/src/kernel_names.dart';
+import 'package:tensorflow_wasm/src/tensor.dart';
 
-import {op} from './operation';
+// import {ENGINE} from '../engine';
+// import {Cast, CastAttrs, CastInputs} from '../kernel_names';
+// import {NamedAttrMap} from '../kernel_registry';
+// import {Tensor} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {convertToTensor} from '../tensor_util_env';
+// import {DataType, TensorLike} from '../types';
+// import * as util from '../util';
+// impoty {op} from './operation';
 
 /**
  * Casts a `tf.Tensor` to a new dtype.
@@ -37,23 +43,23 @@ import {op} from './operation';
  *
  * @doc {heading: 'Tensors', subheading: 'Transformations'}
  */
-function cast_<T extends Tensor>(x: T|TensorLike, dtype: DataType): T {
-  const $x = convertToTensor(x, 'x', 'cast');
+T cast<T extends Tensor>(T x, DataType dtype) {
+  return execOp('cast', () {
+    final $x = convertToTensor(x, 'x', 'cast');
 
-  // Sanity checks.
-  if (!util.isValidDtype(dtype)) {
-    throw new Error(`Failed to cast to unknown dtype ${dtype}`);
-  }
-  if (dtype === 'string' && $x.dtype !== 'string' ||
-      dtype !== 'string' && $x.dtype === 'string') {
-    throw new Error('Only strings can be casted to strings');
-  }
+    // Sanity checks.
+    if (!util.isValidDtype(dtype)) {
+      throw Exception('Failed to cast to unknown dtype ${dtype}');
+    }
+    if (dtype == 'string' && $x.dtype != 'string' ||
+        dtype != 'string' && $x.dtype == 'string') {
+      throw Exception('Only strings can be casted to strings');
+    }
 
-  const inputs: CastInputs = {x: $x};
-  const attrs: CastAttrs = {dtype};
+    final inputs = {'x': $x}; // CastInputs
+    final attrs = {'dtype': dtype}; // CastAttrs
 
-  return ENGINE.runKernel(
-      Cast, inputs as {} as NamedTensorMap, attrs as {} as NamedAttrMap);
+    return ENGINE.runKernel(Cast, inputs, attrs) as T;
+  });
 }
 
-export const cast = op({cast_});

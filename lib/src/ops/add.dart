@@ -14,15 +14,22 @@
  * limitations under the License.
  * =============================================================================
  */
-import {ENGINE} from '../engine';
-import {Add, AddInputs} from '../kernel_names';
-import {Tensor} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {makeTypesMatch} from '../tensor_util';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
+import 'package:tensorflow_wasm/src/engine.dart';
+import 'package:tensorflow_wasm/src/kernel_names.dart';
+import 'package:tensorflow_wasm/src/ops/operation.dart';
+import 'package:tensorflow_wasm/src/tensor.dart';
+import 'package:tensorflow_wasm/src/tensor_util.dart';
+import 'package:tensorflow_wasm/src/tensor_util_env.dart';
 
-import {op} from './operation';
+// import {ENGINE} from '../engine';
+// import {Add, AddInputs} from '../kernel_names';
+// import {Tensor} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {makeTypesMatch} from '../tensor_util';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
+
+// import {op} from './operation';
 
 /**
  * Adds two `tf.Tensor`s element-wise, A + B. Supports broadcasting.
@@ -47,14 +54,18 @@ import {op} from './operation';
  *
  * @doc {heading: 'Operations', subheading: 'Arithmetic'}
  */
-function add_<T extends Tensor>(a: Tensor|TensorLike, b: Tensor|TensorLike): T {
-  let $a = convertToTensor(a, 'a', 'add');
-  let $b = convertToTensor(b, 'b', 'add');
-  [$a, $b] = makeTypesMatch($a, $b);
+T add<T extends Tensor>(Tensor a, Tensor b) {
+  return execOp('add', () {
+    var $a = convertToTensor(a, 'a', 'add');
+    var $b = convertToTensor(b, 'b', 'add');
+    final p = makeTypesMatch($a, $b);
+    $a = p.first;
+    $b = p.second;
 
-  const inputs: AddInputs = {a: $a, b: $b};
+    final inputs = {'a': $a, 'b': $b}; // BinaryInputs
 
-  return ENGINE.runKernel(Add, inputs as {} as NamedTensorMap);
+    return ENGINE.runKernel(Add, inputs) as T;
+  });
 }
 
-export const add = op({add_});
+// final add = op({'add_': _add});

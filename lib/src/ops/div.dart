@@ -15,16 +15,19 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../engine';
-import {RealDiv, RealDivInputs} from '../kernel_names';
-import {Tensor} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {makeTypesMatch} from '../tensor_util';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
+// import {ENGINE} from '../engine';
+// import {RealDiv, RealDivInputs} from '../kernel_names';
+// import {Tensor} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {makeTypesMatch} from '../tensor_util';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
 
-import {floorDiv} from './floorDiv';
-import {op} from './operation';
+// import {floorDiv} from './floorDiv';
+// import {op} from './operation';
+
+import '_prelude.dart';
+import 'floor_div.dart' show floorDiv;
 
 /**
  * Divides two `tf.Tensor`s element-wise, A / B. Supports broadcasting.
@@ -50,20 +53,21 @@ import {op} from './operation';
  *
  * @doc {heading: 'Operations', subheading: 'Arithmetic'}
  */
-function div_<T extends Tensor>(a: Tensor|TensorLike, b: Tensor|TensorLike): T {
-  let $a = convertToTensor(a, 'a', 'div');
-  let $b = convertToTensor(b, 'b', 'div');
-  [$a, $b] = makeTypesMatch($a, $b);
+T div<T extends Tensor>(Tensor a, Tensor b) {
+  return execOp('div', () {
+    var $a = convertToTensor(a, 'a', 'div');
+    var $b = convertToTensor(b, 'b', 'div');
+    final t = makeTypesMatch($a, $b);
+    $a = t.first;
+    $b = t.second;
 
-  if ($a.dtype === 'int32' && $b.dtype === 'int32') {
-    return floorDiv($a, $b);
-  }
+    if ($a.dtype == 'int32' && $b.dtype == 'int32') {
+      return floorDiv($a, $b);
+    }
 
-  const inputs: RealDivInputs = {a: $a, b: $b};
-  const attrs = {};
+    final inputs = {'a': $a, 'b': $b};
 
-  // tslint:disable-next-line: no-unnecessary-type-assertion
-  return ENGINE.runKernel(RealDiv, inputs as {} as NamedTensorMap, attrs) as T;
+    // tslint:disable-next-line: no-unnecessary-type-assertion
+    return ENGINE.runKernel(RealDiv, inputs, {}) as T;
+  });
 }
-
-export const div = op({div_});

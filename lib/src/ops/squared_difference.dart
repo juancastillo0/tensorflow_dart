@@ -15,16 +15,17 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../engine';
-import {SquaredDifference, SquaredDifferenceInputs} from '../kernel_names';
-import {Tensor} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {makeTypesMatch} from '../tensor_util';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
+// import {ENGINE} from '../engine';
+// import {SquaredDifference, SquaredDifferenceInputs} from '../kernel_names';
+// import {Tensor} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {makeTypesMatch} from '../tensor_util';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
 
-import {assertAndGetBroadcastShape} from './broadcast_util';
-import {op} from './operation';
+// import {assertAndGetBroadcastShape} from './broadcast_util';
+// import {op} from './operation';
+import '_prelude.dart';
 
 /**
  * Returns (a - b) * (a - b) element-wise.
@@ -50,19 +51,9 @@ import {op} from './operation';
  *
  * @doc {heading: 'Operations', subheading: 'Arithmetic'}
  */
-function squaredDifference_<T extends Tensor>(
-    a: Tensor|TensorLike, b: Tensor|TensorLike): T {
-  let $a = convertToTensor(a, 'a', 'squaredDifference');
-  let $b = convertToTensor(b, 'b', 'squaredDifference');
-  [$a, $b] = makeTypesMatch($a, $b);
-
-  assertAndGetBroadcastShape($a.shape, $b.shape);
-
-  const inputs: SquaredDifferenceInputs = {a: $a, b: $b};
-  const attrs = {};
-
-  return ENGINE.runKernel(
-      SquaredDifference, inputs as unknown as NamedTensorMap, attrs);
+T squaredDifference<T extends Tensor>(
+  Tensor a,
+  Tensor b,
+) {
+  return execOpBinary('squaredDifference', SquaredDifference, a, b);
 }
-
-export const squaredDifference = op({squaredDifference_});
