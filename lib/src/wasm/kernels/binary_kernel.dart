@@ -15,59 +15,90 @@
  * =============================================================================
  */
 
-import {backend_util, BinaryInputs, DataType, KernelConfig, TensorInfo, util} from '@tensorflow/tfjs-core';
+import 'dart:typed_data';
 
-import {BackendWasm} from '../backend_wasm';
+import 'package:tensorflow_wasm/src/backend_wasm.dart';
+import 'package:tensorflow_wasm/src/kernel_registry.dart';
+import 'package:tensorflow_wasm/src/tensor.dart';
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
+import 'package:tensorflow_wasm/src/ops/broadcast_util.dart' as broadcast_util;
 
-import {CppDType} from './types';
+// import {backend_util, BinaryInputs, DataType, KernelConfig, TensorInfo, util} from '@tensorflow/tfjs-core';
 
-export function createBinaryKernelConfig(
-    kernelName: string, supportsFullBroadcast: boolean,
-    dtype?: DataType): KernelConfig {
-  let wasmFunc:
-      (aId: number, aShape: Uint8Array, aShapeLen: number, bId: number,
-       bShape: Uint8Array, bShapeLen: number, dtype: number, outId: number) =>
-          void;
+// import {BackendWasm} from '../backend_wasm';
 
-  function setupFunc(backend: BackendWasm): void {
-    wasmFunc = backend.wasm.cwrap(kernelName, null /* void */, [
-      'number',  // a_id,
-      'array',   // a_shape
-      'number',  // a_shape.length
-      'number',  // b_id
-      'array',   // b_shape
-      'number',  // b_shape.length
-      'number',  // dtype
-      'number'   // out_id
+// import {CppDType} from './types';
+
+typedef WasmTFFn = void Function(int aId, Uint8List aShape, int aShapeLen,
+    int bId, Uint8List bShape, int bShapeLen, int dtype, int outId);
+
+KernelConfig createBinaryKernelConfig(
+  String kernelName, {
+  required bool supportsFullBroadcast,
+  DataType? dtype,
+}) {
+  late Function(List) wasmFunc;
+
+  void setupFunc(Object backend) {
+    wasmFunc =
+        (backend as BackendWasm).wasm.cwrap(kernelName, null /* void */, [
+      'number', // a_id,
+      'array', // a_shape
+      'number', // a_shape.length
+      'number', // b_id
+      'array', // b_shape
+      'number', // b_shape.length
+      'number', // dtype
+      'number' // out_id
     ]);
   }
 
-  function kernelFunc(args: {backend: BackendWasm, inputs: BinaryInputs}):
-      TensorInfo {
-    const {backend, inputs} = args;
-    const {a, b} = inputs;
-    const aId = backend.dataIdMap.get(a.dataId).id;
-    const bId = backend.dataIdMap.get(b.dataId).id;
+  ListOrVal<TensorInfo> kernelFunc({
+    required Map<String, TensorInfo> inputs,
+    required Object backend,
+    Map<String, Object>? attrs,
+  }) {
+    // TODO:
+    // inputs = inputs as BinaryInputs;
+    backend = backend as BackendWasm;
+    final a = inputs['a']!;
+    final b = inputs['b']!;
+    final aId = backend.dataIdMap.get(a.dataId)!.id;
+    final bId = backend.dataIdMap.get(b.dataId)!.id;
 
-    const outputType = dtype != null ? dtype : a.dtype;
-    const newShape = backend_util.assertAndGetBroadcastShape(a.shape, b.shape);
-    const out = backend.makeOutput(newShape, outputType);
+    final outputType = dtype != null ? dtype : a.dtype;
+    final newShape =
+        broadcast_util.assertAndGetBroadcastShape(a.shape, b.shape);
+    final out = backend.makeOutput(newShape, outputType);
 
     // Short-circuit zero-sized tensors.
-    if (util.sizeFromShape(newShape) === 0) {
-      return out;
+    if (util.sizeFromShape(newShape) == 0) {
+      return ListOrVal.val(out);
     }
 
-    const aShapeBytes = new Uint8Array(new Int32Array(a.shape).buffer);
-    const bShapeBytes = new Uint8Array(new Int32Array(b.shape).buffer);
-    const outId = backend.dataIdMap.get(out.dataId).id;
-    const kernelFunc = () => wasmFunc(
-        aId, aShapeBytes, a.shape.length, bId, bShapeBytes, b.shape.length,
-        CppDType[a.dtype], outId);
+    final aShapeBytes = Uint8List.view(Int32List.fromList(a.shape).buffer);
+    final bShapeBytes = Uint8List.view(Int32List.fromList(b.shape).buffer);
+    final outId = backend.dataIdMap.get(out.dataId)!.id;
+    // ignore: prefer_function_declarations_over_variables
+    final kernelFunc = () => wasmFunc([
+          aId,
+          aShapeBytes,
+          a.shape.length,
+          bId,
+          bShapeBytes,
+          b.shape.length,
+          CppDType.values.byName(a.dtype).index,
+          outId
+        ]);
 
     kernelFunc();
-    return out;
+    return ListOrVal.val(out);
   }
 
-  return {kernelName, backendName: 'wasm', setupFunc, kernelFunc};
+  return KernelConfig(
+    kernelName: kernelName,
+    backendName: 'wasm',
+    setupFunc: setupFunc,
+    kernelFunc: kernelFunc,
+  );
 }

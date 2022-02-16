@@ -1,3 +1,8 @@
+import 'package:tensorflow_wasm/src/backend_wasm.dart';
+import 'package:tensorflow_wasm/src/kernel_registry.dart';
+import 'package:tensorflow_wasm/src/tensor.dart';
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
+
 /**
  * @license
  * Copyright 2019 Google LLC. All Rights Reserved.
@@ -15,39 +20,76 @@
  * =============================================================================
  */
 
-import {DataType, KernelConfig, TensorInfo, UnaryInputs, util} from '@tensorflow/tfjs-core';
+// import {DataType, KernelConfig, TensorInfo, UnaryInputs, util} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-import {CppDType} from './types';
+// import {CppDType} from './types';
 
-export function createUnaryKernelConfig(
-    kernelName: string, outType?: DataType): KernelConfig {
-  let wasmFunc: (xId: number, dtype: number, outId: number) => void;
+KernelConfig createUnaryKernelConfig(String kernelName, [DataType? outType]) {
+  late Function(List)
+      wasmFunc; //: (xId: number, dtype: number, outId: number) => void
 
-  function setupFunc(backend: BackendWasm): void {
-    wasmFunc = backend.wasm.cwrap(kernelName, null /* void */, [
-      'number',  // x_id
-      'number',  // dtype
-      'number',  // out_id
-    ]);
-  }
+  return KernelConfig(
+    kernelName: kernelName,
+    backendName: 'wasm',
+    setupFunc: (Object backend) {
+      wasmFunc =
+          (backend as BackendWasm).wasm.cwrap(kernelName, null /* void */, [
+        'number', // x_id
+        'number', // dtype
+        'number', // out_id
+      ]);
+    },
+    kernelFunc: ({
+      required Object backend,
+      required NamedTensorInfoMap inputs, // TODO: UnaryInputs
+      Map<String, Object>? attrs,
+    }) {
+      backend = backend as BackendWasm;
 
-  function kernelFunc(args: {backend: BackendWasm, inputs: UnaryInputs}):
-      TensorInfo {
-    const {backend, inputs: {x}} = args;
-    const xId = backend.dataIdMap.get(x.dataId).id;
-    const out = backend.makeOutput(x.shape, outType || x.dtype);
-    const outId = backend.dataIdMap.get(out.dataId).id;
+      final x = inputs['x']!;
+      final xId = backend.dataIdMap.get(x.dataId)!.id;
+      final out = backend.makeOutput(x.shape, outType ?? x.dtype);
+      final outId = backend.dataIdMap.get(out.dataId)!.id;
 
-    // Short-circuit zero-sized tensors.
-    if (util.sizeFromShape(out.shape) === 0) {
-      return out;
-    }
+      // Short-circuit zero-sized tensors.
+      if (util.sizeFromShape(out.shape) == 0) {
+        return ListOrVal.val(out);
+      }
 
-    wasmFunc(xId, CppDType[x.dtype], outId);
-    return out;
-  }
-
-  return {kernelName, backendName: 'wasm', setupFunc, kernelFunc};
+      wasmFunc([xId, CppDType.values.byName(x.dtype), outId]);
+      return ListOrVal.val(out);
+    },
+  );
 }
+
+// class KernelConfigG<I, B> implements KernelConfig {
+//   final String kernelName;
+//   final String backendName;
+//   final KernelFunc kernelFunc;
+//   final void Function(B)? _setupFunc;
+
+//   void __setupFunc(Object backend) => _setupFunc?.call(backend as B);
+
+
+//   final KernelDisposeFunc? disposeFunc;
+
+//   KernelConfigG({
+//     required this.kernelName,
+//     required this.backendName,
+//     required this.kernelFunc,
+//     void Function(B)? setupFunc,
+//     this.disposeFunc,
+//   }) : _setupFunc = setupFunc;
+
+//   KernelConfigG withNewBackendName(String newBackendName) {
+//     return KernelConfigG(
+//       kernelName: kernelName,
+//       backendName: newBackendName,
+//       kernelFunc: kernelFunc,
+//       setupFunc: setupFunc,
+//       disposeFunc: disposeFunc,
+//     );
+//   }
+// }

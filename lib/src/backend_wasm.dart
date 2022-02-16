@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:tensorflow_wasm/src/backend.dart';
 import 'package:tensorflow_wasm/src/globals.dart' show BackendFactory, engine;
+import 'package:tensorflow_wasm/src/wasm/kernels/register_all_kernels.dart';
 import 'package:tensorflow_wasm/src/tensor.dart';
 
 import 'emscripten_module.dart';
@@ -51,6 +52,7 @@ const wasmBackendFactory = BackendFactory(
 
 Future<BackendWasm> _initFactory() async {
   final wasm = await init();
+  registerAllKernels();
   return BackendWasm(wasm);
 }
 
