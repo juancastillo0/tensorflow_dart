@@ -29,8 +29,8 @@ import 'package:tensorflow_wasm/src/tensor.dart';
 // import {Activation} from './ops/fused_types';
 // import {DataType, PixelData} from './types';
 
-// export const Abs = 'Abs';
-// export type AbsInputs = UnaryInputs;
+const Abs = 'Abs';
+typedef AbsInputs = UnaryInputs;
 
 // export const Acos = 'Acos';
 // export type AcosInputs = UnaryInputs;
@@ -169,8 +169,8 @@ class CastAttrs {
   CastAttrs(this.dtype);
 }
 
-// export const Ceil = 'Ceil';
-// export type CeilInputs = UnaryInputs;
+const Ceil = 'Ceil';
+typedef CeilInputs = UnaryInputs;
 
 // export const ClipByValue = 'ClipByValue';
 // export type ClipByValueInputs = UnaryInputs;
@@ -248,11 +248,11 @@ class CastAttrs {
 //   inputShape: [number, number, number, number, number];
 // }
 
-// export const Cos = 'Cos';
-// export type CosInputs = UnaryInputs;
+const Cos = 'Cos';
+typedef CosInputs = UnaryInputs;
 
-// export const Cosh = 'Cosh';
-// export type CoshInputs = UnaryInputs;
+const Cosh = 'Cosh';
+typedef CoshInputs = UnaryInputs;
 
 // export const Cumsum = 'Cumsum';
 // export type CumsumInputs = Pick<NamedTensorInfoMap, 'x'>;
@@ -339,8 +339,8 @@ class CastAttrs {
 // export type Dilation2DBackpropFilterInputs =
 //     Pick<NamedTensorInfoMap, 'x'|'filter'|'dy'>;
 
-// export const RealDiv = 'RealDiv';
-// export type RealDivInputs = BinaryInputs;
+const RealDiv = 'RealDiv';
+typedef RealDivInputs = BinaryInputs;
 
 // export const Einsum = 'Einsum';
 // export type EinsumInputs = TensorInfo[];
@@ -348,8 +348,8 @@ class CastAttrs {
 //   equation: string;
 // }
 
-// export const Elu = 'Elu';
-// export type EluInputs = Pick<NamedTensorInfoMap, 'x'>;
+const Elu = 'Elu';
+typedef EluInputs = UnaryInputs;
 
 // export const EluGrad = 'EluGrad';
 // export type EluGradInputs = Pick<NamedTensorInfoMap, 'dy'|'y'>;
@@ -357,11 +357,11 @@ class CastAttrs {
 // export const Erf = 'Erf';
 // export type ErfInputs = UnaryInputs;
 
-// export const Equal = 'Equal';
-// export type EqualInputs = BinaryInputs;
+const Equal = 'Equal';
+typedef EqualInputs = BinaryInputs;
 
-// export const Exp = 'Exp';
-// export type ExpInputs = UnaryInputs;
+const Exp = 'Exp';
+typedef ExpInputs = UnaryInputs;
 
 // export const ExpandDims = 'ExpandDims';
 // export type ExpandDimsInputs = Pick<NamedTensorInfoMap, 'input'>;
@@ -385,11 +385,11 @@ class CastAttrs {
 // export const FlipLeftRight = 'FlipLeftRight';
 // export type FlipLeftRightInputs = Pick<NamedTensorInfoMap, 'image'>;
 
-// export const Floor = 'Floor';
-// export type FloorInputs = UnaryInputs;
+const Floor = 'Floor';
+typedef FloorInputs = UnaryInputs;
 
-// export const FloorDiv = 'FloorDiv';
-// export type FloorDivInputs = BinaryInputs;
+const FloorDiv = 'FloorDiv';
+typedef FloorDivInputs = BinaryInputs;
 
 // export const FusedBatchNorm = 'FusedBatchNorm';
 // export type FusedBatchNormInputs =
@@ -408,11 +408,11 @@ class CastAttrs {
 // export const GatherNd = 'GatherNd';
 // export type GatherNdInputs = Pick<NamedTensorInfoMap, 'params'|'indices'>;
 
-// export const Greater = 'Greater';
-// export type GreaterInputs = BinaryInputs;
+const Greater = 'Greater';
+typedef GreaterInputs = BinaryInputs;
 
-// export const GreaterEqual = 'GreaterEqual';
-// export type GreaterEqualInputs = BinaryInputs;
+const GreaterEqual = 'GreaterEqual';
+typedef GreaterEqualInputs = BinaryInputs;
 
 const Identity = 'Identity';
 typedef IdentityInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
@@ -444,11 +444,11 @@ class UnaryInputs {
 //   alpha: number;
 // }
 
-// export const Less = 'Less';
-// export type LessInputs = BinaryInputs;
+const Less = 'Less';
+typedef LessInputs = BinaryInputs;
 
-// export const LessEqual = 'LessEqual';
-// export type LessEqualInputs = BinaryInputs;
+const LessEqual = 'LessEqual';
+typedef LessEqualInputs = BinaryInputs;
 
 // export const LinSpace = 'LinSpace';
 // export interface LinSpaceAttrs {
@@ -456,20 +456,21 @@ class UnaryInputs {
 //   stop: number;
 //   num: number;
 // }
-// export const Log = 'Log';
-// export type LogInputs = UnaryInputs;
+
+const Log = 'Log';
+typedef LogInputs = UnaryInputs;
 
 // export const Log1p = 'Log1p';
 // export type Log1pInputs = UnaryInputs;
 
-// export const LogicalAnd = 'LogicalAnd';
-// export type LogicalAndInputs = BinaryInputs;
+const LogicalAnd = 'LogicalAnd';
+typedef LogicalAndInputs = BinaryInputs;
 
 // export const LogicalNot = 'LogicalNot';
 // export type LogicalNotInputs = Pick<NamedTensorInfoMap, 'x'>;
 
-// export const LogicalOr = 'LogicalOr';
-// export type LogicalOrInputs = BinaryInputs;
+const LogicalOr = 'LogicalOr';
+typedef LogicalOrInputs = BinaryInputs;
 
 // export const LogSoftmax = 'LogSoftmax';
 // export type LogSoftmaxInputs = Pick<NamedTensorInfoMap, 'logits'>;
@@ -502,8 +503,8 @@ class UnaryInputs {
 //   keepDims: boolean;
 // }
 
-// export const Maximum = 'Maximum';
-// export type MaximumInputs = BinaryInputs;
+const Maximum = 'Maximum';
+typedef MaximumInputs = BinaryInputs;
 
 // export const MaxPool = 'MaxPool';
 // export type MaxPoolInputs = Pick<NamedTensorInfoMap, 'x'>;
@@ -566,8 +567,8 @@ class UnaryInputs {
 //   keepDims: boolean;
 // }
 
-// export const Minimum = 'Minimum';
-// export type MinimumInputs = BinaryInputs;
+const Minimum = 'Minimum';
+typedef MinimumInputs = BinaryInputs;
 
 // export const MirrorPad = 'MirrorPad';
 // export type MirrorPadInputs = Pick<NamedTensorInfoMap, 'x'>;
@@ -576,8 +577,9 @@ class UnaryInputs {
 //   mode: 'reflect'|'symmetric';
 // }
 
-// export const Mod = 'Mod';
-// export type ModInputs = BinaryInputs;
+// TODO:
+// const Mod = 'Mod';
+// typedef ModInputs = BinaryInputs;
 
 // export const Multinomial = 'Multinomial';
 // export type MultinomialInputs = Pick<NamedTensorInfoMap, 'logits'>;
@@ -587,14 +589,14 @@ class UnaryInputs {
 //   normalized: boolean;
 // }
 
-// export const Multiply = 'Multiply';
-// export type MultiplyInputs = BinaryInputs;
+const Multiply = 'Multiply';
+typedef MultiplyInputs = BinaryInputs;
 
-// export const Neg = 'Neg';
-// export type NegInputs = UnaryInputs;
+const Neg = 'Neg';
+typedef NegInputs = UnaryInputs;
 
-// export const NotEqual = 'NotEqual';
-// export type NotEqualInputs = BinaryInputs;
+const NotEqual = 'NotEqual';
+typedef NotEqualInputs = BinaryInputs;
 
 // export const NonMaxSuppressionV3 = 'NonMaxSuppressionV3';
 // export type NonMaxSuppressionV3Inputs =
@@ -636,9 +638,9 @@ class UnaryInputs {
 //   offValue: number;
 // }
 
-// export const Pack = 'Pack';
-// export type PackInputs = TensorInfo[];
-// export interface PackAttrs {
+const Pack = 'Pack';
+typedef PackInputs = UnaryInputs; // TODO: TensorInfo[];
+// interface PackAttrs {
 //   axis: number;
 // }
 
@@ -652,8 +654,8 @@ class UnaryInputs {
 // export const Pool = 'Pool';
 // export type PoolInputs = Pick<NamedTensorInfoMap, 'input'>;
 
-// export const Pow = 'Pow';
-// export type PowInputs = BinaryInputs;
+const Pow = 'Pow';
+typedef PowInputs = BinaryInputs;
 
 // export const Prelu = 'Prelu';
 // export type PreluInputs = Pick<NamedTensorInfoMap, 'x'|'alpha'>;
@@ -679,8 +681,8 @@ class UnaryInputs {
 // export const Reciprocal = 'Reciprocal';
 // export type ReciprocalInputs = UnaryInputs;
 
-// export const Relu = 'Relu';
-// export type ReluInputs = Pick<NamedTensorInfoMap, 'x'>;
+const Relu = 'Relu';
+typedef ReluInputs = UnaryInputs;
 
 // export const Reshape = 'Reshape';
 // export type ReshapeInputs = Pick<NamedTensorInfoMap, 'x'>;
@@ -713,8 +715,8 @@ class UnaryInputs {
 // export type ResizeBilinearGradInputs = Pick<NamedTensorInfoMap, 'images'|'dy'>;
 // export type ResizeBilinearGradAttrs = ResizeBilinearAttrs;
 
-// export const Relu6 = 'Relu6';
-// export type Relu6Inputs = Pick<NamedTensorInfoMap, 'x'>;
+const Relu6 = 'Relu6';
+typedef Relu6Inputs = UnaryInputs;
 
 // export const Reverse = 'Reverse';
 // export type ReverseInputs = Pick<NamedTensorInfoMap, 'x'>;
@@ -722,11 +724,11 @@ class UnaryInputs {
 //   dims: number|number[];
 // }
 
-// export const Round = 'Round';
-// export type RoundInputs = UnaryInputs;
+const Round = 'Round';
+typedef RoundInputs = UnaryInputs;
 
-// export const Rsqrt = 'Rsqrt';
-// export type RsqrtInputs = UnaryInputs;
+const Rsqrt = 'Rsqrt';
+typedef RsqrtInputs = UnaryInputs;
 
 // export const ScatterNd = 'ScatterNd';
 // export type ScatterNdInputs = Pick<NamedTensorInfoMap, 'indices'|'updates'>;
@@ -746,8 +748,8 @@ class UnaryInputs {
 //   begin: number|number[];
 //   size: number|number[];
 // }
-// export const Sin = 'Sin';
-// export type SinInputs = UnaryInputs;
+const Sin = 'Sin';
+typedef SinInputs = UnaryInputs;
 
 // export const Sinh = 'Sinh';
 // export type SinhInputs = UnaryInputs;
@@ -761,8 +763,8 @@ class UnaryInputs {
 // export const Softplus = 'Softplus';
 // export type SoftplusInputs = UnaryInputs;
 
-// export const Sqrt = 'Sqrt';
-// export type SqrtInputs = UnaryInputs;
+const Sqrt = 'Sqrt';
+typedef SqrtInputs = UnaryInputs;
 
 // export const Sum = 'Sum';
 // export type SumInputs = Pick<NamedTensorInfoMap, 'x'>;
@@ -814,11 +816,11 @@ class UnaryInputs {
 //   outputShape: number[];
 // }
 
-// export const SquaredDifference = 'SquaredDifference';
-// export type SquaredDifferenceInputs = BinaryInputs;
+const SquaredDifference = 'SquaredDifference';
+typedef SquaredDifferenceInputs = BinaryInputs;
 
-// export const Square = 'Square';
-// export type SquareInputs = Pick<NamedTensorInfoMap, 'x'>;
+const Square = 'Square';
+typedef SquareInputs = UnaryInputs;
 
 // export const StridedSlice = 'StridedSlice';
 // export type StridedSliceInputs = Pick<NamedTensorInfoMap, 'x'>;
@@ -856,14 +858,14 @@ class UnaryInputs {
 //   numBuckets: number;
 // }
 
-// export const Sub = 'Sub';
-// export type SubInputs = BinaryInputs;
+const Sub = 'Sub';
+typedef SubInputs = BinaryInputs;
 
-// export const Tan = 'Tan';
-// export type TanInputs = UnaryInputs;
+const Tan = 'Tan';
+typedef TanInputs = UnaryInputs;
 
-// export const Tanh = 'Tanh';
-// export type TanhInputs = UnaryInputs;
+const Tanh = 'Tanh';
+typedef TanhInputs = UnaryInputs;
 
 // export const Tile = 'Tile';
 // export type TileInputs = Pick<NamedTensorInfoMap, 'x'>;
@@ -901,9 +903,10 @@ class UnaryInputs {
 
 // export type UnaryInputs = Pick<NamedTensorInfoMap, 'x'>;
 
-// export const Unpack = 'Unpack';
-// export type UnpackInputs = Pick<NamedTensorInfoMap, 'value'>;
-// export interface UnpackAttrs {
+const Unpack = 'Unpack';
+typedef UnpackInputs
+    = Map<String, Tensor>; // Pick<NamedTensorInfoMap, 'value'>;
+// interface UnpackAttrs {
 //   axis: number;
 // }
 
