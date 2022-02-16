@@ -540,11 +540,12 @@ int now() {
   return DateTime.now().millisecondsSinceEpoch;
 }
 
-// export function isTypedArray(a: {}):
-//   a is Float32Array|Int32Array|Uint8Array|Uint8ClampedArray {
-//   return a instanceof Float32Array || a instanceof Int32Array ||
-//       a instanceof Uint8Array || a instanceof Uint8ClampedArray;
-// }
+bool isTypedArray(Object? a) {
+  return a is Float32List ||
+      a is Int32List ||
+      a is Uint8List ||
+      a is Uint8ClampedList;
+}
 
 int bytesPerElement(DataType dtype) {
   if (dtype == 'float32' || dtype == 'int32') {
@@ -826,7 +827,9 @@ TypedData toTypedArray(TensorLike a, DataType dtype) {
   }
   a = a as List;
   if (dtype == null || dtype == 'float32' || dtype == 'complex64') {
-    return Float32List.fromList(a.cast());
+    return Float32List.fromList(
+      a is List<double> ? a : a.map((e) => (e as num).toDouble()).toList(),
+    );
   } else if (dtype == 'int32') {
     return Int32List.fromList(a.cast());
   } else if (dtype == 'bool') {

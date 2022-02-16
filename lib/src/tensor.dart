@@ -36,17 +36,22 @@ class TensorInfo {
 }
 
 typedef DataId = Map; // object instead of {} to force non-primitive.
+/** @docalias 'float32'|'int32'|'bool'|'complex64'|'string' */
 typedef DataType = String;
-typedef BackendValues
-    = List; //  Float32Array|Int32Array|Uint8Array|Uint8Array[];
-typedef DataValues
-    = List; // Float32Array|Int32Array|Uint8Array|Float32Array|string[];
+
+///  Float32Array|Int32Array|Uint8Array|Uint8Array[];
+typedef BackendValues = List;
+
+/// Float32Array|Int32Array|Uint8Array|Float32Array|string[];
+typedef DataValues = List;
 
 typedef NamedVariableMap = Map<String, Variable>;
 
 typedef GradSaveFunc = void Function(List<Tensor> save);
 
 typedef NamedTensorMap = Map<String, Tensor>;
+
+typedef NamedTensorsMap = Map<String, List<Tensor>>;
 
 /**
  * @docalias void|number|string|TypedArray|Tensor|Tensor[]|{[key:
@@ -60,16 +65,36 @@ typedef TensorContainerObject = Map<String, TensorContainer>;
 
 typedef TensorContainerArray = List<TensorContainer>;
 
-class TensorList extends DelegatingList<Tensor> with Tensors {
+mixin TensorsOrMap {
+  O matchWithMap<O>(
+    O Function(Tensor tensor) tensor,
+    O Function(TensorList list) list,
+    O Function(TensorMap map) map,
+  ) =>
+      this is TensorList
+          ? list(this as TensorList)
+          : this is TensorMap
+              ? map(this as TensorMap)
+              : tensor(this as Tensor);
+}
+
+class TensorMap extends DelegatingMap<String, Tensor> with TensorsOrMap {
+  TensorMap(Map<String, Tensor<Rank>> base) : super(base);
+}
+
+class TensorList extends DelegatingList<Tensor> with Tensors, TensorsOrMap {
   TensorList(List<Tensor<Rank>> base) : super(base);
 }
 
-class Tensors {
+mixin Tensors implements TensorsOrMap {
   O match<O>(
     O Function(Tensor tensor) tensor,
     O Function(TensorList list) list,
   ) =>
       this is TensorList ? list(this as TensorList) : tensor(this as Tensor);
+
+  TensorList toTensorList() =>
+      this is TensorList ? this as TensorList : TensorList([this as Tensor]);
 }
 
 class ListOrVal<T> {
@@ -355,7 +380,7 @@ void setDeprecationWarningFn(void Function(String) fn) {
  *
  * @doc {heading: 'Tensors', subheading: 'Classes'}
  */
-class Tensor<R extends Rank> with Tensors implements TensorInfo {
+class Tensor<R extends Rank> with Tensors, TensorsOrMap implements TensorInfo {
   /** Unique id of this tensor. */
   final int id;
   /**
