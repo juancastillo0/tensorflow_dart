@@ -15,17 +15,22 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../engine';
-import {Minimum, MinimumInputs} from '../kernel_names';
-import {Tensor} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {makeTypesMatch} from '../tensor_util';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
+// import {ENGINE} from '../engine';
+// import {Minimum, MinimumInputs} from '../kernel_names';
+// import {Tensor} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {makeTypesMatch} from '../tensor_util';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
 
-import {assertAndGetBroadcastShape} from './broadcast_util';
-import {cast} from './cast';
-import {op} from './operation';
+// import {assertAndGetBroadcastShape} from './broadcast_util';
+// import {cast} from './cast';
+// import {op} from './operation';
+
+import 'package:tensorflow_wasm/src/ops/broadcast_util.dart';
+
+import '_prelude.dart';
+import 'cast.dart' show cast;
 
 /**
  * Returns the min of a and b (`a < b ? a : b`) element-wise.
@@ -54,22 +59,21 @@ import {op} from './operation';
  *
  * @doc {heading: 'Operations', subheading: 'Arithmetic'}
  */
-function minimum_<T extends Tensor>(
-    a: Tensor|TensorLike, b: Tensor|TensorLike): T {
-  let $a = convertToTensor(a, 'a', 'minimum');
-  let $b = convertToTensor(b, 'b', 'minimum');
-  [$a, $b] = makeTypesMatch($a, $b);
+T minimum<T extends Tensor>(Tensor a, Tensor b) {
+  return execOp('minimum', () {
+    var $a = convertToTensor(a, 'a', 'minimum');
+    var $b = convertToTensor(b, 'b', 'minimum');
+    final t = makeTypesMatch($a, $b);
+    $a = t.first;
+    $b = t.second;
+    if ($a.dtype == 'bool') {
+      $a = cast($a, 'int32');
+      $b = cast($b, 'int32');
+    }
+    assertAndGetBroadcastShape($a.shape, $b.shape);
 
-  if ($a.dtype === 'bool') {
-    $a = cast($a, 'int32');
-    $b = cast($b, 'int32');
-  }
+    final inputs = {'a': $a, 'b': $b};
 
-  assertAndGetBroadcastShape($a.shape, $b.shape);
-
-  const inputs: MinimumInputs = {a: $a, b: $b};
-
-  return ENGINE.runKernel(Minimum, inputs as {} as NamedTensorMap);
+    return ENGINE.runKernel(Minimum, inputs) as T;
+  });
 }
-
-export const minimum = op({minimum_});

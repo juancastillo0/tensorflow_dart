@@ -466,8 +466,8 @@ typedef LogInputs = UnaryInputs;
 const LogicalAnd = 'LogicalAnd';
 typedef LogicalAndInputs = BinaryInputs;
 
-// export const LogicalNot = 'LogicalNot';
-// export type LogicalNotInputs = Pick<NamedTensorInfoMap, 'x'>;
+const LogicalNot = 'LogicalNot';
+typedef LogicalNotInputs = UnaryInputs;
 
 const LogicalOr = 'LogicalOr';
 typedef LogicalOrInputs = BinaryInputs;

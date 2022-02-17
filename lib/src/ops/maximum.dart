@@ -15,17 +15,22 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../engine';
-import {Maximum, MaximumInputs} from '../kernel_names';
-import {Tensor} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {makeTypesMatch} from '../tensor_util';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
+// import {ENGINE} from '../engine';
+// import {Maximum, MaximumInputs} from '../kernel_names';
+// import {Tensor} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {makeTypesMatch} from '../tensor_util';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
 
-import {assertAndGetBroadcastShape} from './broadcast_util';
-import {cast} from './cast';
-import {op} from './operation';
+// import {assertAndGetBroadcastShape} from './broadcast_util';
+// import {cast} from './cast';
+// import {op} from './operation';
+
+import 'package:tensorflow_wasm/src/ops/broadcast_util.dart';
+
+import '_prelude.dart';
+import 'cast.dart' show cast;
 
 /**
  * Returns the max of a and b (`a > b ? a : b`) element-wise.
@@ -54,21 +59,21 @@ import {op} from './operation';
  *
  * @doc {heading: 'Operations', subheading: 'Arithmetic'}
  */
-function maximum_<T extends Tensor>(
-    a: Tensor|TensorLike, b: Tensor|TensorLike): T {
-  let $a = convertToTensor(a, 'a', 'maximum');
-  let $b = convertToTensor(b, 'b', 'maximum');
-  [$a, $b] = makeTypesMatch($a, $b);
+T maximum<T extends Tensor>(Tensor a, Tensor b) {
+  return execOp('maximum', () {
+    var $a = convertToTensor(a, 'a', 'maximum');
+    var $b = convertToTensor(b, 'b', 'maximum');
+    final t = makeTypesMatch($a, $b);
+    $a = t.first;
+    $b = t.second;
+    if ($a.dtype == 'bool') {
+      $a = cast($a, 'int32');
+      $b = cast($b, 'int32');
+    }
+    assertAndGetBroadcastShape($a.shape, $b.shape);
 
-  if ($a.dtype === 'bool') {
-    $a = cast($a, 'int32');
-    $b = cast($b, 'int32');
-  }
-  assertAndGetBroadcastShape($a.shape, $b.shape);
+    final inputs = {'a': $a, 'b': $b};
 
-  const inputs: MaximumInputs = {a: $a, b: $b};
-
-  return ENGINE.runKernel(Maximum, inputs as {} as NamedTensorMap);
+    return ENGINE.runKernel(Maximum, inputs) as T;
+  });
 }
-
-export const maximum = op({maximum_});

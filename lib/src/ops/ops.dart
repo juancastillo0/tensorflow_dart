@@ -14,5 +14,7 @@ export 'cast.dart';
 export 'stack.dart';
 export 'unstack.dart';
 //
+export 'maximum.dart';
+export 'minimum.dart';
 export 'logical.dart';
 export 'logical_binary.dart';
