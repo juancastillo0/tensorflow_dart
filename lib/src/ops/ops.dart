@@ -5,7 +5,7 @@ export 'print.dart';
 export 'tensor.dart';
 export 'scalar.dart';
 //
-export 'add.dart';
+export 'arithmetic.dart';
 export 'div.dart';
 export 'floor_div.dart';
 export 'squared_difference.dart';
