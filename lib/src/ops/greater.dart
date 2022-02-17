@@ -45,3 +45,99 @@ T greater<T extends Tensor>(Tensor a, Tensor b) {
   return execOpBinary('greater', Greater, a, b,
       parseAsDtype: 'string_or_numeric');
 }
+
+/**
+ * Returns the truth value of (a < b) element-wise. Supports broadcasting.
+ *
+ * ```js
+ * const a = tf.tensor1d([1, 2, 3]);
+ * const b = tf.tensor1d([2, 2, 2]);
+ *
+ * a.less(b).print();
+ * ```
+ * @param a The first input tensor.
+ * @param b The second input tensor. Must have the same dtype as `a`.
+ *
+ * @doc {heading: 'Operations', subheading: 'Logical'}
+ */
+T less<T extends Tensor>(Tensor a, Tensor b) {
+  return execOpBinary('less', Less, a, b, parseAsDtype: 'string_or_numeric');
+}
+
+/**
+ * Returns the truth value of (a == b) element-wise. Supports broadcasting.
+ *
+ * ```js
+ * const a = tf.tensor1d([1, 2, 3]);
+ * const b = tf.tensor1d([2, 2, 2]);
+ *
+ * a.equal(b).print();
+ * ```
+ *
+ * @param a The first input tensor.
+ * @param b The second input tensor. Must have the same dtype as `a`.
+ *
+ * @doc {heading: 'Operations', subheading: 'Logical'}
+ */
+T equal<T extends Tensor>(Tensor a, Tensor b) {
+  return execOpBinary('equal', Equal, a, b, parseAsDtype: 'string_or_numeric');
+}
+
+/**
+ * Returns the truth value of (a >= b) element-wise. Supports broadcasting.
+ *
+ * ```js
+ * const a = tf.tensor1d([1, 2, 3]);
+ * const b = tf.tensor1d([2, 2, 2]);
+ *
+ * a.greaterEqual(b).print();
+ * ```
+ *
+ * @param a The first input tensor.
+ * @param b The second input tensor. Must have the same dtype as `a`.
+ *
+ * @doc {heading: 'Operations', subheading: 'Logical'}
+ */
+T greaterEqual<T extends Tensor>(Tensor a, Tensor b) {
+  return execOpBinary('greaterEqual', GreaterEqual, a, b,
+      parseAsDtype: 'string_or_numeric');
+}
+
+/**
+ * Returns the truth value of (a <= b) element-wise. Supports broadcasting.
+ *
+ * ```js
+ * const a = tf.tensor1d([1, 2, 3]);
+ * const b = tf.tensor1d([2, 2, 2]);
+ *
+ * a.lessEqual(b).print();
+ * ```
+ *
+ * @param a The first input tensor.
+ * @param b The second input tensor. Must have the same dtype as `a`.
+ *
+ * @doc {heading: 'Operations', subheading: 'Logical'}
+ */
+T lessEqual<T extends Tensor>(Tensor a, Tensor b) {
+  return execOpBinary('lessEqual', LessEqual, a, b,
+      parseAsDtype: 'string_or_numeric');
+}
+
+/**
+ * Returns the truth value of (a != b) element-wise. Supports broadcasting.
+ *
+ * ```js
+ * const a = tf.tensor1d([1, 2, 3]);
+ * const b = tf.tensor1d([0, 2, 3]);
+ *
+ * a.notEqual(b).print();
+ * ```
+ * @param a The first input tensor.
+ * @param b The second input tensor. Must have the same dtype as `a`.
+ *
+ * @doc {heading: 'Operations', subheading: 'Logical'}
+ */
+T notEqual<T extends Tensor>(Tensor a, Tensor b) {
+  return execOpBinary('notEqual', NotEqual, a, b,
+      parseAsDtype: 'string_or_numeric');
+}
