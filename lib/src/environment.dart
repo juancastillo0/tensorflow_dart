@@ -17,6 +17,7 @@
 
 import 'dart:async';
 
+import 'package:http/http.dart' as http;
 import 'package:tensorflow_wasm/src/util_base.dart' as util;
 
 // import {Platform} from './platforms/platform';
@@ -39,7 +40,20 @@ class FlagRegistryEntry {
   });
 }
 
-typedef TFPlatform = Map;
+typedef RequestInit = http.BaseRequest;
+
+typedef FetchFn = Future<http.StreamedResponse> Function(
+  Uri,
+  RequestInit?,
+);
+
+class TFPlatform {
+  final FetchFn fetch;
+
+  TFPlatform({
+    required this.fetch,
+  });
+}
 
 /**
  * The environment contains evaluated flags as well as the registered platform.
