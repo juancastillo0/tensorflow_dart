@@ -17,7 +17,7 @@
 
 import 'dart:math' as math;
 
-typedef Shape = List<int>;
+import '../tensor.dart' show Shape;
 
 extension IndexOrNull<T> on List<T> {
   T? getIndexOrNull(int index) =>
