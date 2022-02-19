@@ -1,3 +1,4 @@
+import 'package:tensorflow_wasm/src/backend.dart';
 import 'package:tensorflow_wasm/src/backend_wasm.dart';
 import 'package:tensorflow_wasm/src/kernel_registry.dart';
 import 'package:tensorflow_wasm/src/tensor.dart';
@@ -44,7 +45,7 @@ KernelConfig createUnaryKernelConfig(String kernelName, [DataType? outType]) {
     kernelFunc: ({
       required Object backend,
       required NamedTensorInfoMap inputs, // TODO: UnaryInputs
-      Map<String, Object>? attrs,
+      NamedAttrMap? attrs,
     }) {
       backend = backend as BackendWasm;
 
@@ -64,32 +65,54 @@ KernelConfig createUnaryKernelConfig(String kernelName, [DataType? outType]) {
   );
 }
 
-// class KernelConfigG<I, B> implements KernelConfig {
-//   final String kernelName;
-//   final String backendName;
-//   final KernelFunc kernelFunc;
-//   final void Function(B)? _setupFunc;
+class KernelConfigG<B extends KernelBackend, A extends NamedAttrMap>
+    implements KernelConfig {
+  @override
+  final String kernelName;
+  @override
+  final String backendName;
+  final ListOrVal<TensorInfo> Function({
+    required NamedTensorInfoMap inputs,
+    required B backend,
+    A? attrs,
+  }) _kernelFunc;
+  final void Function(B)? _setupFunc;
+  final void Function(B)? _disposeFunc;
 
-//   void __setupFunc(Object backend) => _setupFunc?.call(backend as B);
+  @override
+  // ignore: prefer_function_declarations_over_variables
+  late final setupFunc = (Object backend) => _setupFunc?.call(backend as B);
 
+  @override
+  // ignore: prefer_function_declarations_over_variables
+  late final disposeFunc = (Object backend) => _disposeFunc?.call(backend as B);
 
-//   final KernelDisposeFunc? disposeFunc;
+  @override
+  // ignore: prefer_function_declarations_over_variables
+  late final kernelFunc = ({
+    required NamedTensorInfoMap inputs,
+    required Object backend,
+    NamedAttrMap? attrs,
+  }) {
+    return _kernelFunc(
+      inputs: inputs,
+      backend: backend as B,
+      attrs: attrs as A?,
+    );
+  };
 
-//   KernelConfigG({
-//     required this.kernelName,
-//     required this.backendName,
-//     required this.kernelFunc,
-//     void Function(B)? setupFunc,
-//     this.disposeFunc,
-//   }) : _setupFunc = setupFunc;
-
-//   KernelConfigG withNewBackendName(String newBackendName) {
-//     return KernelConfigG(
-//       kernelName: kernelName,
-//       backendName: newBackendName,
-//       kernelFunc: kernelFunc,
-//       setupFunc: setupFunc,
-//       disposeFunc: disposeFunc,
-//     );
-//   }
-// }
+  KernelConfigG({
+    required this.kernelName,
+    required this.backendName,
+    required ListOrVal<TensorInfo> Function({
+      required NamedTensorInfoMap inputs,
+      required B backend,
+      A? attrs,
+    })
+        kernelFunc,
+    void Function(B)? setupFunc,
+    void Function(B)? disposeFunc,
+  })  : _setupFunc = setupFunc,
+        _disposeFunc = disposeFunc,
+        _kernelFunc = kernelFunc;
+}
