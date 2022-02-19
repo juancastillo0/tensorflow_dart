@@ -15,9 +15,15 @@
  * =============================================================================
  */
 
-import {concat, DataType, keep, reshape, scalar, slice, stack, Tensor, tensor, tidy, unstack} from '@tensorflow/tfjs-core';
+// import {concat, DataType, keep, reshape, scalar, slice, stack, Tensor, tensor, tidy, unstack} from '@tensorflow/tfjs-core';
 
-import {assertShapesMatchAllowUndefinedSize, inferElementShape, mergeElementShape} from './tensor_utils';
+// import {assertShapesMatchAllowUndefinedSize, inferElementShape, mergeElementShape} from './tensor_utils';
+
+import 'package:tensorflow_wasm/src/converter/executor/tensor_utils.dart';
+import 'package:tensorflow_wasm/src/tensor.dart';
+import 'package:tensorflow_wasm/tensorflow_wasm.dart';
+import 'package:tensorflow_wasm/tensorflow_wasm.dart' as tf;
+import 'dart:math' as math;
 
 /**
  * TensorList stores a container of `tf.Tensor` objects, which are accessible
@@ -34,13 +40,17 @@ import {assertShapesMatchAllowUndefinedSize, inferElementShape, mergeElementShap
  * in the original.
  */
 
-export class TensorList {
-  readonly idTensor: Tensor;
-  maxNumElements: number;
+class TensorListContainer {
+  final Tensor idTensor;
+  int maxNumElements;
+  final List<Tensor> tensors;
+  final List<int> elementShape; // int|List<int>
+  final DataType elementDtype;
 
-  get id() {
+  get id {
     return this.idTensor.id;
   }
+
   /**
    *
    * @param tensors list of tensors
@@ -50,14 +60,18 @@ export class TensorList {
    * @param maxNumElements The maximum allowed size of `tensors`. Defaults to -1
    *   meaning that the size of `tensors` is unbounded.
    */
-  constructor(
-      readonly tensors: Tensor[], readonly elementShape: number|number[],
-      readonly elementDtype: DataType, maxNumElements = -1) {
+  TensorListContainer(
+    this.tensors,
+    this.elementShape,
+    this.elementDtype, [
+    int? maxNumElements,
+  ])  : idTensor = scalar(0),
+        maxNumElements = maxNumElements ?? -1 {
     if (tensors != null) {
-      tensors.forEach(tensor => {
-        if (elementDtype !== tensor.dtype) {
-          throw new Error(`Invalid data types; op elements ${
-              elementDtype}, but list elements ${tensor.dtype}`);
+      tensors.forEach((tensor) {
+        if (elementDtype != tensor.dtype) {
+          throw Exception(
+              "Invalid data types; op elements ${elementDtype}, but list elements ${tensor.dtype}");
         }
         assertShapesMatchAllowUndefinedSize(
             elementShape, tensor.shape, 'TensorList shape mismatch: ');
@@ -65,31 +79,33 @@ export class TensorList {
         keep(tensor);
       });
     }
-    this.idTensor = scalar(0);
-    this.maxNumElements = maxNumElements;
     keep(this.idTensor);
   }
 
   /**
    * Get a new TensorList containing a copy of the underlying tensor container.
    */
-  copy(): TensorList {
-    return new TensorList(
-        [...this.tensors], this.elementShape, this.elementDtype);
+  TensorListContainer copy() {
+    return TensorListContainer(
+      [...this.tensors],
+      this.elementShape,
+      this.elementDtype,
+    );
   }
 
   /**
    * Dispose the tensors and idTensor and clear the tensor list.
    */
-  clearAndClose(keepIds?: Set<number>) {
-    this.tensors.forEach(tensor => {
-      if (keepIds == null || !keepIds.has(tensor.id)) {
+  clearAndClose(Set<int>? keepIds) {
+    this.tensors.forEach((tensor) {
+      if (keepIds == null || !keepIds.contains(tensor.id)) {
         tensor.dispose();
       }
     });
     this.tensors.length = 0;
     this.idTensor.dispose();
   }
+
   /**
    * The size of the tensors in the tensor list.
    */
@@ -104,25 +120,26 @@ export class TensorList {
    * @param elementDtype data type of each tensor
    * @param numElements the number of elements to stack
    */
-  stack(elementShape: number[], elementDtype: DataType, numElements = -1):
-      Tensor {
-    if (elementDtype !== this.elementDtype) {
-      throw new Error(`Invalid data types; op elements ${
-          elementDtype}, but list elements ${this.elementDtype}`);
+  Tensor stack(List<int> elementShape, DataType elementDtype,
+      [int numElements = -1]) {
+    if (elementDtype != this.elementDtype) {
+      throw Exception(
+          "Invalid data types; op elements ${elementDtype}, but list elements ${this.elementDtype}");
     }
-    if (numElements !== -1 && this.tensors.length !== numElements) {
-      throw new Error(`Operation expected a list with ${
-          numElements} elements but got a list with ${
-          this.tensors.length} elements.`);
+    if (numElements != -1 && this.tensors.length != numElements) {
+      throw Exception(
+          "Operation expected a list with ${numElements} elements but got a list with ${this.tensors.length} elements.");
     }
     assertShapesMatchAllowUndefinedSize(
         elementShape, this.elementShape, 'TensorList shape mismatch: ');
-    const outputElementShape =
+    final outputElementShape =
         inferElementShape(this.elementShape, this.tensors, elementShape);
-    return tidy(() => {
-      const reshapedTensors =
-          this.tensors.map(tensor => reshape(tensor, outputElementShape));
-      return stack(reshapedTensors, 0);
+    return tidy(() {
+      final reshapedTensors = this
+          .tensors
+          .map((tensor) => reshape(tensor, outputElementShape))
+          .toList();
+      return tf.stack(reshapedTensors, 0);
     });
   }
 
@@ -131,18 +148,18 @@ export class TensorList {
    * @param elementShape shape of the tensor
    * @param elementDtype data type of the tensor
    */
-  popBack(elementShape: number[], elementDtype: DataType): Tensor {
-    if (elementDtype !== this.elementDtype) {
-      throw new Error(`Invalid data types; op elements ${
-          elementDtype}, but list elements ${this.elementDtype}`);
+  Tensor popBack(List<int> elementShape, DataType elementDtype) {
+    if (elementDtype != this.elementDtype) {
+      throw Exception(
+          "Invalid data types; op elements ${elementDtype}, but list elements ${this.elementDtype}");
     }
 
-    if (this.size() === 0) {
-      throw new Error('Trying to pop from an empty list.');
+    if (this.size() == 0) {
+      throw Exception('Trying to pop from an empty list.');
     }
-    const outputElementShape =
+    final outputElementShape =
         inferElementShape(this.elementShape, this.tensors, elementShape);
-    const tensor = this.tensors.pop();
+    final tensor = this.tensors.removeLast();
 
     assertShapesMatchAllowUndefinedSize(
         tensor.shape, elementShape, 'TensorList shape mismatch: ');
@@ -154,35 +171,35 @@ export class TensorList {
    * Push a tensor to the end of the list.
    * @param tensor Tensor to be pushed.
    */
-  pushBack(tensor: Tensor) {
-    if (tensor.dtype !== this.elementDtype) {
-      throw new Error(`Invalid data types; op elements ${
-          tensor.dtype}, but list elements ${this.elementDtype}`);
+  pushBack(Tensor tensor) {
+    if (tensor.dtype != this.elementDtype) {
+      throw Exception(
+          "Invalid data types; op elements ${tensor.dtype}, but list elements ${this.elementDtype}");
     }
 
     assertShapesMatchAllowUndefinedSize(
         tensor.shape, this.elementShape, 'TensorList shape mismatch: ');
 
-    if (this.maxNumElements === this.size()) {
-      throw new Error(`Trying to push element into a full list.`);
+    if (this.maxNumElements == this.size()) {
+      throw Exception("Trying to push element into a full list.");
     }
     keep(tensor);
-    this.tensors.push(tensor);
+    this.tensors.add(tensor);
   }
 
   /**
    * Update the size of the list.
    * @param size the new size of the list.
    */
-  resize(size: number) {
+  resize(int size) {
     if (size < 0) {
-      throw new Error(
-          `TensorListResize expects size to be non-negative. Got: ${size}`);
+      throw Exception(
+          "TensorListResize expects size to be non-negative. Got: ${size}");
     }
 
-    if (this.maxNumElements !== -1 && size > this.maxNumElements) {
-      throw new Error(`TensorListResize input size ${
-          size} is greater maxNumElement ${this.maxNumElements}.`);
+    if (this.maxNumElements != -1 && size > this.maxNumElements) {
+      throw Exception(
+          "TensorListResize input size ${size} is greater maxNumElement ${this.maxNumElements}.");
     }
     this.tensors.length = size;
   }
@@ -193,25 +210,24 @@ export class TensorList {
    * @param elementDtype dtype of the tensor
    * @param elementIndex index of the tensor
    */
-  getItem(elementIndex: number, elementShape: number[], elementDtype: DataType):
-      Tensor {
-    if (elementDtype !== this.elementDtype) {
-      throw new Error(`Invalid data types; op elements ${
-          elementDtype}, but list elements ${this.elementDtype}`);
+  Tensor getItem(
+      int elementIndex, List<int> elementShape, DataType elementDtype) {
+    if (elementDtype != this.elementDtype) {
+      throw Exception(
+          "Invalid data types; op elements ${elementDtype}, but list elements ${this.elementDtype}");
     }
     if (elementIndex < 0 || elementIndex > this.tensors.length) {
-      throw new Error(`Trying to access element ${
-          elementIndex} in a list with ${this.tensors.length} elements.`);
+      throw Exception(
+          "Trying to access element ${elementIndex} in a list with ${this.tensors.length} elements.");
     }
 
     if (this.tensors[elementIndex] == null) {
-      throw new Error(`element at index ${elementIndex} is null.`);
+      throw Exception("element at index ${elementIndex} is null.");
     }
 
-    assertShapesMatchAllowUndefinedSize(
-        this.tensors[elementIndex].shape, elementShape,
-        'TensorList shape mismatch: ');
-    const outputElementShape =
+    assertShapesMatchAllowUndefinedSize(this.tensors[elementIndex].shape,
+        elementShape, 'TensorList shape mismatch: ');
+    final outputElementShape =
         inferElementShape(this.elementShape, this.tensors, elementShape);
     return reshape(this.tensors[elementIndex], outputElementShape);
   }
@@ -221,16 +237,16 @@ export class TensorList {
    * @param elementIndex index of the tensor
    * @param tensor the tensor to be inserted into the list
    */
-  setItem(elementIndex: number, tensor: Tensor) {
-    if (tensor.dtype !== this.elementDtype) {
-      throw new Error(`Invalid data types; op elements ${
-          tensor.dtype}, but list elements ${this.elementDtype}`);
+  setItem(int elementIndex, Tensor tensor) {
+    if (tensor.dtype != this.elementDtype) {
+      throw Exception(
+          "Invalid data types; op elements ${tensor.dtype}, but list elements ${this.elementDtype}");
     }
 
     if (elementIndex < 0 ||
-        this.maxNumElements !== -1 && elementIndex >= this.maxNumElements) {
-      throw new Error(`Trying to set element ${
-          elementIndex} in a list with max ${this.maxNumElements} elements.`);
+        this.maxNumElements != -1 && elementIndex >= this.maxNumElements) {
+      throw Exception(
+          "Trying to set element ${elementIndex} in a list with max ${this.maxNumElements} elements.");
     }
 
     assertShapesMatchAllowUndefinedSize(
@@ -246,11 +262,11 @@ export class TensorList {
    * @param elementDtype output tensor dtype
    * @param elementShape output tensor element shape
    */
-  gather(indices: number[], elementDtype: DataType, elementShape: number[]):
-      Tensor {
-    if (elementDtype !== this.elementDtype) {
-      throw new Error(`Invalid data types; op elements ${
-          elementDtype}, but list elements ${this.elementDtype}`);
+  Tensor gather(
+      List<int> indices, DataType elementDtype, List<int> elementShape) {
+    if (elementDtype != this.elementDtype) {
+      throw Exception(
+          "Invalid data types; op elements ${elementDtype}, but list elements ${this.elementDtype}");
     }
 
     assertShapesMatchAllowUndefinedSize(
@@ -259,16 +275,17 @@ export class TensorList {
     // When indices is greater than the size of the list, indices beyond the
     // size of the list are ignored.
     indices = indices.slice(0, this.size());
-    const outputElementShape =
+    final outputElementShape =
         inferElementShape(this.elementShape, this.tensors, elementShape);
-    if (indices.length === 0) {
-      return tensor([], [0].concat(outputElementShape));
+    if (indices.length == 0) {
+      return tensor([], [0, ...outputElementShape]);
     }
 
-    return tidy(() => {
-      const tensors =
-          indices.map(i => reshape(this.tensors[i], outputElementShape));
-      return stack(tensors, 0);
+    return tidy(() {
+      final tensors = indices
+          .map((i) => reshape(this.tensors[i], outputElementShape))
+          .toList();
+      return tf.stack(tensors, 0);
     });
   }
 
@@ -277,23 +294,24 @@ export class TensorList {
    * @param elementDtype output tensor dtype
    * @param elementShape output tensor element shape
    */
-  concat(elementDtype: DataType, elementShape: number[]): Tensor {
-    if (!!elementDtype && elementDtype !== this.elementDtype) {
-      throw new Error(`TensorList dtype is ${
-          this.elementDtype} but concat requested dtype ${elementDtype}`);
+  Tensor concat(DataType elementDtype, List<int> elementShape) {
+    if (elementDtype != null && elementDtype != this.elementDtype) {
+      throw Exception(
+          "TensorList dtype is ${this.elementDtype} but concat requested dtype ${elementDtype}");
     }
 
     assertShapesMatchAllowUndefinedSize(
         this.elementShape, elementShape, 'TensorList shape mismatch: ');
-    const outputElementShape =
+    final outputElementShape =
         inferElementShape(this.elementShape, this.tensors, elementShape);
 
-    if (this.size() === 0) {
-      return tensor([], [0].concat(outputElementShape));
+    if (this.size() == 0) {
+      return tensor([], [0, ...outputElementShape]);
     }
-    return tidy(() => {
-      const tensors = this.tensors.map(t => reshape(t, outputElementShape));
-      return concat(tensors, 0);
+    return tidy(() {
+      final tensors =
+          this.tensors.map((t) => reshape(t, outputElementShape)).toList();
+      return tf.concat(tensors, 0);
     });
   }
 }
@@ -303,22 +321,25 @@ export class TensorList {
  * @param tensor from tensor
  * @param elementShape output tensor element shape
  */
-export function fromTensor(
-    tensor: Tensor, elementShape: number[], elementDtype: DataType) {
-  const dtype = tensor.dtype;
+TensorListContainer fromTensor(
+  Tensor tensor,
+  List<int> elementShape,
+  DataType elementDtype,
+) {
+  final dtype = tensor.dtype;
   if (tensor.shape.length < 1) {
-    throw new Error(
-        `Tensor must be at least a vector, but saw shape: ${tensor.shape}`);
+    throw Exception(
+        "Tensor must be at least a vector, but saw shape: ${tensor.shape}");
   }
-  if (tensor.dtype !== elementDtype) {
-    throw new Error(`Invalid data types; op elements ${
-        tensor.dtype}, but list elements ${elementDtype}`);
+  if (tensor.dtype != elementDtype) {
+    throw Exception(
+        "Invalid data types; op elements ${tensor.dtype}, but list elements ${elementDtype}");
   }
-  const tensorElementShape = tensor.shape.slice(1);
+  final tensorElementShape = tensor.shape.slice(1);
   assertShapesMatchAllowUndefinedSize(
       tensorElementShape, elementShape, 'TensorList shape mismatch: ');
-  const tensorList: Tensor[] = unstack(tensor);
-  return new TensorList(tensorList, elementShape, dtype);
+  final List<Tensor> tensorList = unstack(tensor);
+  return TensorListContainer(tensorList, elementShape, dtype);
 }
 
 /**
@@ -327,9 +348,9 @@ export function fromTensor(
  * @param elementDtype the desired type of elements in the list
  * @param numElements the number of elements to reserve
  */
-export function reserve(
-    elementShape: number[], elementDtype: DataType, numElements: number) {
-  return new TensorList([], elementShape, elementDtype, numElements);
+TensorListContainer reserve(
+    List<int> elementShape, DataType elementDtype, int numElements) {
+  return TensorListContainer([], elementShape, elementDtype, numElements);
 }
 
 /**
@@ -339,25 +360,29 @@ export function reserve(
  * @param elementShape the shape of the future elements of the list
  * @param numElements the number of elements to scatter
  */
-export function scatter(
-    tensor: Tensor, indices: number[], elementShape: number[],
-    numElements?: number): TensorList {
-  if (indices.length !== tensor.shape[0]) {
-    throw new Error(`Expected len(indices) == tensor.shape[0], but saw: ${
-        indices.length} vs. ${tensor.shape[0]}`);
+TensorListContainer scatter(
+  Tensor tensor,
+  List<int> indices,
+  List<int> elementShape,
+  int? numElements,
+) {
+  if (indices.length != tensor.shape[0]) {
+    throw Exception(
+        "Expected len(indices) == tensor.shape[0], but saw: ${indices.length} vs. ${tensor.shape[0]}");
   }
 
-  const maxIndex = Math.max(...indices);
+  final maxIndex = indices.reduce(math.max);
 
-  if (numElements != null && numElements !== -1 && maxIndex >= numElements) {
-    throw new Error(
-        `Max index must be < array size (${maxIndex}  vs. ${numElements})`);
+  if (numElements != null && numElements != -1 && maxIndex >= numElements) {
+    throw Exception(
+        "Max index must be < array size (${maxIndex}  vs. ${numElements})");
   }
 
-  const list = new TensorList([], elementShape, tensor.dtype, numElements);
-  const tensors = unstack(tensor, 0);
-  indices.forEach((value, index) => {
-    list.setItem(value, tensors[index]);
+  final list = TensorListContainer([], elementShape, tensor.dtype, numElements);
+  final tensors = unstack(tensor, 0);
+  int index = 0;
+  indices.forEach((value) {
+    list.setItem(value, tensors[index++]);
   });
   return list;
 }
@@ -369,41 +394,41 @@ export function scatter(
  * @param tensor the tensor to split.
  * @param elementShape the shape of the future elements of the list
  */
-export function split(
-    tensor: Tensor, length: number[], elementShape: number[]) {
-  let totalLength = 0;
-  const cumulativeLengths = length.map(len => {
+TensorListContainer split(
+    Tensor tensor, List<int> length, List<int> elementShape) {
+  int totalLength = 0;
+  final cumulativeLengths = length.map((len) {
     totalLength += len;
     return totalLength;
-  });
+  }).toList();
 
-  if (totalLength !== tensor.shape[0]) {
-    throw new Error(`Expected sum of lengths to be equal to
-          tensor.shape[0], but sum of lengths is
-        ${totalLength}, and tensor's shape is: ${tensor.shape}`);
+  if (totalLength != tensor.shape[0]) {
+    throw Exception("Expected sum of lengths to be equal to tensor.shape[0],"
+        " but sum of lengths is ${totalLength}, and tensor's shape is: ${tensor.shape}");
   }
 
-  const shapeWithoutFirstDim = tensor.shape.slice(1);
-  const outputElementShape =
+  final shapeWithoutFirstDim = tensor.shape.slice(1);
+  final outputElementShape =
       mergeElementShape(shapeWithoutFirstDim, elementShape);
-  const elementPerRow = totalLength === 0 ? 0 : tensor.size / totalLength;
-  const tensors: Tensor[] = tidy(() => {
-    const tensors = [];
+  final elementPerRow = totalLength == 0 ? 0 : tensor.size ~/ totalLength;
+  final List<Tensor> tensors = tidy(() {
+    final List<Tensor> tensors = [];
     tensor = reshape(tensor, [1, totalLength, elementPerRow]);
-    for (let i = 0; i < length.length; ++i) {
-      const previousLength = (i === 0) ? 0 : cumulativeLengths[i - 1];
-      const indices = [0, previousLength, 0];
-      const sizes = [1, length[i], elementPerRow];
+    for (int i = 0; i < length.length; ++i) {
+      final previousLength = (i == 0) ? 0 : cumulativeLengths[i - 1];
+      final indices = [0, previousLength, 0];
+      final sizes = [1, length[i], elementPerRow];
       tensors[i] = reshape(
-          slice(tensor, indices, sizes), outputElementShape as number[]);
+          slice(tensor, indices, sizes), outputElementShape as List<int>);
     }
     tensor.dispose();
     return tensors;
   });
 
-  const list = new TensorList([], elementShape, tensor.dtype, length.length);
+  final list =
+      TensorListContainer([], elementShape, tensor.dtype, length.length);
 
-  for (let i = 0; i < tensors.length; i++) {
+  for (int i = 0; i < tensors.length; i++) {
     list.setItem(i, tensors[i]);
   }
   return list;
