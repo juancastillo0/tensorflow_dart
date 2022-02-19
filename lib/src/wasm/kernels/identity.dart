@@ -15,23 +15,28 @@
  * =============================================================================
  */
 
-import {Identity, IdentityInputs, KernelConfig, KernelFunc} from '@tensorflow/tfjs-core';
-import {TensorInfo} from '@tensorflow/tfjs-core';
+import 'package:tensorflow_wasm/src/wasm/kernels/_prelude.dart';
 
-import {BackendWasm} from '../backend_wasm';
+// import {Identity, IdentityInputs, KernelConfig, KernelFunc} from '@tensorflow/tfjs-core';
+// import {TensorInfo} from '@tensorflow/tfjs-core';
 
-export function identity(args: {inputs: IdentityInputs, backend: BackendWasm}):
-    TensorInfo {
-  const {inputs: {x}, backend} = args;
-  const out = backend.makeOutput(x.shape, x.dtype);
-  const inVals = backend.typedArrayFromHeap(x);
-  const outVals = backend.typedArrayFromHeap(out);
-  outVals.set(inVals);
-  return out;
+// import {BackendWasm} from '../backend_wasm';
+
+ListOrVal<TensorInfo> identity({
+  required NamedTensorInfoMap inputs,
+  required BackendWasm backend,
+  NamedAttrMap? attrs,
+}) {
+  final x = inputs['x']!;
+  final out = backend.makeOutput(x.shape, x.dtype);
+  final inVals = backend.typedArrayFromHeap(x);
+  final outVals = backend.typedArrayFromHeap(out);
+  List.copyRange(outVals as List, 0, inVals as List);
+  return ListOrVal.val(out);
 }
 
-export const identityConfig: KernelConfig = {
+final identityConfig = KernelConfigG(
   kernelName: Identity,
   backendName: 'wasm',
-  kernelFunc: identity as {} as KernelFunc,
-};
+  kernelFunc: identity,
+);

@@ -15,38 +15,46 @@
  * =============================================================================
  */
 
-import {ExpandDims, ExpandDimsAttrs, ExpandDimsInputs, KernelConfig, KernelFunc, util} from '@tensorflow/tfjs-core';
+// import {ExpandDims, ExpandDimsAttrs, ExpandDimsInputs, KernelConfig, KernelFunc, util} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
-import {reshape} from './Reshape';
+// import {BackendWasm} from '../backend_wasm';
+// import {reshape} from './Reshape';
 
-export function expandDims(args: {
-  inputs: ExpandDimsInputs,
-  attrs: ExpandDimsAttrs,
-  backend: BackendWasm
+import '_prelude.dart';
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
+
+import 'reshape.dart';
+
+ListOrVal<TensorInfo> expandDims({
+  required NamedTensorInfoMap inputs,
+  NamedAttrMap? attrs,
+  required BackendWasm backend,
 }) {
-  const {inputs, attrs, backend} = args;
-  const {input} = inputs;
-  const {dim} = attrs;
+  final input = inputs['input']!;
+  final dim = attrs!['dim'] as int;
 
-  const inputRank = input.shape.length;
-  const newShape = input.shape.slice();
-  let $dim = dim;
+  final inputRank = input.shape.length;
+  final newShape = [...input.shape];
+  int $dim = dim;
   if (dim < 0) {
     // Negative value is counted from the tail of rank.
-    util.assert(
+    util.assert_(
         -(inputRank + 1) <= dim,
-        () => `Axis must be in the interval [${- (inputRank + 1)}, ${
-            inputRank}]`);
+        () =>
+            'Axis must be in the interval [${-(inputRank + 1)}, ${inputRank}]');
     $dim = inputRank + dim + 1;
   }
-  newShape.splice($dim, 0, 1);
+  newShape.insert($dim, 1);
 
-  return reshape({inputs: {x: input}, backend, attrs: {shape: newShape}});
+  return reshape(
+    inputs: {'x': input},
+    backend: backend,
+    attrs: {'shape': newShape},
+  );
 }
 
-export const expandDimsConfig: KernelConfig = {
+final expandDimsConfig = KernelConfigG<BackendWasm, NamedAttrMap>(
   kernelName: ExpandDims,
   backendName: 'wasm',
-  kernelFunc: expandDims as {} as KernelFunc,
-};
+  kernelFunc: expandDims,
+);

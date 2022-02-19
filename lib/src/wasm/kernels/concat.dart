@@ -15,37 +15,45 @@
  * =============================================================================
  */
 
-import {backend_util, Concat, ConcatAttrs, ConcatInputs, KernelConfig, KernelFunc, util} from '@tensorflow/tfjs-core';
+// import {backend_util, Concat, ConcatAttrs, ConcatInputs, KernelConfig, KernelFunc, util} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
-import {concatImplCPU} from '../kernel_utils/shared';
-import {identity} from './Identity';
-import {reshape} from './Reshape';
+// import {BackendWasm} from '../backend_wasm';
+// import {concatImplCPU} from '../kernel_utils/shared';
+// import {identity} from './Identity';
+// import {reshape} from './Reshape';
 
-export function concat(
-    args: {inputs: ConcatInputs, backend: BackendWasm, attrs: ConcatAttrs}) {
-  const {inputs, backend} = args;
+import 'package:tensorflow_wasm/tensorflow_wasm.dart' show SliceList;
 
-  const axis = util.parseAxisParam(args.attrs.axis, inputs[0].shape)[0];
+import '_prelude.dart';
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
+import 'package:tensorflow_wasm/backend_util.dart' as backend_util;
 
-  let outShape = backend_util.computeOutShape(inputs.map(t => t.shape), axis);
+import 'identity.dart';
+import 'reshape.dart';
+
+ListOrVal<TensorInfo> concat(
+    {required ConcatInputs inputs, required BackendWasm backend, Map<String, Object?>? attrs,}) {
+final _axis = attrs!['axis'];
+  final axis = util.parseAxisParam(_axis is int ? [_axis] : _axis as List<int>, inputs[0].shape)[0];
+
+  var outShape = backend_util.computeOutShape(inputs.map((t) => t.shape).toList(), axis);
 
   // Keep only non-empty tensors (ignore tensors with 0 in their shape).
-  const $inputs = inputs.filter(t => util.sizeFromShape(t.shape) > 0);
-  if ($inputs.length === 1) {
-    return identity({inputs: {x: $inputs[0]}, backend});
+  final $inputs = inputs.where((t) => util.sizeFromShape(t.shape) > 0).toList();
+  if ($inputs.length == 1) {
+    return identity(inputs: {'x': $inputs[0]}, backend: backend);
   }
 
-  const out = backend.makeOutput(outShape, inputs[0].dtype);
+  final out = backend.makeOutput(outShape, inputs[0].dtype);
 
-  if (util.sizeFromShape(outShape) === 0) {
-    return out;
+  if (util.sizeFromShape(outShape) == 0) {
+    return ListOrVal.val(out);
   }
 
-  const shapes = $inputs.map(t => t.shape);
+  final shapes = $inputs.map((t) => t.shape).toList();
   backend_util.assertParamsConsistent(shapes, axis);
 
-  if ($inputs[0].dtype === 'string') {
+  if ($inputs[0].dtype == 'string') {
     // Any concat of n-dimensional tensors across any axis can be reduced to
     // a concatenation of two-dimensional tensors across the axis 1 by first
     // partitioning the axes of the original tensors into those less than the
@@ -53,51 +61,51 @@ export function concat(
     // into a two-dimensional tensor by collapsing these two sets of axes and
     // concatenate the resulting matrices across the axis 1, finally reshaping
     // the result to have the proper shape.
-    const inputs2D = $inputs.map(t => {
-      const innerSize = util.sizeFromShape(t.shape.slice(axis));
-      const shape = [-1, innerSize];
-      return reshape({inputs: {x: t}, backend, attrs: {shape}});
-    });
+    final inputs2D = $inputs.map((t) {
+      final innerSize = util.sizeFromShape(t.shape.slice(axis));
+      final shape = [-1, innerSize];
+      return reshape(inputs: {'x': t}, backend: backend, attrs: {'shape': shape}).asVal!;
+    }).toList();
 
-    const inputsValShapes = inputs2D.map(t => {
+    final inputsValShapes = inputs2D.map((t) {
       return {vals: backend.readSync(t.dataId), shape: t.shape};
     });
 
     // Concats 2d tensors along axis=1.
     outShape =
-        backend_util.computeOutShape(inputs2D.map(t => t.shape), 1 /* axis */);
-    const simplyConcat = inputs2D[0].shape[0] === 1;
-    const outVals = concatImplCPU(
+        backend_util.computeOutShape(inputs2D.map((t) => t.shape).toList(), 1 /* axis */);
+    final simplyConcat = inputs2D[0].shape[0] == 1;
+    final outVals = concatImplCPU(
                         inputsValShapes, outShape, inputs[0].dtype,
                         simplyConcat) as string[];
 
-    const finalOutShape =
-        backend_util.computeOutShape($inputs.map(t => t.shape), axis);
+    final finalOutShape =
+        backend_util.computeOutShape($inputs.map((t) => t.shape).toList(), axis);
 
-    out.shape = finalOutShape;
-    const outData = backend.dataIdMap.get(out.dataId);
+    // out.shape = finalOutShape;
+    final outData = backend.dataIdMap.get(out.dataId);
     outData.stringBytes = backend_util.fromStringArrayToUint8(outVals);
 
-    inputs2D.forEach(t => backend.disposeData(t.dataId));
+    inputs2D.forEach((t) => backend.disposeData(t.dataId));
 
-    return out;
+    return ListOrVal.val(TensorInfo(dataId: out.dataId, dtype: out.dtype, shape: finalOutShape,));
   }
 
-  const batchDim = util.sizeFromShape($inputs[0].shape.slice(0, axis));
-  let sumInnerDims = 0;
-  const innerDims = $inputs.map(input => {
-    const innerDim = util.sizeFromShape(input.shape.slice(axis));
+  final batchDim = util.sizeFromShape($inputs[0].shape.slice(0, axis));
+  int sumInnerDims = 0;
+  final innerDims = $inputs.map((input) {
+    final innerDim = util.sizeFromShape(input.shape.slice(axis));
     sumInnerDims += innerDim;
     return innerDim;
-  });
-  const inVals = $inputs.map(input => backend.typedArrayFromHeap(input));
-  const outVals = backend.typedArrayFromHeap(out);
-  for (let b = 0; b < batchDim; b++) {
-    let outOffset = b * sumInnerDims;
-    for (let i = 0; i < inVals.length; i++) {
-      const innerDim = innerDims[i];
-      const inOffset = b * innerDim;
-      const vals = inVals[i].subarray(inOffset, inOffset + innerDim);
+  }).toList();
+  final inVals = $inputs.map((input) => backend.typedArrayFromHeap(input)).toList();
+  final outVals = backend.typedArrayFromHeap(out);
+  for (int b = 0; b < batchDim; b++) {
+    int outOffset = b * sumInnerDims;
+    for (int i = 0; i < inVals.length; i++) {
+      final innerDim = innerDims[i];
+      final inOffset = b * innerDim;
+      final vals = inVals[i].subarray(inOffset, inOffset + innerDim);
       outVals.set(vals, outOffset);
       outOffset += innerDim;
     }
@@ -105,8 +113,8 @@ export function concat(
   return out;
 }
 
-export const concatConfig: KernelConfig = {
+final concatConfig =  KernelConfigG<BackendWasm, DepthwiseConv2dNativeAttrs>(
   kernelName: Concat,
   backendName: 'wasm',
-  kernelFunc: concat as {} as KernelFunc,
-};
+  kernelFunc: ({required inputs, required backend, attrs}) => concat(inputs: List.generate(inputs.length, (index) => inputs[index.toString()]!), backend: backend, attrs: attrs,),
+);

@@ -914,8 +914,8 @@ typedef TanhInputs = UnaryInputs;
 //   outputShape?: [number, number];
 // }
 
-// export const Transpose = 'Transpose';
-// export type TransposeInputs = Pick<NamedTensorInfoMap, 'x'>;
+const Transpose = 'Transpose';
+typedef TransposeInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 // export interface TransposeAttrs {
 //   perm: number[];
 // }

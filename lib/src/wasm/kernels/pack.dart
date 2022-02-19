@@ -15,52 +15,74 @@
  * =============================================================================
  */
 
-import {KernelConfig, KernelFunc, Pack, PackAttrs, PackInputs, TensorInfo, util} from '@tensorflow/tfjs-core';
-import {BackendWasm} from '../backend_wasm';
+import 'package:tensorflow_wasm/src/backend_wasm.dart';
+import 'package:tensorflow_wasm/src/kernel_names.dart';
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
+import 'package:tensorflow_wasm/src/tensor.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/unary_kernel.dart';
 
-import {concat} from './Concat';
-import {expandDims} from './ExpandDims';
+import 'concat.dart';
+import 'expand_dims.dart';
 
-export function pack(
-    args: {inputs: PackInputs, backend: BackendWasm, attrs: PackAttrs}):
-    TensorInfo {
-  const {inputs, backend, attrs} = args;
-  const {axis} = attrs;
+// import {KernelConfig, KernelFunc, Pack, PackAttrs, PackInputs, TensorInfo, util} from '@tensorflow/tfjs-core';
+// import {BackendWasm} from '../backend_wasm';
 
-  if (inputs.length === 1) {
+// import {concat} from './Concat';
+// import {expandDims} from './ExpandDims';
+
+ListOrVal<TensorInfo> pack({
+  required List<TensorInfo> inputs,
+  required BackendWasm backend,
+  Map<String, Object?>? attrs,
+}) {
+  final axis = attrs?['axis'] as int;
+
+  if (inputs.length == 1) {
     return expandDims(
-        {inputs: {input: inputs[0]}, backend, attrs: {dim: axis}});
+      inputs: {'input': inputs[0]},
+      backend: backend,
+      attrs: {'dim': axis},
+    );
   }
 
-  const shape = inputs[0].shape;
-  const dtype = inputs[0].dtype;
+  final shape = inputs[0].shape;
+  final dtype = inputs[0].dtype;
 
-  inputs.forEach(t => {
-    util.assertShapesMatch(
-        shape, t.shape,
+  inputs.forEach((t) {
+    util.assertShapesMatch(shape, t.shape,
         'All tensors passed to stack must have matching shapes');
-    util.assert(
-        dtype === t.dtype,
+    util.assert_(dtype == t.dtype,
         () => 'All tensors passed to stack must have matching dtypes');
   });
 
-  const intermediateTensorInfos: TensorInfo[] = [];
-  const expandedTensors = inputs.map(t => {
-    const expandedT =
-        expandDims({inputs: {input: t}, backend, attrs: {dim: axis}});
-    intermediateTensorInfos.push(expandedT);
+  final List<TensorInfo> intermediateTensorInfos = [];
+  final expandedTensors = inputs.map((t) {
+    final expandedT = expandDims(
+      inputs: {'input': t},
+      backend: backend,
+      attrs: {'dim': axis},
+    ).asVal!;
+    intermediateTensorInfos.add(expandedT);
     return expandedT;
-  });
+  }).toList();
 
-  const result = concat({inputs: expandedTensors, backend, attrs: {axis}});
+  final result = concat(
+    inputs: expandedTensors,
+    backend: backend,
+    attrs: {'axis': axis},
+  );
 
-  intermediateTensorInfos.forEach(t => backend.disposeData(t.dataId));
+  intermediateTensorInfos.forEach((t) => backend.disposeData(t.dataId));
 
   return result;
 }
 
-export const packConfig: KernelConfig = {
+final packConfig = KernelConfigG<BackendWasm, Map<String, Object?>>(
   kernelName: Pack,
   backendName: 'wasm',
-  kernelFunc: pack as {} as KernelFunc
-};
+  kernelFunc: ({required inputs, required backend, attrs}) => pack(
+    inputs: List.generate(inputs.length, (index) => inputs[index.toString()]!),
+    backend: backend,
+    attrs: attrs,
+  ),
+);
