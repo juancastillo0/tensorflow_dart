@@ -787,7 +787,7 @@ class Engine implements TensorTracker, DataMover {
         final numDataIdsBefore = this.backend.numDataIds();
         out = kernel.kernelFunc(
             inputs: inputs, attrs: kernelParams.attrs, backend: this.backend);
-        final outInfos = out.asList;
+        final outInfos = out.toList();
         if (this._shouldCheckForMemLeaks()) {
           this._checkKernelForMemLeak(kernelName, numDataIdsBefore, outInfos);
         }
@@ -840,7 +840,7 @@ class Engine implements TensorTracker, DataMover {
               (tensor) => ListOrVal.val(tensor),
               (list) => ListOrVal.list(list),
             );
-        final outs = out.asList;
+        final outs = out.toList();
         if (this._shouldCheckForMemLeaks()) {
           // Scope name is used to print a more helpful error message if needed.
           this._checkKernelForMemLeak(

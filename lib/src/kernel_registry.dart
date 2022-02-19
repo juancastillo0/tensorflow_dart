@@ -31,7 +31,7 @@ final kernelRegistry =
     getGlobal('kernelRegistry', () => Map<String, KernelConfig>());
 final gradRegistry = getGlobal('gradRegistry', () => Map<String, GradConfig>());
 
-typedef AttributeValue = Object;
+typedef AttributeValue = Object?;
 // number|number[]|boolean|boolean[]|String|string[]|NamedAttrMap;
 
 /** These are extra non-tensor/primitive params passed to kernel functions. */
@@ -72,7 +72,9 @@ class KernelConfig {
     this.setupFunc,
     this.disposeFunc,
   });
+}
 
+extension CopyWithKernelConfig on KernelConfig {
   KernelConfig withNewBackendName(String newBackendName) {
     return KernelConfig(
       kernelName: kernelName,

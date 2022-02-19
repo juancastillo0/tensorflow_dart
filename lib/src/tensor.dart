@@ -104,8 +104,10 @@ class ListOrVal<T> {
   ListOrVal.list(List<T> this._value) : isList = true;
   ListOrVal.val(T this._value) : isList = false;
 
-  List<T> get asList => isList ? _value as List<T> : [_value as T];
+  List<T>? get asList => isList ? _value as List<T> : null;
   T? get asVal => !isList ? _value as T : null;
+
+  List<T> toList() => isList ? _value as List<T> : [_value as T];
 
   O match<O>(
     O Function(T val) val,
@@ -122,10 +124,10 @@ class ListOrVal<T> {
 
 enum Rank { R0, R1, R2, R3, R4, R5, R6 }
 
-class TensorData<D extends DataType> {
-  DataId? dataId;
-  List? values; // DataTypeMap[D]
-}
+// class TensorData<D extends DataType> {
+//   DataId? dataId;
+//   List? values; // DataTypeMap[D]
+// }
 
 // This interface mimics KernelBackend (in backend.ts), which would create a
 // circular dependency if imported.
