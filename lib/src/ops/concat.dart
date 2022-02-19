@@ -14,17 +14,21 @@
  * limitations under the License.
  * =============================================================================
  */
-import {ENGINE} from '../engine';
-import {Concat, ConcatAttrs, ConcatInputs} from '../kernel_names';
-import {NamedAttrMap} from '../kernel_registry';
-import {Tensor} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {convertToTensorArray} from '../tensor_util_env';
-import {TensorLike} from '../types';
-import {assert} from '../util';
 
-import {clone} from './clone';
-import {op} from './operation';
+import '_prelude.dart';
+import 'package:tensorflow_wasm/src/ops/clone.dart';
+
+// import {ENGINE} from '../engine';
+// import {Concat, ConcatAttrs, ConcatInputs} from '../kernel_names';
+// import {NamedAttrMap} from '../kernel_registry';
+// import {Tensor} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {convertToTensorArray} from '../tensor_util_env';
+// import {TensorLike} from '../types';
+// import {assert} from '../util';
+
+// import {clone} from './clone';
+// import {op} from './operation';
 
 /**
  * Concatenates a list of `tf.Tensor`s along a given axis.
@@ -66,30 +70,33 @@ import {op} from './operation';
  *
  * @doc {heading: 'Tensors', subheading: 'Slicing and Joining'}
  */
-function concat_<T extends Tensor>(tensors: Array<T|TensorLike>, axis = 0): T {
-  assert(tensors.length >= 1, () => 'Pass at least one tensor to concat');
+T concat<T extends Tensor>(List<T> tensors, [int axis = 0]) {
+  return execOp('concat', () {
+    assert(tensors.length >= 1, () => 'Pass at least one tensor to concat');
 
-  const $tensors =
-      convertToTensorArray(tensors, 'tensors', 'concat', 'string_or_numeric');
+    final $tensors =
+        convertToTensorArray(tensors, 'tensors', 'concat', 'string_or_numeric');
 
-  if ($tensors[0].dtype === 'complex64') {
-    $tensors.forEach(tensor => {
-      if (tensor.dtype !== 'complex64') {
-        throw new Error(`Cannot concatenate complex64 tensors with a tensor
-          with dtype ${tensor.dtype}. `);
-      }
-    });
-  }
+    if ($tensors[0].dtype == 'complex64') {
+      $tensors.forEach((tensor) {
+        if (tensor.dtype != 'complex64') {
+          throw Exception(
+              'Cannot concatenate complex64 tensors with a tensor with dtype ${tensor.dtype}. ');
+        }
+      });
+    }
 
-  if ($tensors.length === 1) {
-    return clone($tensors[0]);
-  }
+    if ($tensors.length == 1) {
+      return clone($tensors[0]);
+    }
 
-  const inputs: ConcatInputs = $tensors;
-  const attr: ConcatAttrs = {axis};
+    final inputs = $tensors; // : ConcatInputs
+    final attr = {'axis': axis}; // : ConcatAttrs
 
-  return ENGINE.runKernel(
-      Concat, inputs as {} as NamedTensorMap, attr as {} as NamedAttrMap);
+    return ENGINE.runKernel(
+      Concat,
+      inputs,
+      attr,
+    ) as T;
+  });
 }
-
-export const concat = op({concat_});

@@ -14,15 +14,17 @@
  * limitations under the License.
  * =============================================================================
  */
-import {ENGINE} from '../engine';
-import {Complex, ComplexInputs} from '../kernel_names';
-import {Tensor} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
-import * as util from '../util';
+// import {ENGINE} from '../engine';
+// import {Complex, ComplexInputs} from '../kernel_names';
+// import {Tensor} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
+// import * as util from '../util';
 
-import {op} from './operation';
+// import {op} from './operation';
+import '_prelude.dart';
+import '../util_base.dart' as util;
 
 /**
  * Converts two real numbers to a complex number.
@@ -44,16 +46,17 @@ import {op} from './operation';
  *
  * @doc {heading: 'Tensors', subheading: 'Creation'}
  */
-function complex_<T extends Tensor>(real: T|TensorLike, imag: T|TensorLike): T {
-  const $real = convertToTensor(real, 'real', 'complex');
-  const $imag = convertToTensor(imag, 'imag', 'complex');
-  util.assertShapesMatch(
-      $real.shape, $imag.shape,
-      `real and imag shapes, ${$real.shape} and ${$imag.shape}, ` +
-          `must match in call to tf.complex().`);
+T complex<T extends Tensor>(T real, T imag) {
+  return execOp('complex', () {
+    final $real = convertToTensor(real, 'real', 'complex');
+    final $imag = convertToTensor(imag, 'imag', 'complex');
+    util.assertShapesMatch(
+        $real.shape,
+        $imag.shape,
+        'real and imag shapes, ${$real.shape} and ${$imag.shape}, ' +
+            'must match in call to tf.complex().');
 
-  const inputs: ComplexInputs = {real: $real, imag: $imag};
-  return ENGINE.runKernel(Complex, inputs as {} as NamedTensorMap);
+    final inputs = {'real': $real, 'imag': $imag}; //ComplexInputs
+    return ENGINE.runKernel(Complex, inputs) as T;
+  });
 }
-
-export const complex = op({complex_});

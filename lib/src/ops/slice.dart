@@ -15,15 +15,18 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../engine';
-import {Slice, SliceAttrs, SliceInputs} from '../kernel_names';
-import {NamedAttrMap} from '../kernel_registry';
-import {Tensor} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {convertToTensor} from '../tensor_util_env';
-import {Rank, TensorLike} from '../types';
+import 'package:tensorflow_wasm/src/tensor.dart';
+import '_prelude.dart';
 
-import {op} from './operation';
+// import {ENGINE} from '../engine';
+// import {Slice, SliceAttrs, SliceInputs} from '../kernel_names';
+// import {NamedAttrMap} from '../kernel_registry';
+// import {Tensor} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {convertToTensor} from '../tensor_util_env';
+// import {Rank, TensorLike} from '../types';
+
+// import {op} from './operation';
 
 /**
  * Extracts a slice from a `tf.Tensor` starting at coordinates `begin`
@@ -59,19 +62,27 @@ import {op} from './operation';
  *
  * @doc {heading: 'Tensors', subheading: 'Slicing and Joining'}
  */
-function slice_<R extends Rank, T extends Tensor<R>>(
-    x: T|TensorLike, begin: number|number[], size?: number|number[]): T {
-  const $x = convertToTensor(x, 'x', 'slice', 'string_or_numeric');
+T slice<R extends Rank, T extends Tensor<R>>(
+  T x,
+  // : number|number[]
+  List<int> begin,
+  // : number|number[]
+  List<int>? size,
+) {
+  return execOp('slice', () {
+    final $x = convertToTensor(x, 'x', 'slice', 'string_or_numeric');
 
-  if ($x.rank === 0) {
-    throw new Error('Slicing scalar is not possible');
-  }
+    if ($x.rank == 0) {
+      throw Exception('Slicing scalar is not possible');
+    }
 
-  const inputs: SliceInputs = {x: $x};
-  const attrs: SliceAttrs = {begin, size};
+    final inputs = {'x': $x}; // : SliceInputs
+    final attrs = {'begin': begin, 'size': size}; // : SliceAttrs
 
-  return ENGINE.runKernel(
-      Slice, inputs as {} as NamedTensorMap, attrs as {} as NamedAttrMap);
+    return ENGINE.runKernel(
+      Slice,
+      inputs,
+      attrs,
+    ) as T;
+  });
 }
-
-export const slice = op({slice_});

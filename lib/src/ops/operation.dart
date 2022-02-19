@@ -82,6 +82,19 @@ T execOpBinary<T extends Tensor>(
   });
 }
 
+T execOpUnary<T extends Tensor>(
+  String name,
+  String kernelName,
+  Tensor x, {
+  String parseAsDtype = 'numeric',
+}) {
+  return execOp(name, () {
+    final $x = convertToTensor(x, 'x', name, parseAsDtype);
+    final inputs = {'x': $x};
+    return ENGINE.runKernel(kernelName, inputs) as T;
+  });
+}
+
 /**
  * Used for wrapping functions that perform math operations on
  * Tensors. The function will be wrapped in a named scope that cleans all

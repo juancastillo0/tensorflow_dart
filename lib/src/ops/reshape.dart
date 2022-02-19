@@ -15,15 +15,19 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../engine';
-import {Reshape, ReshapeAttrs, ReshapeInputs} from '../kernel_names';
-import {NamedAttrMap} from '../kernel_registry';
-import {Tensor} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {convertToTensor} from '../tensor_util_env';
-import {Rank, ShapeMap, TensorLike} from '../types';
+// import {ENGINE} from '../engine';
+// import {Reshape, ReshapeAttrs, ReshapeInputs} from '../kernel_names';
+// import {NamedAttrMap} from '../kernel_registry';
+// import {Tensor} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {convertToTensor} from '../tensor_util_env';
+// import {Rank, ShapeMap, TensorLike} from '../types';
 
-import {op} from './operation';
+// import {op} from './operation';
+
+import 'package:tensorflow_wasm/src/tensor.dart';
+
+import '_prelude.dart';
 
 /**
  * Reshapes a `tf.Tensor` to a given shape.
@@ -51,13 +55,16 @@ import {op} from './operation';
  *
  * @doc {heading: 'Tensors', subheading: 'Transformations'}
  */
-function reshape_<R extends Rank>(
-    x: Tensor|TensorLike, shape: ShapeMap[R]): Tensor<R> {
-  const $x = convertToTensor(x, 'x', 'reshape', 'string_or_numeric');
+Tensor<R> reshape<R extends Rank>(
+  Tensor x,
+  // ShapeMap[R]
+  List<int> shape,
+) {
+  return execOp('reshape', () {
+    final $x = convertToTensor(x, 'x', 'reshape', 'string_or_numeric');
 
-  const inputs: ReshapeInputs = {x: $x};
-  const attrs: ReshapeAttrs = {shape};
-  return ENGINE.runKernel(
-      Reshape, inputs as {} as NamedTensorMap, attrs as {} as NamedAttrMap);
+    final inputs = {'x': $x}; // ReshapeInputs
+    final attrs = {'shape': shape}; // ReshapeAttrs
+    return ENGINE.runKernel(Reshape, inputs, attrs) as Tensor<R>;
+  });
 }
-export const reshape = op({reshape_});
