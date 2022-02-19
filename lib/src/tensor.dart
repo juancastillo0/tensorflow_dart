@@ -65,6 +65,8 @@ typedef TensorContainerObject = Map<String, TensorContainer>;
 
 typedef TensorContainerArray = List<TensorContainer>;
 
+typedef Shape = List<int>;
+
 mixin TensorsOrMap {
   O matchWithMap<O>(
     O Function(Tensor tensor) tensor,

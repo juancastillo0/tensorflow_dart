@@ -20,7 +20,7 @@ import 'dart:typed_data';
 import './src/util_base.dart';
 
 // Utilities needed by backend consumers of tf-core.
-// export './src/ops/axis_util.dart';
+export './src/ops/axis_util.dart';
 export './src/ops/broadcast_util.dart';
 export './src/ops/concat_util.dart';
 export './src/ops/conv_util.dart';
