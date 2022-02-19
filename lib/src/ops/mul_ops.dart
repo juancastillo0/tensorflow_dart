@@ -50,6 +50,38 @@ T reciprocal<T extends Tensor>(Tensor x) {
 }
 
 /**
+ * Returns the mod of a and b element-wise.
+ * `floor(x / y) * y + mod(x, y) = x`
+ * Supports broadcasting.
+ *
+ * We also expose `tf.modStrict` which has the same signature as this op and
+ * asserts that `a` and `b` are the same shape (does not broadcast).
+ *
+ * ```js
+ * const a = tf.tensor1d([1, 4, 3, 16]);
+ * const b = tf.tensor1d([1, 2, 9, 4]);
+ *
+ * a.mod(b).print();  // or tf.mod(a, b)
+ * ```
+ *
+ * ```js
+ * // Broadcast a mod b.
+ * const a = tf.tensor1d([2, 4, 6, 8]);
+ * const b = tf.scalar(5);
+ *
+ * a.mod(b).print();  // or tf.mod(a, b)
+ * ```
+ *
+ * @param a The first tensor.
+ * @param b The second tensor. Must have the same type as `a`.
+ *
+ * @doc {heading: 'Operations', subheading: 'Arithmetic'}
+ */
+T mod<T extends Tensor>(Tensor a, Tensor b) {
+  return execOpBinary('mod', Mod, a, b, assertBroadcastShape: false);
+}
+
+/**
  * Computes the power of one `tf.Tensor` to another. Supports broadcasting.
  *
  * Given a `tf.Tensor` x and a `tf.Tensor` y, this operation computes x^y for

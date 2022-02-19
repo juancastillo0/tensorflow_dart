@@ -14,15 +14,19 @@
  * limitations under the License.
  * =============================================================================
  */
-import {ENGINE} from '../engine';
-import {AddN, AddNInputs} from '../kernel_names';
-import {Tensor} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
-import * as util from '../util';
+// import {ENGINE} from '../engine';
+// import {AddN, AddNInputs} from '../kernel_names';
+// import {Tensor} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
+// import * as util from '../util';
 
-import {op} from './operation';
+// import {op} from './operation';
+import 'package:collection/collection.dart';
+
+import '_prelude.dart';
+import '../util_base.dart' as util;
 
 /**
  * Adds a list of `tf.Tensor`s element-wise, each with the same shape and dtype.
@@ -37,36 +41,39 @@ import {op} from './operation';
  * @param tensors A list of tensors with the same shape and dtype.
  * @doc {heading: 'Operations', subheading: 'Arithmetic'}
  */
-function addN_<T extends Tensor>(tensors: Array<T|TensorLike>): T {
-  util.assert(
-      Array.isArray(tensors),
-      () => 'The argument passed to tf.addN() must be a list of tensors');
-  util.assert(
-      tensors.length >= 1,
-      () => `Must pass at least one tensor to tf.addN(), but got ` +
-          `${tensors.length}`);
+T addN<T extends Tensor>(List<T> tensors) {
+  return execOp('addN', () {
+    util.assert_(tensors is List,
+        () => 'The argument passed to tf.addN() must be a list of tensors');
+    util.assert_(
+        tensors.length >= 1,
+        () =>
+            'Must pass at least one tensor to tf.addN(), but got ' +
+            '${tensors.length}');
 
-  const $tensors =
-      tensors.map((t, i) => convertToTensor(t, `tensors${i}`, 'addN'));
+    final $tensors = tensors
+        .mapIndexed((i, t) => convertToTensor(t, 'tensors${i}', 'addN'))
+        .toList();
 
-  const firstTensor = $tensors[0];
-  $tensors.forEach(t => {
-    if (t.dtype !== firstTensor.dtype) {
-      throw new Error(
-          'All tensors passed to tf.addN() must have the same dtype');
-    }
+    final firstTensor = $tensors[0];
+    $tensors.forEach((t) {
+      if (t.dtype != firstTensor.dtype) {
+        throw Exception(
+            'All tensors passed to tf.addN() must have the same dtype');
+      }
+    });
+
+    $tensors.forEach((t) {
+      if (!util.arraysEqual(t.shape, firstTensor.shape)) {
+        throw Exception(
+            'All tensors passed to tf.addN() must have the same shape');
+      }
+    });
+
+    final inputs = Map.fromIterables(
+        Iterable.generate($tensors.length, (i) => i.toString()),
+        $tensors); // AddNInputs
+
+    return ENGINE.runKernel(AddN, inputs) as T;
   });
-
-  $tensors.forEach(t => {
-    if (!util.arraysEqual(t.shape, firstTensor.shape)) {
-      throw new Error(
-          'All tensors passed to tf.addN() must have the same shape');
-    }
-  });
-
-  const inputs: AddNInputs = $tensors;
-
-  return ENGINE.runKernel(AddN, inputs as {} as NamedTensorMap);
 }
-
-export const addN = op({addN_});

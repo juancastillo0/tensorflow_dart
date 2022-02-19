@@ -7,6 +7,9 @@ export 'scalar.dart';
 export 'complex.dart';
 //
 export 'arithmetic.dart';
+export 'add_n.dart';
+export 'reduction_ops.dart';
+export 'trigonometric.dart';
 export 'div.dart';
 export 'floor_div.dart';
 export 'squared_difference.dart';
