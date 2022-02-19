@@ -90,7 +90,10 @@ T concat<T extends Tensor>(List<T> tensors, [int axis = 0]) {
       return clone($tensors[0]);
     }
 
-    final inputs = $tensors; // : ConcatInputs
+    final inputs = Map.fromIterables(
+      Iterable.generate($tensors.length, (i) => i.toString()),
+      $tensors,
+    ); // : ConcatInputs
     final attr = {'axis': axis}; // : ConcatAttrs
 
     return ENGINE.runKernel(

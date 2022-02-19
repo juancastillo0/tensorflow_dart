@@ -58,8 +58,10 @@ Tensor stack<T extends Tensor>(
       util.assert_(
           axis <= $tensors[0].rank, () => 'Axis must be <= rank of the tensor');
     }
-
-    final inputs = {'x': $tensors}; // TODO: PackInputs was a List
+    final inputs = Map.fromIterables(
+      Iterable.generate($tensors.length, (i) => i.toString()),
+      $tensors,
+    ); // TODO: PackInputs was a List
     final attrs = {'axis': axis}; // PackAttrs
 
     return ENGINE.runKernel(
