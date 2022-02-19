@@ -15,37 +15,39 @@
  * =============================================================================
  */
 
-import * as util from '../util';
+// import * as util from '../util';
+import '../util_base.dart' as util;
+import 'package:collection/collection.dart';
 
-export function assertParamsConsistent(shapes: number[][], axis: number) {
-  const rank = shapes[0].length;
-  shapes.forEach((shape, i) => {
-    util.assert(
-        shape.length === rank,
+assertParamsConsistent(List<List<int>> shapes, int axis) {
+  final rank = shapes[0].length;
+  shapes.forEachIndexed((i, shape) {
+    util.assert_(
+        shape.length == rank,
         () =>
-            `Error in concat${rank}D: rank of tensors[${i}] must be the same ` +
-            `as the rank of the rest (${rank})`);
+            'Error in concat${rank}D: rank of tensors[${i}] must be the same ' +
+            'as the rank of the rest (${rank})');
   });
 
-  util.assert(
-      axis >= 0 && axis < rank,
-      () => `Error in concat${rank}D: axis must be between 0 and ${rank - 1}.`);
+  util.assert_(axis >= 0 && axis < rank,
+      () => 'Error in concat${rank}D: axis must be between 0 and ${rank - 1}.');
 
-  const firstShape = shapes[0];
-  shapes.forEach((shape, i) => {
-    for (let r = 0; r < rank; r++) {
-      util.assert(
-          (r === axis) || (shape[r] === firstShape[r]),
-          () => `Error in concat${rank}D: Shape of tensors[${i}] (${shape}) ` +
-              `does not match the shape of the rest (${firstShape}) ` +
-              `along the non-concatenated axis ${i}.`);
+  final firstShape = shapes[0];
+  shapes.forEachIndexed((i, shape) {
+    for (int r = 0; r < rank; r++) {
+      util.assert_(
+          (r == axis) || (shape[r] == firstShape[r]),
+          () =>
+              'Error in concat${rank}D: Shape of tensors[${i}] (${shape}) ' +
+              'does not match the shape of the rest (${firstShape}) ' +
+              'along the non-concatenated axis ${i}.');
     }
   });
 }
 
-export function computeOutShape(shapes: number[][], axis: number): number[] {
-  const outputShape = shapes[0].slice();
-  for (let i = 1; i < shapes.length; i++) {
+List<int> computeOutShape(List<List<int>> shapes, int axis) {
+  final outputShape = [...shapes[0]];
+  for (int i = 1; i < shapes.length; i++) {
     outputShape[axis] += shapes[i][axis];
   }
   return outputShape;
