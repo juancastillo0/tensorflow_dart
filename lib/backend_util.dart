@@ -15,50 +15,52 @@
  * =============================================================================
  */
 
-import {decodeString, encodeString} from '../util';
+import 'dart:typed_data';
+
+import './src/util_base.dart';
 
 // Utilities needed by backend consumers of tf-core.
-export * from '../ops/axis_util';
-export * from '../ops/broadcast_util';
-export * from '../ops/concat_util';
-export * from '../ops/conv_util';
-export * from '../ops/fused_util';
-export * from '../ops/fused_types';
-export * from '../ops/reduce_util';
+// export './src/ops/axis_util.dart';
+export './src/ops/broadcast_util.dart';
+export './src/ops/concat_util.dart';
+export './src/ops/conv_util.dart';
+// export './src/ops/fused_util.dart';
+// export './src/ops/fused_types.dart';
+// export './src/ops/reduce_util.dart';
 
-import * as slice_util from '../ops/slice_util';
-export {slice_util};
+// import * as slice_util from './src/ops/slice_util.dart';
+// export {slice_util};
 
-export {BackendValues, TypedArray, upcastType, PixelData} from '../types';
-export {MemoryInfo, TimingInfo} from '../engine';
-export * from '../ops/rotate_util';
-export * from '../ops/array_ops_util';
-export * from '../ops/gather_nd_util';
-export * from '../ops/scatter_nd_util';
-export * from '../ops/selu_util';
-export * from '../ops/fused_util';
-export * from '../ops/erf_util';
-export * from '../log';
-export * from '../backends/complex_util';
-export * from '../backends/einsum_util';
-export * from '../ops/split_util';
-export * from '../ops/sparse/sparse_fill_empty_rows_util';
-export * from '../ops/sparse/sparse_reshape_util';
-export * from '../ops/sparse/sparse_segment_reduction_util';
+// export {BackendValues, TypedArray, upcastType, PixelData} from './src/types.dart';
+export './src/engine.dart' show MemoryInfo, TimingInfo;
+// export './src/ops/rotate_util.dart';
+// export './src/ops/array_ops_util.dart';
+// export './src/ops/gather_nd_util.dart';
+// export './src/ops/scatter_nd_util.dart';
+// export './src/ops/selu_util.dart';
+// export './src/ops/fused_util.dart';
+// export './src/ops/erf_util.dart';
+// export './src/log.dart';
+// export './src/backends/complex_util.dart';
+// export './src/backends/einsum_util.dart';
+// export './src/ops/split_util.dart';
+// export './src/ops/sparse/sparse_fill_empty_rows_util.dart';
+// export './src/ops/sparse/sparse_reshape_util.dart';
+// export './src/ops/sparse/sparse_segment_reduction_util.dart';
 
-import * as segment_util from '../ops/segment_util';
-export {segment_util};
+// import * as './src/ops/segment_util.dart';
+// export {segment_util};
 
-export function fromUint8ToStringArray(vals: Uint8Array[]) {
+List<String> fromUint8ToStringArray(List<Uint8List> vals) {
   try {
     // Decode the bytes into string.
-    return vals.map(val => decodeString(val));
+    return vals.map((val) => decodeString(val)).toList();
   } catch (err) {
-    throw new Error(
-        `Failed to decode encoded string bytes into utf-8, error: ${err}`);
+    throw Exception(
+        'Failed to decode encoded string bytes into utf-8, error: ${err}');
   }
 }
 
-export function fromStringArrayToUint8(strings: string[]) {
-  return strings.map(s => encodeString(s));
+List<Uint8List> fromStringArrayToUint8(List<String> strings) {
+  return strings.map((s) => encodeString(s)).toList();
 }

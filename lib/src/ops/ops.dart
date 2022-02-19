@@ -22,3 +22,6 @@ export 'maximum.dart';
 export 'minimum.dart';
 export 'logical.dart';
 export 'logical_binary.dart';
+//
+export 'round_ops.dart';
+export 'mul_ops.dart';
