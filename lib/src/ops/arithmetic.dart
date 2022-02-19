@@ -67,3 +67,97 @@ T add<T extends Tensor>(Tensor a, Tensor b) {
     return ENGINE.runKernel(Add, inputs) as T;
   });
 }
+
+/**
+ * Subtracts two `tf.Tensor`s element-wise, A - B. Supports broadcasting.
+ *
+ * ```js
+ * const a = tf.tensor1d([10, 20, 30, 40]);
+ * const b = tf.tensor1d([1, 2, 3, 4]);
+ *
+ * a.sub(b).print();  // or tf.sub(a, b)
+ * ```
+ *
+ * ```js
+ * // Broadcast subtract a with b.
+ * const a = tf.tensor1d([10, 20, 30, 40]);
+ * const b = tf.scalar(5);
+ *
+ * a.sub(b).print();  // or tf.sub(a, b)
+ * ```
+ * @param a The first `tf.Tensor` to subtract from.
+ * @param b The second `tf.Tensor` to be subtracted. Must have the same dtype as
+ * `a`.
+ *
+ * @doc {heading: 'Operations', subheading: 'Arithmetic'}
+ */
+T sub<T extends Tensor>(
+  Tensor a,
+  Tensor b,
+) {
+  return execOpBinary('sub', Sub, a, b);
+}
+
+/**
+ * Computes `-1 * x` element-wise.
+ *
+ * ```js
+ * const x = tf.tensor2d([1, 2, -2, 0], [2, 2]);
+ *
+ * x.neg().print();  // or tf.neg(x)
+ * ```
+ *
+ * @param x The input tensor.
+ *
+ * @doc {heading: 'Operations', subheading: 'Basic math'}
+ */
+T neg<T extends Tensor>(T x) {
+  return execOp('neg', () {
+    final $x = convertToTensor(x, 'x', 'neg');
+
+    final inputs = {'x': $x}; // NegInputs
+    return ENGINE.runKernel(Neg, inputs) as T;
+  });
+}
+
+/**
+ * Computes absolute value element-wise: `abs(x)`
+ *
+ * ```js
+ * const x = tf.tensor1d([-1, 2, -3, 4]);
+ *
+ * x.abs().print();  // or tf.abs(x)
+ * ```
+ * @param x The input `tf.Tensor`.
+ *
+ * @doc {heading: 'Operations', subheading: 'Basic math'}
+ */
+T abs<T extends Tensor>(Tensor x) {
+  return execOp('abs', () {
+    final $x = convertToTensor(x, 'x', 'abs');
+
+    if ($x.dtype == 'complex64') {
+      final inputs = {'x': $x};
+      return ENGINE.runKernel(ComplexAbs, inputs) as T;
+    } else {
+      final inputs = {'x': $x};
+      return ENGINE.runKernel(Abs, inputs) as T;
+    }
+  });
+}
+
+/**
+ * Returns an element-wise indication of the sign of a number.
+ *
+ * ```js
+ * const x = tf.tensor1d([.6, 1.1, -3.3, NaN, 0]);
+ *
+ * x.sign().print();  // or tf.sign(x)
+ * ```
+ * @param x The input Tensor.
+ *
+ * @doc {heading: 'Operations', subheading: 'Basic math'}
+ */
+T sign<T extends Tensor>(Tensor x) {
+  return execOpUnary('sign', Sign, x);
+}
