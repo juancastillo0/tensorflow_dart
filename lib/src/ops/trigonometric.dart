@@ -12,15 +12,9 @@ import '_prelude.dart';
  *
  * @doc {heading: 'Operations', subheading: 'Basic math'}
  */
-function sin_<T extends Tensor>(x: T|TensorLike): T {
-  const $x = convertToTensor(x, 'x', 'sin', 'float32');
-
-  const inputs: SinInputs = {x: $x};
-
-  return ENGINE.runKernel(Sin, inputs as {} as NamedTensorMap);
+T sin<T extends Tensor>(T x) {
+  return execOpUnary('sin', Sin, x, parseAsDtype: 'float32');
 }
-export const sin = op({sin_});
-
 
 /**
  * Computes hyperbolic sin of the input `tf.Tensor` element-wise: `sinh(x)`
@@ -34,15 +28,9 @@ export const sin = op({sin_});
  *
  * @doc {heading: 'Operations', subheading: 'Basic math'}
  */
-function sinh_<T extends Tensor>(x: T|TensorLike): T {
-  const $x = convertToTensor(x, 'x', 'sinh');
-  const inputs: SinhInputs = {x: $x};
-
-  return ENGINE.runKernel(Sinh, inputs as {} as NamedTensorMap);
+T sinh<T extends Tensor>(T x) {
+  return execOpUnary('sinh', Sinh, x);
 }
-export const sinh = op({sinh_});
-
-
 
 /**
  * Computes asin of the input `tf.Tensor` element-wise: `asin(x)`
@@ -55,15 +43,9 @@ export const sinh = op({sinh_});
  * @param x The input tensor.
  * @doc {heading: 'Operations', subheading: 'Basic math'}
  */
-function asin_<T extends Tensor>(x: T|TensorLike): T {
-  const $x = convertToTensor(x, 'x', 'asin');
-  const inputs: AsinInputs = {x: $x};
-
-  return ENGINE.runKernel(Asin, inputs as {} as NamedTensorMap);
+T asin<T extends Tensor>(T x) {
+  return execOpUnary('asin', Asin, x);
 }
-export const asin = op({asin_});
-
-
 
 /**
  * Computes inverse hyperbolic sin of the input `tf.Tensor` element-wise:
@@ -78,15 +60,9 @@ export const asin = op({asin_});
  *
  * @doc {heading: 'Operations', subheading: 'Basic math'}
  */
-function asinh_<T extends Tensor>(x: T|TensorLike): T {
-  const $x = convertToTensor(x, 'x', 'asinh');
-
-  const inputs: AsinhInputs = {x: $x};
-
-  return ENGINE.runKernel(Asinh, inputs as {} as NamedTensorMap);
+T asinh<T extends Tensor>(T x) {
+  return execOpUnary('asinh', Asinh, x);
 }
-export const asinh = op({asinh_});
-
 
 /**
  * Computes cos of the input `tf.Tensor` element-wise: `cos(x)`
@@ -100,15 +76,9 @@ export const asinh = op({asinh_});
  *
  * @doc {heading: 'Operations', subheading: 'Basic math'}
  */
-function cos_<T extends Tensor>(x: T|TensorLike): T {
-  const $x = convertToTensor(x, 'x', 'cos', 'float32');
-
-  const inputs: CosInputs = {x: $x};
-
-  return ENGINE.runKernel(Cos, inputs as {} as NamedTensorMap);
+T cos<T extends Tensor>(T x) {
+  return execOpUnary('cos', Cos, x, parseAsDtype: 'float32');
 }
-export const cos = op({cos_});
-
 
 /**
  * Computes hyperbolic cos of the input `tf.Tensor` element-wise: `cosh(x)`
@@ -122,14 +92,9 @@ export const cos = op({cos_});
  *
  * @doc {heading: 'Operations', subheading: 'Basic math'}
  */
-function cosh_<T extends Tensor>(x: T|TensorLike): T {
-  const $x = convertToTensor(x, 'x', 'cosh', 'float32');
-  const inputs: CoshInputs = {x: $x};
-
-  return ENGINE.runKernel(Cosh, inputs as {} as NamedTensorMap);
+T cosh<T extends Tensor>(T x) {
+  return execOpUnary('cosh', Cosh, x, parseAsDtype: 'float32');
 }
-export const cosh = op({cosh_});
-
 
 /**
  * Computes acos of the input `tf.Tensor` element-wise: `acos(x)`
@@ -142,14 +107,9 @@ export const cosh = op({cosh_});
  * @param x The input tensor.
  * @doc {heading: 'Operations', subheading: 'Basic math'}
  */
-function acos_<T extends Tensor>(x: T|TensorLike): T {
-  const $x = convertToTensor(x, 'x', 'acos');
-  const inputs: AcosInputs = {x: $x};
-
-  return ENGINE.runKernel(Acos, inputs as {} as NamedTensorMap);
+T acos<T extends Tensor>(T x) {
+  return execOpUnary('acos', Acos, x);
 }
-export const acos = op({acos_});
-
 
 /**
  * Computes the inverse hyperbolic cos of the input `tf.Tensor` element-wise:
@@ -164,14 +124,9 @@ export const acos = op({acos_});
  *
  * @doc {heading: 'Operations', subheading: 'Basic math'}
  */
-function acosh_<T extends Tensor>(x: T|TensorLike): T {
-  const $x = convertToTensor(x, 'x', 'acosh');
-  const inputs: AcoshInputs = {x: $x};
-
-  return ENGINE.runKernel(Acosh, inputs as {} as NamedTensorMap);
+T acosh<T extends Tensor>(T x) {
+  return execOpUnary('acosh', Acosh, x);
 }
-export const acosh = op({acosh_});
-
 
 /**
  * Computes tan of the input `tf.Tensor` element-wise, `tan(x)`
@@ -185,15 +140,9 @@ export const acosh = op({acosh_});
  *
  * @doc {heading: 'Operations', subheading: 'Basic math'}
  */
-function tan_<T extends Tensor>(x: T|TensorLike): T {
-  const $x = convertToTensor(x, 'x', 'tan', 'float32');
-
-  const inputs: TanInputs = {x: $x};
-
-  return ENGINE.runKernel(Tan, inputs as {} as NamedTensorMap);
+T tan<T extends Tensor>(T x) {
+  return execOpUnary('tan', Tan, x, parseAsDtype: 'float32');
 }
-export const tan = op({tan_});
-
 
 /**
  * Computes hyperbolic tangent of the input `tf.Tensor` element-wise: `tanh(x)`
@@ -207,15 +156,9 @@ export const tan = op({tan_});
  *
  * @doc {heading: 'Operations', subheading: 'Basic math'}
  */
-function tanh_<T extends Tensor>(x: T|TensorLike): T {
-  const $x = convertToTensor(x, 'x', 'tanh', 'float32');
-
-  const inputs: TanhInputs = {x: $x};
-
-  return ENGINE.runKernel(Tanh, inputs as {} as NamedTensorMap);
+T tanh<T extends Tensor>(T x) {
+  return execOpUnary('tanh', Tanh, x, parseAsDtype: 'float32');
 }
-export const tanh = op({tanh_});
-
 
 /**
  * Computes atan of the input `tf.Tensor` element-wise: `atan(x)`
@@ -229,15 +172,9 @@ export const tanh = op({tanh_});
  *
  * @doc {heading: 'Operations', subheading: 'Basic math'}
  */
-function atan_<T extends Tensor>(x: T|TensorLike): T {
-  const $x = convertToTensor(x, 'x', 'atan');
-
-  const inputs: AtanInputs = {x: $x};
-
-  return ENGINE.runKernel(Atan, inputs as {} as NamedTensorMap);
+T atan<T extends Tensor>(T x) {
+  return execOpUnary('atan', Atan, x);
 }
-export const atan = op({atan_});
-
 
 /**
  * Computes arctangent of `tf.Tensor`s a / b element-wise: `atan2(a, b)`.
@@ -255,19 +192,9 @@ export const atan = op({atan_});
  *
  * @doc {heading: 'Operations', subheading: 'Basic math'}
  */
-function atan2_<T extends Tensor>(
-    a: Tensor|TensorLike, b: Tensor|TensorLike): T {
-  let $a = convertToTensor(a, 'a', 'atan2');
-  let $b = convertToTensor(b, 'b', 'atan2');
-  [$a, $b] = makeTypesMatch($a, $b);
-
-  const inputs: Atan2Inputs = {a: $a, b: $b};
-
-  return ENGINE.runKernel(Atan2, inputs as {} as NamedTensorMap);
+T atan2<T extends Tensor>(Tensor a, Tensor b) {
+  return execOpBinary('atan2', Atan2, a, b, assertBroadcastShape: false);
 }
-
-export const atan2 = op({atan2_});
-
 
 /**
  * Computes inverse hyperbolic tan of the input `tf.Tensor` element-wise:
@@ -282,11 +209,6 @@ export const atan2 = op({atan2_});
  *
  * @doc {heading: 'Operations', subheading: 'Basic math'}
  */
-function atanh_<T extends Tensor>(x: T|TensorLike): T {
-  const $x = convertToTensor(x, 'x', 'atanh');
-
-  const inputs: AtanhInputs = {x: $x};
-
-  return ENGINE.runKernel(Atanh, inputs as {} as NamedTensorMap);
+T atanh<T extends Tensor>(T x) {
+  return execOpUnary('atanh', Atanh, x);
 }
-export const atanh = op({atanh_});

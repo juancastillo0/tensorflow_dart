@@ -35,11 +35,13 @@ import 'package:tensorflow_wasm/src/tensor.dart';
 const Abs = 'Abs';
 typedef AbsInputs = UnaryInputs;
 
-// export const Acos = 'Acos';
-// export type AcosInputs = UnaryInputs;
+// TODO: wasm
+const Acos = 'Acos';
+typedef AcosInputs = UnaryInputs;
 
-// export const Acosh = 'Acosh';
-// export type AcoshInputs = UnaryInputs;
+// TODO: wasm
+const Acosh = 'Acosh';
+typedef AcoshInputs = UnaryInputs;
 
 const Add = 'Add';
 typedef AddInputs = BinaryInputs;
@@ -47,15 +49,15 @@ typedef AddInputs = BinaryInputs;
 // export const AddN = 'AddN';
 // export type AddNInputs = TensorInfo[];
 
-// export const All = 'All';
-// export type AllInputs = Pick<NamedTensorInfoMap, 'x'>;
+const All = 'All';
+typedef AllInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 // export interface AllAttrs {
 //   axis: number|number[];
 //   keepDims: boolean;
 // }
 
-// export const Any = 'Any';
-// export type AnyInputs = Pick<NamedTensorInfoMap, 'x'>;
+const Any = 'Any';
+typedef AnyInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 // export interface AnyAttrs {
 //   axis: number|number[];
 //   keepDims: boolean;
@@ -73,20 +75,25 @@ typedef AddInputs = BinaryInputs;
 //   axis: number;
 // }
 
-// export const Asin = 'Asin';
-// export type AsinInputs = UnaryInputs;
+// TODO: wasm
+const Asin = 'Asin';
+typedef AsinInputs = UnaryInputs;
 
-// export const Asinh = 'Asinh';
-// export type AsinhInputs = UnaryInputs;
+// TODO: wasm
+const Asinh = 'Asinh';
+typedef AsinhInputs = UnaryInputs;
 
-// export const Atan = 'Atan';
-// export type AtanInputs = UnaryInputs;
+// TODO: wasm
+const Atan = 'Atan';
+typedef AtanInputs = UnaryInputs;
 
-// export const Atanh = 'Atanh';
-// export type AtanhInputs = UnaryInputs;
+// TODO: wasm
+const Atanh = 'Atanh';
+typedef AtanhInputs = UnaryInputs;
 
-// export const Atan2 = 'Atan2';
-// export type Atan2Inputs = BinaryInputs;
+// TODO: wasm
+const Atan2 = 'Atan2';
+typedef Atan2Inputs = BinaryInputs;
 
 // export const AvgPool = 'AvgPool';
 // export type AvgPoolInputs = Pick<NamedTensorInfoMap, 'x'>;
@@ -521,8 +528,8 @@ typedef LogicalOrInputs = BinaryInputs;
 //   beta: number;
 // }
 
-// export const Max = 'Max';
-// export type MaxInputs = Pick<NamedTensorInfoMap, 'x'>;
+const Max = 'Max';
+typedef MaxInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 // export interface MaxAttrs {
 //   reductionIndices: number|number[];
 //   keepDims: boolean;
@@ -585,8 +592,8 @@ typedef MaximumInputs = BinaryInputs;
 //   keepDims: boolean;
 // }
 
-// export const Min = 'Min';
-// export type MinInputs = Pick<NamedTensorInfoMap, 'x'>;
+const Min = 'Min';
+typedef MinInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 // export interface MinAttrs {
 //   axis: number|number[];
 //   keepDims: boolean;
@@ -685,8 +692,8 @@ typedef PowInputs = BinaryInputs;
 // export const Prelu = 'Prelu';
 // export type PreluInputs = Pick<NamedTensorInfoMap, 'x'|'alpha'>;
 
-// export const Prod = 'Prod';
-// export type ProdInputs = Pick<NamedTensorInfoMap, 'x'>;
+const Prod = 'Prod';
+typedef ProdInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 // export interface ProdAttrs {
 //   axis: number|number[];
 //   keepDims: boolean;
@@ -776,8 +783,9 @@ typedef SliceInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 const Sin = 'Sin';
 typedef SinInputs = UnaryInputs;
 
-// export const Sinh = 'Sinh';
-// export type SinhInputs = UnaryInputs;
+// TODO: wasm
+const Sinh = 'Sinh';
+typedef SinhInputs = UnaryInputs;
 
 const Sign = 'Sign';
 typedef SignInputs = UnaryInputs;
@@ -791,8 +799,8 @@ typedef SignInputs = UnaryInputs;
 const Sqrt = 'Sqrt';
 typedef SqrtInputs = UnaryInputs;
 
-// export const Sum = 'Sum';
-// export type SumInputs = Pick<NamedTensorInfoMap, 'x'>;
+const Sum = 'Sum';
+typedef SumInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 // export interface SumAttrs {
 //   axis: number|number[];
 //   keepDims: boolean;

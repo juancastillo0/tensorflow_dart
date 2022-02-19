@@ -62,6 +62,7 @@ T execOpBinary<T extends Tensor>(
   Tensor a,
   Tensor b, {
   String parseAsDtype = 'numeric',
+  bool assertBroadcastShape = true,
 }) {
   return execOp(name, () {
     var $a = convertToTensor(a, 'a', name, parseAsDtype);
@@ -70,7 +71,9 @@ T execOpBinary<T extends Tensor>(
     $a = t.first;
     $b = t.second;
 
-    assertAndGetBroadcastShape($a.shape, $b.shape);
+    if (assertBroadcastShape) {
+      assertAndGetBroadcastShape($a.shape, $b.shape);
+    }
 
     final inputs = {'a': $a, 'b': $b}; // SquaredDifferenceInputs
 
