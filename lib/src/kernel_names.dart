@@ -1,5 +1,8 @@
 // ignore_for_file: constant_identifier_names
 
+import 'dart:collection';
+
+import 'package:tensorflow_wasm/src/kernel_registry.dart';
 import 'package:tensorflow_wasm/src/tensor.dart';
 
 /**
@@ -179,15 +182,15 @@ typedef CeilInputs = UnaryInputs;
 //   clipValueMax: number;
 // }
 
-// export const Complex = 'Complex';
-// export type ComplexInputs = Pick<NamedTensorInfoMap, 'real'|'imag'>;
+const Complex = 'Complex';
+// type ComplexInputs = Pick<NamedTensorInfoMap, 'real'|'imag'>;
 
-// export const ComplexAbs = 'ComplexAbs';
-// export type ComplexAbsInputs = UnaryInputs;
+const ComplexAbs = 'ComplexAbs';
+typedef ComplexAbsInputs = UnaryInputs;
 
-// export const Concat = 'Concat';
-// export type ConcatInputs = TensorInfo[];
-// export interface ConcatAttrs {
+const Concat = 'Concat';
+typedef ConcatInputs = List<TensorInfo>;
+// interface ConcatAttrs {
 //   axis: number;
 // }
 
@@ -285,16 +288,38 @@ typedef CoshInputs = UnaryInputs;
 //   dataFormat: 'NHWC'|'NCHW';
 // }
 
-// export const DepthwiseConv2dNative = 'DepthwiseConv2dNative';
-// export type DepthwiseConv2dNativeInputs =
-//     Pick<NamedTensorInfoMap, 'x'|'filter'>;
-// export interface DepthwiseConv2dNativeAttrs {
-//   strides: [number, number]|number;
-//   pad: 'valid'|'same'|number|ExplicitPadding;
-//   dataFormat: 'NHWC'|'NCHW';
-//   dilations: [number, number]|number;
-//   dimRoundingMode?: 'floor'|'round'|'ceil';
-// }
+const DepthwiseConv2dNative = 'DepthwiseConv2dNative';
+typedef DepthwiseConv2dNativeInputs
+    = NamedTensorInfoMap; // Pick<NamedTensorInfoMap, 'x'|'filter'>;
+
+class DepthwiseConv2dNativeAttrs extends UnmodifiableMapBase<String, Object?>
+    implements NamedAttrMap {
+  final List<int> strides; //  [number, number]|number
+  final String pad; //  'valid'|'same'|number|ExplicitPadding
+  final String dataFormat; //  'NHWC'|'NCHW'
+  final List<int> dilations; //  [number, number]|number
+  final String? dimRoundingMode; // 'floor'|'round'|'ceil'
+
+  DepthwiseConv2dNativeAttrs({
+    required this.strides,
+    required this.pad,
+    required this.dataFormat,
+    required this.dilations,
+    required this.dimRoundingMode,
+  });
+
+  @override
+  operator [](Object? key) {
+    if (key is! String) return null;
+    final index = keys.indexOf(key);
+    if (index == -1) return null;
+    return [strides, pad, dataFormat, dilations, dimRoundingMode][index];
+  }
+
+  @override
+  List<String> get keys =>
+      const ['strides', 'pad', 'dataFormat', 'dilations', 'dimRoundingMode'];
+}
 
 // export const DepthwiseConv2dNativeBackpropFilter =
 //     'DepthwiseConv2dNativeBackpropFilter';
@@ -363,8 +388,8 @@ typedef EqualInputs = BinaryInputs;
 const Exp = 'Exp';
 typedef ExpInputs = UnaryInputs;
 
-// export const ExpandDims = 'ExpandDims';
-// export type ExpandDimsInputs = Pick<NamedTensorInfoMap, 'input'>;
+const ExpandDims = 'ExpandDims';
+// typedef ExpandDimsInputs = Pick<NamedTensorInfoMap, 'input'>;
 // export interface ExpandDimsAttrs {
 //   dim: number;
 // }
@@ -678,14 +703,14 @@ typedef PowInputs = BinaryInputs;
 // export const Real = 'Real';
 // export type RealInputs = Pick<NamedTensorInfoMap, 'input'>;
 
-// export const Reciprocal = 'Reciprocal';
-// export type ReciprocalInputs = UnaryInputs;
+const Reciprocal = 'Reciprocal';
+typedef ReciprocalInputs = UnaryInputs;
 
 const Relu = 'Relu';
 typedef ReluInputs = UnaryInputs;
 
-// export const Reshape = 'Reshape';
-// export type ReshapeInputs = Pick<NamedTensorInfoMap, 'x'>;
+const Reshape = 'Reshape';
+typedef ReshapeInputs = UnaryInputs;
 // export interface ReshapeAttrs {
 //   shape: number[];
 // }
@@ -742,8 +767,8 @@ typedef RsqrtInputs = UnaryInputs;
 // export const Selu = 'Selu';
 // export type SeluInputs = Pick<NamedTensorInfoMap, 'x'>;
 
-// export const Slice = 'Slice';
-// export type SliceInputs = Pick<NamedTensorInfoMap, 'x'>;
+const Slice = 'Slice';
+typedef SliceInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 // export interface SliceAttrs {
 //   begin: number|number[];
 //   size: number|number[];
@@ -754,8 +779,8 @@ typedef SinInputs = UnaryInputs;
 // export const Sinh = 'Sinh';
 // export type SinhInputs = UnaryInputs;
 
-// export const Sign = 'Sign';
-// export type SignInputs = UnaryInputs;
+const Sign = 'Sign';
+typedef SignInputs = UnaryInputs;
 
 // export const Sigmoid = 'Sigmoid';
 // export type SigmoidInputs = UnaryInputs;
