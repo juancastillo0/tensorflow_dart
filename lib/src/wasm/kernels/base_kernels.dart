@@ -79,21 +79,24 @@ final notEqualConfig = createBinaryKernelConfig(
 
 // Unary
 
-final expConfig = createUnaryKernelConfig(Exp, 'float32');
 final eluConfig = createUnaryKernelConfig(Elu);
+final relu6Config = createUnaryKernelConfig(Relu6);
+final reluConfig = createUnaryKernelConfig(Relu);
+
 final coshConfig = createUnaryKernelConfig(Cosh);
 final tanConfig = createUnaryKernelConfig(Tan);
-final ceilConfig = createUnaryKernelConfig(Ceil);
-final roundConfig = createUnaryKernelConfig(Round);
-final floorConfig = createUnaryKernelConfig(Floor);
-final negConfig = createUnaryKernelConfig(Neg);
-final rsqrtConfig = createUnaryKernelConfig(Rsqrt);
-final relu6Config = createUnaryKernelConfig(Relu6);
-final squareConfig = createUnaryKernelConfig(Square);
 final tanhConfig = createUnaryKernelConfig(Tanh);
-final logConfig = createUnaryKernelConfig(Log);
 final cosConfig = createUnaryKernelConfig(Cos);
 final sinConfig = createUnaryKernelConfig(Sin);
+
+final negConfig = createUnaryKernelConfig(Neg);
 final absConfig = createUnaryKernelConfig(Abs);
+final roundConfig = createUnaryKernelConfig(Round);
+final floorConfig = createUnaryKernelConfig(Floor);
+final ceilConfig = createUnaryKernelConfig(Ceil);
+
 final sqrtConfig = createUnaryKernelConfig(Sqrt);
-final reluConfig = createUnaryKernelConfig(Relu);
+final rsqrtConfig = createUnaryKernelConfig(Rsqrt);
+final squareConfig = createUnaryKernelConfig(Square);
+final expConfig = createUnaryKernelConfig(Exp, 'float32');
+final logConfig = createUnaryKernelConfig(Log);

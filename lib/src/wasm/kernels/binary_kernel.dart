@@ -54,9 +54,9 @@ KernelConfig createBinaryKernelConfig(
   }
 
   ListOrVal<TensorInfo> kernelFunc({
-    required Map<String, TensorInfo> inputs,
+    required NamedTensorInfoMap inputs,
     required Object backend,
-    Map<String, Object>? attrs,
+    NamedAttrMap? attrs,
   }) {
     // TODO:
     // inputs = inputs as BinaryInputs;
