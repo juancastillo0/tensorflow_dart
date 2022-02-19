@@ -15,65 +15,77 @@
  * =============================================================================
  */
 
-import {All, AllAttrs, AllInputs, backend_util, KernelConfig, KernelFunc, TensorInfo, util} from '@tensorflow/tfjs-core';
+// import {All, AllAttrs, AllInputs, backend_util, KernelConfig, KernelFunc, TensorInfo, util} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-import {permuteAxesAndTranspose} from './kernel_utils';
+// import {permuteAxesAndTranspose} from './kernel_utils';
 
-let wasmAll: (xId: number, reduceSize: number, outId: number) => void;
+import '_prelude.dart';
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
+import 'package:tensorflow_wasm/backend_util.dart' as backend_util;
 
-function setup(backend: BackendWasm): void {
-  wasmAll = backend.wasm.cwrap(All, null /*void*/, ['number, number, number']);
+import 'kernel_utils.dart';
+
+late final Function(List)
+    _wasmAll; //: (xId: number, reduceSize: number, outId: number) => void;
+
+void _setup(BackendWasm backend) {
+  _wasmAll = backend.wasm.cwrap(All, null /*void*/, ['number, number, number']);
 }
 
-function all(args: {backend: BackendWasm, inputs: AllInputs, attrs: AllAttrs}):
-    TensorInfo {
-  const {backend, inputs, attrs} = args;
-  const {axis, keepDims} = attrs;
-  const {x} = inputs;
-  const xId = backend.dataIdMap.get(x.dataId).id;
-  let inputId = xId;
-  let input = x;
+ListOrVal<TensorInfo> all({
+  required BackendWasm backend,
+  required NamedTensorInfoMap inputs,
+  NamedAttrMap? attrs,
+}) {
+  final axis =
+      (attrs!['axis'] is int ? [attrs['axis']] : attrs['axis']) as List<int>;
+  final keepDims = attrs['keepDims'] as bool;
 
-  const {transposed, axes, originalAxes, inputWasTransposed} =
-      permuteAxesAndTranspose(x, axis, backend);
+  final x = inputs['x']!;
+  final xId = backend.dataIdMap.get(x.dataId)!.id;
+  var inputId = xId;
+  var input = x;
+
+  final _p = permuteAxesAndTranspose(x, axis, backend);
+  final transposed = _p.transposed;
+  final axes = _p.axes;
+  final originalAxes = _p.originalAxes;
+  final inputWasTransposed = _p.inputWasTransposed;
 
   if (inputWasTransposed) {
-    const transposedId = backend.dataIdMap.get(transposed.dataId).id;
+    final transposedId = backend.dataIdMap.get(transposed!.dataId)!.id;
     input = transposed;
     inputId = transposedId;
   }
 
-  const inputRank = input.shape.length;
+  final inputRank = input.shape.length;
   backend_util.assertAxesAreInnerMostDims('all', axes, inputRank);
-  const [outShape, reduceShape] =
-      backend_util.computeOutAndReduceShapes(input.shape, axes);
-  const reduceSize = util.sizeFromShape(reduceShape);
+  final _shapes = backend_util.computeOutAndReduceShapes(input.shape, axes);
+  final outShape = _shapes.outShape;
+  final reduceShape = _shapes.reduceShape;
+  final reduceSize = util.sizeFromShape(reduceShape);
 
-  const out = backend.makeOutput(outShape, x.dtype);
-  if (util.sizeFromShape(input.shape) !== 0) {
-    const outId = backend.dataIdMap.get(out.dataId).id;
-    wasmAll(inputId, reduceSize, outId);
+  final out = backend.makeOutput(outShape, x.dtype);
+  if (util.sizeFromShape(input.shape) != 0) {
+    final outId = backend.dataIdMap.get(out.dataId)!.id;
+    _wasmAll([inputId, reduceSize, outId]);
   }
 
   if (inputWasTransposed) {
     // dispose of the transposed tensor.
-    backend.disposeData(transposed.dataId);
+    backend.disposeData(transposed!.dataId);
   }
 
   if (keepDims) {
     // reshape
-    const newShape = backend_util.expandShapeToKeepDim(out.shape, originalAxes);
+    final newShape = backend_util.expandShapeToKeepDim(out.shape, originalAxes);
     out.shape = newShape;
   }
 
   return out;
 }
 
-export const allConfig: KernelConfig = {
-  kernelName: All,
-  backendName: 'wasm',
-  setupFunc: setup,
-  kernelFunc: all as {} as KernelFunc
-};
+final allConfig = KernelConfigG(
+    kernelName: All, backendName: 'wasm', setupFunc: _setup, kernelFunc: all);
