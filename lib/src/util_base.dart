@@ -165,12 +165,14 @@ void assert_(bool expr, Object msg) {
   }
 }
 
-// export function assertShapesMatch(
-//     shapeA: number[], shapeB: number[], errorMessagePrefix = ''): void {
-//   assert(
-//       arraysEqual(shapeA, shapeB),
-//       () => errorMessagePrefix + ` Shapes ${shapeA} and ${shapeB} must match`);
-// }
+void assertShapesMatch(
+  List<int> shapeA,
+  List<int> shapeB, [
+  String errorMessagePrefix = '',
+]) {
+  assert(arraysEqual(shapeA, shapeB),
+      () => errorMessagePrefix + ' Shapes ${shapeA} and ${shapeB} must match');
+}
 
 // export function assertNonNull(a: TensorLike): void {
 //   assert(
@@ -343,81 +345,77 @@ String rightPad(String a, int size) {
 //   });
 // }
 
-// /**
-//  * Given the full size of the array and a shape that may contain -1 as the
-//  * implicit dimension, returns the inferred shape where -1 is replaced.
-//  * E.g. For shape=[2, -1, 3] and size=24, it will return [2, 4, 3].
-//  *
-//  * @param shape The shape, which may contain -1 in some dimension.
-//  * @param size The full size (number of elements) of the array.
-//  * @return The inferred shape where -1 is replaced with the inferred size.
-//  */
-// export function inferFromImplicitShape(
-//     shape: number[], size: number): number[] {
-//   let shapeProd = 1;
-//   let implicitIdx = -1;
+/**
+ * Given the full size of the array and a shape that may contain -1 as the
+ * implicit dimension, returns the inferred shape where -1 is replaced.
+ * E.g. For shape=[2, -1, 3] and size=24, it will return [2, 4, 3].
+ *
+ * @param shape The shape, which may contain -1 in some dimension.
+ * @param size The full size (number of elements) of the array.
+ * @return The inferred shape where -1 is replaced with the inferred size.
+ */
+List<int> inferFromImplicitShape(List<int> shape, int size) {
+  int shapeProd = 1;
+  int implicitIdx = -1;
 
-//   for (let i = 0; i < shape.length; ++i) {
-//     if (shape[i] >= 0) {
-//       shapeProd *= shape[i];
-//     } else if (shape[i] === -1) {
-//       if (implicitIdx !== -1) {
-//         throw Error(
-//             `Shapes can only have 1 implicit size. ` +
-//             `Found -1 at dim ${implicitIdx} and dim ${i}`);
-//       }
-//       implicitIdx = i;
-//     } else if (shape[i] < 0) {
-//       throw Error(`Shapes can not be < 0. Found ${shape[i]} at dim ${i}`);
-//     }
-//   }
+  for (int i = 0; i < shape.length; ++i) {
+    if (shape[i] >= 0) {
+      shapeProd *= shape[i];
+    } else if (shape[i] == -1) {
+      if (implicitIdx != -1) {
+        throw Exception('Shapes can only have 1 implicit size. ' +
+            'Found -1 at dim ${implicitIdx} and dim ${i}');
+      }
+      implicitIdx = i;
+    } else if (shape[i] < 0) {
+      throw Exception('Shapes can not be < 0. Found ${shape[i]} at dim ${i}');
+    }
+  }
 
-//   if (implicitIdx === -1) {
-//     if (size > 0 && size !== shapeProd) {
-//       throw Error(`Size(${size}) must match the product of shape ${shape}`);
-//     }
-//     return shape;
-//   }
+  if (implicitIdx == -1) {
+    if (size > 0 && size != shapeProd) {
+      throw Exception('Size(${size}) must match the product of shape ${shape}');
+    }
+    return shape;
+  }
 
-//   if (shapeProd === 0) {
-//     throw Error(
-//         `Cannot infer the missing size in [${shape}] when ` +
-//         `there are 0 elements`);
-//   }
-//   if (size % shapeProd !== 0) {
-//     throw Error(
-//         `The implicit shape can't be a fractional number. ` +
-//         `Got ${size} / ${shapeProd}`);
-//   }
+  if (shapeProd == 0) {
+    throw Exception('Cannot infer the missing size in [${shape}] when ' +
+        'there are 0 elements');
+  }
+  if (size % shapeProd != 0) {
+    throw Exception("The implicit shape can't be a fractional number. " +
+        'Got ${size} / ${shapeProd}');
+  }
 
-//   const newShape = shape.slice();
-//   newShape[implicitIdx] = size / shapeProd;
-//   return newShape;
-// }
+  final newShape = [...shape];
+  newShape[implicitIdx] = size ~/ shapeProd;
+  return newShape;
+}
 
-// export function parseAxisParam(
-//     axis: number|number[], shape: number[]): number[] {
-//   const rank = shape.length;
+List<int> parseAxisParam(List<int> axis, List<int> shape) {
+  final rank = shape.length;
 
-//   // Normalize input
-//   axis = axis == null ? shape.map((s, i) => i) : [].concat(axis);
+  // Normalize input
+  // axis = axis == null ? shape.map((s, i) => i) : [].concat(axis);
 
-//   // Check for valid range
-//   assert(
-//       axis.every(ax => ax >= -rank && ax < rank),
-//       () =>
-//           `All values in axis param must be in range [-${rank}, ${rank}) but ` +
-//           `got axis ${axis}`);
+  // Check for valid range
+  assert(
+      axis.every((ax) => ax >= -rank && ax < rank),
+      () =>
+          'All values in axis param must be in range [-${rank}, ${rank}) but ' +
+          'got axis ${axis}');
 
-//   // Check for only integers
-//   assert(
-//       axis.every(ax => isInt(ax)),
-//       () => `All values in axis param must be integers but ` +
-//           `got axis ${axis}`);
+  // Check for only integers
+  assert(
+      axis.every((ax) => ax is int),
+      () =>
+          'All values in axis param must be integers but ' +
+          'got axis ${axis}');
 
-//   // Handle negative axis.
-//   return axis.map(a => a < 0 ? rank + a : a);
-// }
+  // Handle negative axis.
+  return axis.map((a) => a < 0 ? rank + a : a).toList();
+}
 
 // /** Reduces the shape by removing all dimensions of shape 1. */
 // export function squeezeShape(shape: number[], axis?: number[]):
