@@ -15,9 +15,11 @@
  * =============================================================================
  */
 
-import {assert} from '../util';
+// import {assert} from '../util';
 
-import {OnProgressCallback} from './types';
+// import {OnProgressCallback} from './types';
+
+import 'package:tensorflow_wasm/src/io/types.dart';
 
 /**
  * Monitor Promise.all progress, fire onProgress callback function.
@@ -27,47 +29,50 @@ import {OnProgressCallback} from './types';
  * @param startFraction Optional fraction start. Default to 0.
  * @param endFraction Optional fraction end. Default to 1.
  */
-export function monitorPromisesProgress(
-    promises: Array<Promise<{}|void>>, onProgress: OnProgressCallback,
-    startFraction?: number, endFraction?: number) {
-  checkPromises(promises);
-  startFraction = startFraction == null ? 0 : startFraction;
-  endFraction = endFraction == null ? 1 : endFraction;
-  checkFraction(startFraction, endFraction);
-  let resolvedPromise = 0;
+Future<List<T>> monitorPromisesProgress<T>(
+  List<Future<T>> promises,
+  OnProgressCallback onProgress, [
+  double startFraction = 0,
+  double endFraction = 1,
+]) {
+  _checkPromises(promises);
+  _checkFraction(startFraction, endFraction);
+  int resolvedPromise = 0;
 
-  const registerMonitor = (promise: Promise<{}>) => {
-    promise.then(value => {
-      const fraction = startFraction +
+  Future<T> registerMonitor(Future<T> promise) {
+    promise.then((value) {
+      final fraction = startFraction +
           ++resolvedPromise / promises.length * (endFraction - startFraction);
       // pass fraction as parameter to callback function.
       onProgress(fraction);
       return value;
     });
     return promise;
-  };
-
-  function checkPromises(promises: Array<Promise<{}|void>>): void {
-    assert(
-        promises != null && Array.isArray(promises) && promises.length > 0,
-        () => 'promises must be a none empty array');
   }
 
-  function checkFraction(startFraction: number, endFraction: number): void {
-    assert(
-        startFraction >= 0 && startFraction <= 1,
-        () => `Progress fraction must be in range [0, 1], but ` +
-            `got startFraction ${startFraction}`);
-    assert(
-        endFraction >= 0 && endFraction <= 1,
-        () => `Progress fraction must be in range [0, 1], but ` +
-            `got endFraction ${endFraction}`);
-    assert(
-        endFraction >= startFraction,
-        () => `startFraction must be no more than endFraction, but ` +
-            `got startFraction ${startFraction} and endFraction ` +
-            `${endFraction}`);
-  }
+  return Future.wait(promises.map(registerMonitor));
+}
 
-  return Promise.all(promises.map(registerMonitor));
+void _checkFraction(double startFraction, double endFraction) {
+  assert(
+      startFraction >= 0 && startFraction <= 1,
+      () =>
+          'Progress fraction must be in range [0, 1], but ' +
+          'got startFraction ${startFraction}');
+  assert(
+      endFraction >= 0 && endFraction <= 1,
+      () =>
+          'Progress fraction must be in range [0, 1], but ' +
+          'got endFraction ${endFraction}');
+  assert(
+      endFraction >= startFraction,
+      () =>
+          'startFraction must be no more than endFraction, but ' +
+          'got startFraction ${startFraction} and endFraction ' +
+          '${endFraction}');
+}
+
+void _checkPromises(List<Future> promises) {
+  assert(promises != null && promises is List && promises.length > 0,
+      () => 'promises must be a none empty array');
 }

@@ -1,3 +1,5 @@
+import 'types.dart';
+
 /**
  * @license
  * Copyright 2018 Google LLC. All Rights Reserved.
@@ -15,28 +17,25 @@
  * =============================================================================
  */
 
-import {IOHandler, LoadOptions} from './types';
+// import {IOHandler, LoadOptions} from './types';
 
-export type IORouter = (url: string|string[], loadOptions?: LoadOptions) =>
-    IOHandler;
+typedef IORouter = IOHandler? Function(
+  // : string|string[]
+  List<String> url,
+  LoadOptions? loadOptions,
+);
 
-export class IORouterRegistry {
+class IORouterRegistry {
   // Singleton instance.
-  private static instance: IORouterRegistry;
+  static IORouterRegistry? instance;
 
-  private saveRouters: IORouter[];
-  private loadRouters: IORouter[];
+  final List<IORouter> saveRouters = [];
+  final List<IORouter> loadRouters = [];
 
-  private constructor() {
-    this.saveRouters = [];
-    this.loadRouters = [];
-  }
+  IORouterRegistry._();
 
-  private static getInstance(): IORouterRegistry {
-    if (IORouterRegistry.instance == null) {
-      IORouterRegistry.instance = new IORouterRegistry();
-    }
-    return IORouterRegistry.instance;
+  static IORouterRegistry getInstance() {
+    return IORouterRegistry.instance ??= IORouterRegistry._();
   }
 
   /**
@@ -45,8 +44,8 @@ export class IORouterRegistry {
    * @param saveRouter A function that maps a URL-like string onto an instance
    * of `IOHandler` with the `save` method defined or `null`.
    */
-  static registerSaveRouter(saveRouter: IORouter) {
-    IORouterRegistry.getInstance().saveRouters.push(saveRouter);
+  static void registerSaveRouter(IORouter saveRouter) {
+    IORouterRegistry.getInstance().saveRouters.add(saveRouter);
   }
 
   /**
@@ -55,8 +54,8 @@ export class IORouterRegistry {
    * @param loadRouter A function that maps a URL-like string onto an instance
    * of `IOHandler` with the `load` method defined or `null`.
    */
-  static registerLoadRouter(loadRouter: IORouter) {
-    IORouterRegistry.getInstance().loadRouters.push(loadRouter);
+  static void registerLoadRouter(IORouter loadRouter) {
+    IORouterRegistry.getInstance().loadRouters.add(loadRouter);
   }
 
   /**
@@ -67,8 +66,8 @@ export class IORouterRegistry {
    * `save` method defined. If no match is found, `null`.
    * @throws Error, if more than one match is found.
    */
-  static getSaveHandlers(url: string|string[]): IOHandler[] {
-    return IORouterRegistry.getHandlers(url, 'save');
+  static List<IOHandler> getSaveHandlers(List<String> url) {
+    return IORouterRegistry._getHandlers(url, 'save');
   }
 
   /**
@@ -79,34 +78,49 @@ export class IORouterRegistry {
    * @returns All valid handlers for `url`, given the currently registered
    *   handler routers.
    */
-  static getLoadHandlers(url: string|string[], loadOptions?: LoadOptions):
-      IOHandler[] {
-    return IORouterRegistry.getHandlers(url, 'load', loadOptions);
+  static List<IOHandler> getLoadHandlers(
+    // : string|string[]
+    List<String> url, [
+    LoadOptions? loadOptions,
+  ]) {
+    return IORouterRegistry._getHandlers(url, 'load', loadOptions);
   }
 
-  private static getHandlers(
-      url: string|string[], handlerType: 'save'|'load',
-      loadOptions?: LoadOptions): IOHandler[] {
-    const validHandlers: IOHandler[] = [];
-    const routers = handlerType === 'load' ?
-        IORouterRegistry.getInstance().loadRouters :
-        IORouterRegistry.getInstance().saveRouters;
-    routers.forEach(router => {
-      const handler = router(url, loadOptions);
-      if (handler !== null) {
-        validHandlers.push(handler);
+  static List<IOHandler> _getHandlers(
+    // : string|string[]
+    List<String> url,
+    // : 'save'|'load'
+    String handlerType, [
+    LoadOptions? loadOptions,
+  ]) {
+    final List<IOHandler> validHandlers = [];
+    final routers = handlerType == 'load'
+        ? IORouterRegistry.getInstance().loadRouters
+        : IORouterRegistry.getInstance().saveRouters;
+    routers.forEach((router) {
+      final handler = router(url, loadOptions);
+      if (handler != null) {
+        validHandlers.add(handler);
       }
     });
     return validHandlers;
   }
 }
 
-export const registerSaveRouter = (loudRouter: IORouter) =>
+void registerSaveRouter(IORouter loudRouter) =>
     IORouterRegistry.registerSaveRouter(loudRouter);
-export const registerLoadRouter = (loudRouter: IORouter) =>
+void registerLoadRouter(IORouter loudRouter) =>
     IORouterRegistry.registerLoadRouter(loudRouter);
-export const getSaveHandlers = (url: string|string[]) =>
+
+List<IOHandler> getSaveHandlers(
+  // string|string[]
+  List<String> url,
+) =>
     IORouterRegistry.getSaveHandlers(url);
-export const getLoadHandlers =
-    (url: string|string[], loadOptions?: LoadOptions) =>
-        IORouterRegistry.getLoadHandlers(url, loadOptions);
+
+List<IOHandler> getLoadHandlers(
+  // string|string[]
+  List<String> url, [
+  LoadOptions? loadOptions,
+]) =>
+    IORouterRegistry.getLoadHandlers(url, loadOptions);

@@ -15,16 +15,40 @@
  * =============================================================================
  */
 
-import {complex} from '../ops/complex';
-import {tensor} from '../ops/tensor';
-import {NamedTensor, NamedTensorMap} from '../tensor_types';
-import {TypedArray} from '../types';
-import {sizeFromShape} from '../util';
+// import {complex} from '../ops/complex';
+// import {tensor} from '../ops/tensor';
+// import {NamedTensor, NamedTensorMap} from '../tensor_types';
+// import {TypedArray} from '../types';
+// import {sizeFromShape} from '../util';
 
-import {DTYPE_VALUE_SIZE_MAP, ModelArtifacts, ModelArtifactsInfo, ModelJSON, WeightGroup, WeightsManifestConfig, WeightsManifestEntry} from './types';
+// import {DTYPE_VALUE_SIZE_MAP, ModelArtifacts, ModelArtifactsInfo, ModelJSON, WeightGroup, WeightsManifestConfig, WeightsManifestEntry} from './types';
+
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:tensorflow_wasm/src/io/io.dart';
+import 'package:tensorflow_wasm/src/util_base.dart';
+import 'package:tensorflow_wasm/tensorflow_wasm.dart';
 
 /** Number of bytes reserved for the length of the string. (32bit integer). */
 const NUM_BYTES_STRING_LENGTH = 4;
+
+class EncodedWeights {
+  final ByteBuffer data;
+  final List<WeightsManifestEntry> specs;
+
+  EncodedWeights({
+    required this.data,
+    required this.specs,
+  });
+}
+
+extension ByteBufferSlice on ByteBuffer {
+  ByteBuffer slice(int start, [int? end]) {
+    final l = asUint8List().slice(start, end) as Uint8List;
+    return l.buffer;
+  }
+}
 
 /**
  * Encode a map from names to weight values as an ArrayBuffer, along with an
@@ -43,55 +67,67 @@ const NUM_BYTES_STRING_LENGTH = 4;
  *     tensor names, `dtype`s and shapes.
  * @throws Error: on unsupported tensor `dtype`.
  */
-export async function encodeWeights(
-    tensors: NamedTensorMap|NamedTensor[], group?: WeightGroup):
-    Promise<{data: ArrayBuffer, specs: WeightsManifestEntry[]}> {
+Future<EncodedWeights> encodeWeights(
+  // NamedTensorMap|NamedTensor[]
+  NamedTensorMap tensors,
+  WeightGroup? group,
+) async {
   // TODO(adarob, cais): Support quantization.
-  const specs: WeightsManifestEntry[] = [];
-  const dataPromises: Array<Promise<TypedArray>> = [];
+  final List<WeightsManifestEntry> specs = [];
+  final List<Future<TypedData>> dataPromises = [];
 
-  const names: string[] = Array.isArray(tensors) ?
-      tensors.map(tensor => tensor.name) :
-      Object.keys(tensors);
+  // final List<String> names= tensors is List<Tensor> ?
+  //     tensors.map((tensor) => tensor.name).toList() :
+  //     tensors.keys.toList();
+  final names = tensors.keys.toList();
 
-  for (let i = 0; i < names.length; ++i) {
-    const name = names[i];
-    const t = Array.isArray(tensors) ? tensors[i].tensor : tensors[name];
-    if (t.dtype !== 'float32' && t.dtype !== 'int32' && t.dtype !== 'bool' &&
-        t.dtype !== 'string' && t.dtype !== 'complex64') {
-      throw new Error(`Unsupported dtype in weight '${name}': ${t.dtype}`);
+  for (int i = 0; i < names.length; ++i) {
+    final name = names[i];
+    // final t = tensors is List ? tensors[i].tensor : tensors[name];
+    final t = tensors[name]!;
+    if (t.dtype != 'float32' &&
+        t.dtype != 'int32' &&
+        t.dtype != 'bool' &&
+        t.dtype != 'string' &&
+        t.dtype != 'complex64') {
+      throw Exception("Unsupported dtype in weight '${name}': ${t.dtype}");
     }
-    const spec: WeightsManifestEntry = {name, shape: t.shape, dtype: t.dtype};
-    if (t.dtype === 'string') {
-      const utf8bytes = new Promise<TypedArray>(async resolve => {
-        const vals = await t.bytes() as Uint8Array[];
-        const totalNumBytes = vals.reduce((p, c) => p + c.length, 0) +
+    final spec = WeightsManifestEntry(
+      name: name,
+      shape: t.shape,
+      dtype: t.dtype,
+      group: group,
+    );
+    if (t.dtype == 'string') {
+      final utf8bytes = Future(() async {
+        final vals = await t.bytes() as List<Uint8List>;
+        final totalNumBytes = vals.fold<int>(0, (p, c) => p + c.length) +
             NUM_BYTES_STRING_LENGTH * vals.length;
-        const bytes = new Uint8Array(totalNumBytes);
-        let offset = 0;
-        for (let i = 0; i < vals.length; i++) {
-          const val = vals[i];
-          const bytesOfLength =
-              new Uint8Array(new Uint32Array([val.length]).buffer);
-          bytes.set(bytesOfLength, offset);
+        final bytes = Uint8List(totalNumBytes);
+        int offset = 0;
+        for (int i = 0; i < vals.length; i++) {
+          final val = vals[i];
+          final bytesOfLength =
+              Uint8List.view(Uint32List.fromList([val.length]).buffer);
+
+          List.copyRange(bytes, offset,
+              bytesOfLength); // bytes.set(bytesOfLength, offset);
           offset += NUM_BYTES_STRING_LENGTH;
-          bytes.set(val, offset);
+          List.copyRange(bytes, offset, val); // bytes.set(val, offset);
           offset += val.length;
         }
-        resolve(bytes);
+        return bytes;
       });
-      dataPromises.push(utf8bytes);
+      dataPromises.add(utf8bytes);
     } else {
-      dataPromises.push(t.data());
+      dataPromises.add(t.data().then((value) => value as TypedData));
     }
-    if (group != null) {
-      spec.group = group;
-    }
-    specs.push(spec);
+    specs.add(spec);
   }
 
-  const tensorValues = await Promise.all(dataPromises);
-  return {data: concatenateTypedArrays(tensorValues), specs};
+  final tensorValues = await Future.wait(dataPromises);
+  return EncodedWeights(
+      data: concatenateTypedArrays(tensorValues), specs: specs);
 }
 
 /**
@@ -109,118 +145,118 @@ export async function encodeWeights(
  *   to names in `specs`.
  * @throws Error, if any of the tensors has unsupported dtype.
  */
-export function decodeWeights(
-    buffer: ArrayBuffer, specs: WeightsManifestEntry[]): NamedTensorMap {
+NamedTensorMap decodeWeights(
+  ByteBuffer buffer,
+  List<WeightsManifestEntry> specs,
+) {
   // TODO(adarob, cais): Support quantization.
-  const out: NamedTensorMap = {};
-  let float16Decode: (buffer: Uint16Array) => Float32Array | undefined;
-  let offset = 0;
-  for (const spec of specs) {
-    const name = spec.name;
-    const dtype = spec.dtype;
-    const shape = spec.shape;
-    const size = sizeFromShape(shape);
-    let values: TypedArray|string[]|Uint8Array[];
+  final NamedTensorMap out = {};
+  Float32List Function(Uint16List buffer)? float16Decode;
+  int offset = 0;
+  for (final spec in specs) {
+    final name = spec.name;
+    final dtype = spec.dtype;
+    final shape = spec.shape;
+    final size = sizeFromShape(shape);
+    List values; // TypedArray|string[]|Uint8Array[]
 
-    if ('quantization' in spec) {
-      const quantization = spec.quantization;
-      if (quantization.dtype === 'uint8' || quantization.dtype === 'uint16') {
-        if (!('min' in quantization && 'scale' in quantization)) {
-          throw new Error(
-              `Weight ${spec.name} with quantization ${quantization.dtype} ` +
-              `doesn't have corresponding metadata min and scale.`);
+    final quantization = spec.quantization;
+    if (quantization != null) {
+      if (quantization.dtype == 'uint8' || quantization.dtype == 'uint16') {
+        if (quantization.min == null || quantization.scale == null) {
+          throw Exception(
+              "Weight ${spec.name} with quantization ${quantization.dtype} " +
+                  "doesn't have corresponding metadata min and scale.");
         }
-      } else if (quantization.dtype === 'float16') {
-        if (dtype !== 'float32') {
-          throw new Error(
-              `Weight ${spec.name} is quantized with ${quantization.dtype} ` +
-              `which only supports weights of type float32 not ${dtype}.`);
+      } else if (quantization.dtype == 'float16') {
+        if (dtype != 'float32') {
+          throw Exception(
+              "Weight ${spec.name} is quantized with ${quantization.dtype} " +
+                  "which only supports weights of type float32 not ${dtype}.");
         }
       } else {
-        throw new Error(
-            `Weight ${spec.name} has unknown ` +
-            `quantization dtype ${quantization.dtype}. ` +
-            `Supported quantization dtypes are: ` +
-            `'uint8', 'uint16', and 'float16'.`);
+        throw Exception("Weight ${spec.name} has unknown " +
+            "quantization dtype ${quantization.dtype}. " +
+            "Supported quantization dtypes are: " +
+            "'uint8', 'uint16', and 'float16'.");
       }
-      const quantizationSizeFactor = DTYPE_VALUE_SIZE_MAP[quantization.dtype];
-      const byteBuffer =
+      final quantizationSizeFactor = DTYPE_VALUE_SIZE_MAP[quantization.dtype]!;
+      final byteBuffer =
           buffer.slice(offset, offset + size * quantizationSizeFactor);
-      const quantizedArray = (quantization.dtype === 'uint8') ?
-          new Uint8Array(byteBuffer) :
-          new Uint16Array(byteBuffer);
-      if (dtype === 'float32') {
-        if (quantization.dtype === 'uint8' || quantization.dtype === 'uint16') {
-          values = new Float32Array(quantizedArray.length);
-          for (let i = 0; i < quantizedArray.length; i++) {
-            const v = quantizedArray[i];
-            values[i] = v * quantization.scale + quantization.min;
+      final quantizedArray = (quantization.dtype == 'uint8')
+          ? Uint8List.view(byteBuffer)
+          : Uint16List.view(byteBuffer);
+      if (dtype == 'float32') {
+        if (quantization.dtype == 'uint8' || quantization.dtype == 'uint16') {
+          values = Float32List(quantizedArray.length);
+          for (int i = 0; i < quantizedArray.length; i++) {
+            final v = quantizedArray[i];
+            values[i] = v * quantization.scale! + quantization.min!;
           }
-        } else if (quantization.dtype === 'float16') {
-          if (float16Decode === undefined) {
-            float16Decode = getFloat16Decoder();
-          }
-          values = float16Decode(quantizedArray as Uint16Array);
+        } else if (quantization.dtype == 'float16') {
+          float16Decode ??= getFloat16Decoder();
+
+          values = float16Decode(quantizedArray as Uint16List);
         } else {
-          throw new Error(
-              `Unsupported quantization type ${quantization.dtype} ` +
-              `for weight type float32.`);
+          throw Exception(
+              "Unsupported quantization type ${quantization.dtype} " +
+                  "for weight type float32.");
         }
-      } else if (dtype === 'int32') {
-        if (quantization.dtype !== 'uint8' && quantization.dtype !== 'uint16') {
-          throw new Error(
-              `Unsupported quantization type ${quantization.dtype} ` +
-              `for weight type int32.`);
+      } else if (dtype == 'int32') {
+        if (quantization.dtype != 'uint8' && quantization.dtype != 'uint16') {
+          throw Exception(
+              "Unsupported quantization type ${quantization.dtype} " +
+                  "for weight type int32.");
         }
-        values = new Int32Array(quantizedArray.length);
-        for (let i = 0; i < quantizedArray.length; i++) {
-          const v = quantizedArray[i];
-          values[i] = Math.round(v * quantization.scale + quantization.min);
+        values = Int32List(quantizedArray.length);
+        for (int i = 0; i < quantizedArray.length; i++) {
+          final v = quantizedArray[i];
+          values[i] = (v * quantization.scale! + quantization.min!).round();
         }
       } else {
-        throw new Error(`Unsupported dtype in weight '${name}': ${dtype}`);
+        throw Exception("Unsupported dtype in weight '${name}': ${dtype}");
       }
       offset += size * quantizationSizeFactor;
-    } else if (dtype === 'string') {
-      const size = sizeFromShape(spec.shape);
+    } else if (dtype == 'string') {
+      final size = sizeFromShape(spec.shape);
       values = [];
-      for (let i = 0; i < size; i++) {
-        const byteLength = new Uint32Array(
+      for (int i = 0; i < size; i++) {
+        final byteLength = Uint32List.view(
             buffer.slice(offset, offset + NUM_BYTES_STRING_LENGTH))[0];
         offset += NUM_BYTES_STRING_LENGTH;
-        const bytes = new Uint8Array(buffer.slice(offset, offset + byteLength));
-        (values as Uint8Array[]).push(bytes);
+        final bytes = Uint8List.view(buffer.slice(offset, offset + byteLength));
+        (values as List<Uint8List>).add(bytes);
         offset += byteLength;
       }
     } else {
-      const dtypeFactor = DTYPE_VALUE_SIZE_MAP[dtype];
-      const byteBuffer = buffer.slice(offset, offset + size * dtypeFactor);
+      final dtypeFactor = DTYPE_VALUE_SIZE_MAP[dtype]!;
+      final byteBuffer = buffer.slice(offset, offset + size * dtypeFactor);
 
-      if (dtype === 'float32') {
-        values = new Float32Array(byteBuffer);
-      } else if (dtype === 'int32') {
-        values = new Int32Array(byteBuffer);
-      } else if (dtype === 'bool') {
-        values = new Uint8Array(byteBuffer);
-      } else if (dtype === 'complex64') {
-        values = new Float32Array(byteBuffer);
-        const real = new Float32Array(values.length / 2);
-        const image = new Float32Array(values.length / 2);
-        for (let i = 0; i < real.length; i++) {
+      if (dtype == 'float32') {
+        values = Float32List.view(byteBuffer);
+      } else if (dtype == 'int32') {
+        values = Int32List.view(byteBuffer);
+      } else if (dtype == 'bool') {
+        values = Uint8List.view(byteBuffer);
+      } else if (dtype == 'complex64') {
+        values = Float32List.view(byteBuffer);
+        final real = Float32List(values.length ~/ 2);
+        final image = Float32List(values.length ~/ 2);
+        for (int i = 0; i < real.length; i++) {
           real[i] = values[i * 2];
           image[i] = values[i * 2 + 1];
         }
-        const realTensor = tensor(real, shape, 'float32');
-        const imageTensor = tensor(image, shape, 'float32');
+        final realTensor = tensor(real, shape, 'float32');
+        final imageTensor = tensor(image, shape, 'float32');
         out[name] = complex(realTensor, imageTensor);
         realTensor.dispose();
         imageTensor.dispose();
       } else {
-        throw new Error(`Unsupported dtype in weight '${name}': ${dtype}`);
+        throw Exception("Unsupported dtype in weight '${name}': ${dtype}");
       }
       offset += size * dtypeFactor;
     }
-    if (dtype !== 'complex64') {
+    if (dtype != 'complex64') {
       out[name] = tensor(values, shape, dtype);
     }
   }
@@ -230,13 +266,13 @@ export function decodeWeights(
 /**
  * Concatenate TypedArrays into an ArrayBuffer.
  */
-export function concatenateTypedArrays(xs: TypedArray[]): ArrayBuffer {
+ByteBuffer concatenateTypedArrays(List<TypedData> xs) {
   // TODO(adarob, cais): Support quantization.
-  if (xs === null) {
-    throw new Error(`Invalid input value: ${JSON.stringify(xs)}`);
+  if (xs == null) {
+    throw Exception("Invalid input value: ${xs}");
   }
 
-  let totalByteLength = 0;
+  int totalByteLength = 0;
 
   // `normalizedXs` is here for this reason: a `TypedArray`'s `buffer'
   // can have a different byte length from that of the `TypedArray` itself,
@@ -245,34 +281,40 @@ export function concatenateTypedArrays(xs: TypedArray[]): ArrayBuffer {
   // the `TypedArray` in byte length. If an element of `xs` does not show
   // this property, a new `TypedArray` that satisfy this property will be
   // constructed and pushed into `normalizedXs`.
-  const normalizedXs: TypedArray[] = [];
-  xs.forEach((x: TypedArray) => {
-    totalByteLength += x.byteLength;
+  final List<TypedData> normalizedXs = [];
+  xs.forEach((TypedData x) {
+    totalByteLength += x.lengthInBytes;
     // tslint:disable:no-any
-    normalizedXs.push(
-        x.byteLength === x.buffer.byteLength ? x :
-                                               new (x.constructor as any)(x));
-    if (!(x as any instanceof Float32Array || x as any instanceof Int32Array ||
-          x as any instanceof Uint8Array)) {
-      throw new Error(`Unsupported TypedArray subtype: ${x.constructor.name}`);
+    if (x.lengthInBytes == x.buffer.lengthInBytes) {
+      normalizedXs.add(x);
+    } else if (x is Float32List) {
+      // TODO: should it be sublistView?
+      normalizedXs.add(Float32List.sublistView(x));
+    } else if (x is Uint8List) {
+      normalizedXs.add(Uint8List.sublistView(x));
+    } else if (x is Int32List) {
+      normalizedXs.add(Int32List.sublistView(x));
+    } else {
+      throw Exception("Unsupported TypedArray subtype: ${x.runtimeType}");
     }
     // tslint:enable:no-any
   });
 
-  const y = new Uint8Array(totalByteLength);
-  let offset = 0;
-  normalizedXs.forEach((x: TypedArray) => {
-    y.set(new Uint8Array(x.buffer), offset);
-    offset += x.byteLength;
+  final y = Uint8List(totalByteLength);
+  int offset = 0;
+  normalizedXs.forEach((TypedData x) {
+    List.copyRange(y, offset,
+        Uint8List.view(x.buffer)); // y.set(Uint8List.view(x.buffer), offset);
+    offset += x.lengthInBytes;
   });
 
   return y.buffer;
 }
 
 // Use Buffer on Node.js instead of Blob/atob/btoa
-const useNodeBuffer = typeof Buffer !== 'undefined' &&
-    (typeof Blob === 'undefined' || typeof atob === 'undefined' ||
-     typeof btoa === 'undefined');
+// const useNodeBuffer = typeof Buffer != 'undefined' &&
+//     (typeof Blob == 'undefined' || typeof atob == 'undefined' ||
+//      typeof btoa == 'undefined');
 
 /**
  * Calculate the byte length of a JavaScript string.
@@ -283,11 +325,12 @@ const useNodeBuffer = typeof Buffer !== 'undefined' &&
  * @param str Input string.
  * @returns Byte length.
  */
-export function stringByteLength(str: string): number {
-  if (useNodeBuffer) {
-    return Buffer.byteLength(str);
-  }
-  return new Blob([str]).size;
+int stringByteLength(String str) {
+  return str.length;
+  // if (useNodeBuffer) {
+  //   return Buffer.byteLength(str);
+  // }
+  // return new Blob([str]).size;
 }
 
 /**
@@ -296,16 +339,17 @@ export function stringByteLength(str: string): number {
  * @param buffer `ArrayBuffer` to be converted.
  * @returns A string that base64-encodes `buffer`.
  */
-export function arrayBufferToBase64String(buffer: ArrayBuffer): string {
-  if (useNodeBuffer) {
-    return Buffer.from(buffer).toString('base64');
-  }
-  const buf = new Uint8Array(buffer);
-  let s = '';
-  for (let i = 0, l = buf.length; i < l; i++) {
-    s += String.fromCharCode(buf[i]);
-  }
-  return btoa(s);
+String arrayBufferToBase64String(ByteBuffer buffer) {
+  return base64Encode(buffer.asUint8List());
+  // if (useNodeBuffer) {
+  //   return Buffer.from(buffer).toString('base64');
+  // }
+  // final buf = Uint8List.view(buffer);
+  // String s = '';
+  // for (int i = 0, l = buf.length; i < l; i++) {
+  //   s += String.fromCharCode(buf[i]);
+  // }
+  // return btoa(s);
 }
 
 /**
@@ -314,17 +358,18 @@ export function arrayBufferToBase64String(buffer: ArrayBuffer): string {
  * @param str Base64 string.
  * @returns Decoded `ArrayBuffer`.
  */
-export function base64StringToArrayBuffer(str: string): ArrayBuffer {
-  if (useNodeBuffer) {
-    const buf = Buffer.from(str, 'base64');
-    return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
-  }
-  const s = atob(str);
-  const buffer = new Uint8Array(s.length);
-  for (let i = 0; i < s.length; ++i) {
-    buffer.set([s.charCodeAt(i)], i);
-  }
-  return buffer.buffer;
+ByteBuffer base64StringToArrayBuffer(String str) {
+  return base64Decode(str).buffer;
+  // if (useNodeBuffer) {
+  //   final buf = Buffer.from(str, 'base64');
+  //   return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+  // }
+  // final s = atob(str);
+  // final buffer = Uint8List(s.length);
+  // for (int i = 0; i < s.length; ++i) {
+  //   buffer.set([s.charCodeAt(i)], i);
+  // }
+  // return buffer.buffer;
 }
 
 /**
@@ -333,21 +378,22 @@ export function base64StringToArrayBuffer(str: string): ArrayBuffer {
  * @param buffers A number of array buffers to concatenate.
  * @returns Result of concatenating `buffers` in order.
  */
-export function concatenateArrayBuffers(buffers: ArrayBuffer[]): ArrayBuffer {
-  if (buffers.length === 1) {
+ByteBuffer concatenateArrayBuffers(List<ByteBuffer> buffers) {
+  if (buffers.length == 1) {
     return buffers[0];
   }
 
-  let totalByteLength = 0;
-  buffers.forEach((buffer: ArrayBuffer) => {
-    totalByteLength += buffer.byteLength;
+  int totalByteLength = 0;
+  buffers.forEach((buffer) {
+    totalByteLength += buffer.lengthInBytes;
   });
 
-  const temp = new Uint8Array(totalByteLength);
-  let offset = 0;
-  buffers.forEach((buffer: ArrayBuffer) => {
-    temp.set(new Uint8Array(buffer), offset);
-    offset += buffer.byteLength;
+  final temp = Uint8List(totalByteLength);
+  int offset = 0;
+  buffers.forEach((buffer) {
+    List.copyRange(temp, offset,
+        Uint8List.view(buffer)); // temp.set(Uint8List(buffer), offset);
+    offset += buffer.lengthInBytes;
   });
   return temp.buffer;
 }
@@ -359,13 +405,13 @@ export function concatenateArrayBuffers(buffers: ArrayBuffer[]): ArrayBuffer {
  *
  * @param path
  */
-export function basename(path: string): string {
+String basename(String path) {
   const SEPARATOR = '/';
   path = path.trim();
   while (path.endsWith(SEPARATOR)) {
-    path = path.slice(0, path.length - 1);
+    path = path.substring(0, path.length - 1);
   }
-  const items = path.split(SEPARATOR);
+  final items = path.split(SEPARATOR);
   return items[items.length - 1];
 }
 
@@ -378,27 +424,19 @@ export function basename(path: string): string {
  * @returns Object representing the `model.json` file describing the model
  *     artifacts and weights
  */
-export function getModelJSONForModelArtifacts(
-    artifacts: ModelArtifacts, manifest: WeightsManifestConfig): ModelJSON {
-  const result: ModelJSON = {
-    modelTopology: artifacts.modelTopology,
+ModelJSON getModelJSONForModelArtifacts(
+    ModelArtifacts artifacts, WeightsManifestConfig manifest) {
+  final result = ModelJSON(
+    modelTopology: artifacts.modelTopology as Map,
     format: artifacts.format,
     generatedBy: artifacts.generatedBy,
     convertedBy: artifacts.convertedBy,
-    weightsManifest: manifest
-  };
-  if (artifacts.signature != null) {
-    result.signature = artifacts.signature;
-  }
-  if (artifacts.userDefinedMetadata != null) {
-    result.userDefinedMetadata = artifacts.userDefinedMetadata;
-  }
-  if (artifacts.modelInitializer != null) {
-    result.modelInitializer = artifacts.modelInitializer;
-  }
-  if (artifacts.trainingConfig != null) {
-    result.trainingConfig = artifacts.trainingConfig;
-  }
+    weightsManifest: manifest,
+    signature: artifacts.signature,
+    userDefinedMetadata: artifacts.userDefinedMetadata,
+    modelInitializer: artifacts.modelInitializer,
+    trainingConfig: artifacts.trainingConfig,
+  );
   return result;
 }
 
@@ -411,36 +449,27 @@ export function getModelJSONForModelArtifacts(
  *     weight manifest entries along with the weights data.
  * @returns A Promise of the `ModelArtifacts`, as described by the JSON file.
  */
-export async function getModelArtifactsForJSON(
-    modelJSON: ModelJSON,
-    loadWeights: (weightsManifest: WeightsManifestConfig) => Promise<[
-      /* weightSpecs */ WeightsManifestEntry[], /* weightData */ ArrayBuffer
-    ]>): Promise<ModelArtifacts> {
-  const modelArtifacts: ModelArtifacts = {
+Future<ModelArtifacts> getModelArtifactsForJSON(
+    ModelJSON modelJSON,
+    Future<
+                EncodedWeights
+                // [ /* weightSpecs */ WeightsManifestEntry[], /* weightData */ ArrayBuffer]
+                >
+            Function(WeightsManifestConfig weightsManifest)
+        loadWeights) async {
+  final weights = await loadWeights(modelJSON.weightsManifest);
+  final modelArtifacts = ModelArtifacts(
     modelTopology: modelJSON.modelTopology,
     format: modelJSON.format,
     generatedBy: modelJSON.generatedBy,
-    convertedBy: modelJSON.convertedBy
-  };
-
-  if (modelJSON.trainingConfig != null) {
-    modelArtifacts.trainingConfig = modelJSON.trainingConfig;
-  }
-  if (modelJSON.weightsManifest != null) {
-    const [weightSpecs, weightData] =
-        await loadWeights(modelJSON.weightsManifest);
-    modelArtifacts.weightSpecs = weightSpecs;
-    modelArtifacts.weightData = weightData;
-  }
-  if (modelJSON.signature != null) {
-    modelArtifacts.signature = modelJSON.signature;
-  }
-  if (modelJSON.userDefinedMetadata != null) {
-    modelArtifacts.userDefinedMetadata = modelJSON.userDefinedMetadata;
-  }
-  if (modelJSON.modelInitializer != null) {
-    modelArtifacts.modelInitializer = modelJSON.modelInitializer;
-  }
+    convertedBy: modelJSON.convertedBy,
+    trainingConfig: modelJSON.trainingConfig,
+    weightSpecs: weights.specs,
+    weightData: weights.data,
+    signature: modelJSON.signature,
+    userDefinedMetadata: modelJSON.userDefinedMetadata,
+    modelInitializer: modelJSON.modelInitializer,
+  );
 
   return modelArtifacts;
 }
@@ -450,25 +479,24 @@ export async function getModelArtifactsForJSON(
  * @param modelArtifacts
  * @returns A ModelArtifactsInfo object.
  */
-export function getModelArtifactsInfoForJSON(modelArtifacts: ModelArtifacts):
-    ModelArtifactsInfo {
-  if (modelArtifacts.modelTopology instanceof ArrayBuffer) {
-    throw new Error('Expected JSON model topology, received ArrayBuffer.');
+ModelArtifactsInfo getModelArtifactsInfoForJSON(ModelArtifacts modelArtifacts) {
+  if (modelArtifacts.modelTopology is ByteBuffer) {
+    throw Exception('Expected JSON model topology, received ArrayBuffer.');
   }
 
-  return {
-    dateSaved: new Date(),
-    modelTopologyType: 'JSON',
-    modelTopologyBytes: modelArtifacts.modelTopology == null ?
-        0 :
-        stringByteLength(JSON.stringify(modelArtifacts.modelTopology)),
-    weightSpecsBytes: modelArtifacts.weightSpecs == null ?
-        0 :
-        stringByteLength(JSON.stringify(modelArtifacts.weightSpecs)),
-    weightDataBytes: modelArtifacts.weightData == null ?
-        0 :
-        modelArtifacts.weightData.byteLength,
-  };
+  return ModelArtifactsInfo(
+    dateSaved: DateTime.now(),
+    modelTopologyType: ModelTopologyType.JSON,
+    modelTopologyBytes: modelArtifacts.modelTopology == null
+        ? 0
+        : stringByteLength(jsonEncode(modelArtifacts.modelTopology)),
+    weightSpecsBytes: modelArtifacts.weightSpecs == null
+        ? 0
+        : stringByteLength(jsonEncode(modelArtifacts.weightSpecs)),
+    weightDataBytes: modelArtifacts.weightData == null
+        ? 0
+        : modelArtifacts.weightData!.lengthInBytes,
+  );
 }
 
 /**
@@ -477,12 +505,12 @@ export function getModelArtifactsInfoForJSON(modelArtifacts: ModelArtifacts):
  *
  * @returns Uint32Array, 2048 mantissa lookup values.
  */
-function computeFloat16MantisaTable(): Uint32Array {
-  const convertMantissa = (i: number): number => {
-    let m = i << 13;
-    let e = 0;
+Uint32List _computeFloat16MantisaTable() {
+  int convertMantissa(int i) {
+    int m = i << 13;
+    int e = 0;
 
-    while ((m & 0x00800000) === 0) {
+    while ((m & 0x00800000) == 0) {
       e -= 0x00800000;
       m <<= 1;
     }
@@ -490,15 +518,17 @@ function computeFloat16MantisaTable(): Uint32Array {
     e += 0x38800000;
 
     return m | e;
-  };
+  }
 
-  const mantisaTable = new Uint32Array(2048);
+  ;
+
+  final mantisaTable = Uint32List(2048);
 
   mantisaTable[0] = 0;
-  for (let i = 1; i < 1024; i++) {
+  for (int i = 1; i < 1024; i++) {
     mantisaTable[i] = convertMantissa(i);
   }
-  for (let i = 1024; i < 2048; i++) {
+  for (int i = 1024; i < 2048; i++) {
     mantisaTable[i] = 0x38000000 + ((i - 1024) << 13);
   }
 
@@ -511,17 +541,17 @@ function computeFloat16MantisaTable(): Uint32Array {
  *
  * @returns Uint32Array, 64 exponent lookup values.
  */
-function computeFloat16ExponentTable(): Uint32Array {
-  const exponentTable = new Uint32Array(64);
+Uint32List _computeFloat16ExponentTable() {
+  final exponentTable = Uint32List(64);
 
   exponentTable[0] = 0;
   exponentTable[31] = 0x47800000;
   exponentTable[32] = 0x80000000;
   exponentTable[63] = 0xc7800000;
-  for (let i = 1; i < 31; i++) {
+  for (int i = 1; i < 31; i++) {
     exponentTable[i] = i << 23;
   }
-  for (let i = 33; i < 63; i++) {
+  for (int i = 33; i < 63; i++) {
     exponentTable[i] = 0x80000000 + ((i - 32) << 23);
   }
 
@@ -534,10 +564,10 @@ function computeFloat16ExponentTable(): Uint32Array {
  *
  * @returns Uint32Array, 6d offset values.
  */
-function computeFloat16OffsetTable(): Uint32Array {
-  const offsetTable = new Uint32Array(64);
+Uint32List _computeFloat16OffsetTable() {
+  final offsetTable = Uint32List(64);
 
-  for (let i = 0; i < 64; i++) {
+  for (int i = 0; i < 64; i++) {
     offsetTable[i] = 1024;
   }
   offsetTable[0] = offsetTable[32] = 0;
@@ -552,25 +582,25 @@ function computeFloat16OffsetTable(): Uint32Array {
  * @returns Function (buffer: Uint16Array) => Float32Array which decodes
  *          the Uint16Array of Float16 bytes to a Float32Array.
  */
-export function getFloat16Decoder(): (buffer: Uint16Array) => Float32Array {
+Float32List Function(Uint16List buffer) getFloat16Decoder() {
   // Algorithm is based off of
   // http://www.fox-toolkit.org/ftp/fasthalffloatconversion.pdf
 
   // Cache lookup tables
-  const mantisaTable = computeFloat16MantisaTable();
-  const exponentTable = computeFloat16ExponentTable();
-  const offsetTable = computeFloat16OffsetTable();
+  final mantisaTable = _computeFloat16MantisaTable();
+  final exponentTable = _computeFloat16ExponentTable();
+  final offsetTable = _computeFloat16OffsetTable();
 
-  return (quantizedArray: Uint16Array) => {
-    const buffer = new ArrayBuffer(4 * quantizedArray.length);
-    const bufferUint32View = new Uint32Array(buffer);
-    for (let index = 0; index < quantizedArray.length; index++) {
-      const float16Bits = quantizedArray[index];
-      const float32Bits =
+  return (Uint16List quantizedArray) {
+    final buffer = ByteData(4 * quantizedArray.length);
+    final bufferUint32View = Uint32List.sublistView(buffer);
+    for (int index = 0; index < quantizedArray.length; index++) {
+      final float16Bits = quantizedArray[index];
+      final float32Bits =
           mantisaTable[offsetTable[float16Bits >> 10] + (float16Bits & 0x3ff)] +
-          exponentTable[float16Bits >> 10];
+              exponentTable[float16Bits >> 10];
       bufferUint32View[index] = float32Bits;
     }
-    return new Float32Array(buffer);
+    return Float32List.sublistView(buffer);
   };
 }
