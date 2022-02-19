@@ -15,41 +15,96 @@
  * =============================================================================
  */
 
-import {backend_util, KernelConfig, KernelFunc, Sum, SumAttrs, SumInputs, TensorInfo, util} from '@tensorflow/tfjs-core';
+// import {backend_util, KernelConfig, KernelFunc, Sum, SumAttrs, SumInputs, TensorInfo, util} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-import {permuteAxesAndTranspose} from './kernel_utils';
-import {CppDType} from './types';
+// import {permuteAxesAndTranspose} from './kernel_utils';
+// import {CppDType} from './types';
 
-let wasmSum: (xId: number, reduceSize: number, dtype: number, outId: number) =>
-    void;
+import '_prelude.dart';
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
+import 'package:tensorflow_wasm/backend_util.dart' as backend_util;
 
-function setup(backend: BackendWasm): void {
-  wasmSum = backend.wasm.cwrap(Sum, null /*void*/, [
-    'number',  // input_id
-    'number',  // reduce_size
-    'number',  // dtype
-    'number',  // out_id
+import 'kernel_utils.dart';
+
+late final Function(List)
+    _wasmSum; //: (xId: number, reduceSize: number, dtype: number, outId: number) => void;
+
+void _setupSum(BackendWasm backend) {
+  _wasmSum = backend.wasm.cwrap(Sum, null /*void*/, [
+    'number', // input_id
+    'number', // reduce_size
+    'number', // dtype
+    'number', // out_id
   ]);
 }
 
-function sum(args: {backend: BackendWasm, inputs: SumInputs, attrs: SumAttrs}):
-    TensorInfo {
-  const {backend, inputs, attrs} = args;
-  const {axis, keepDims} = attrs;
-  const {x} = inputs;
-  const xId = backend.dataIdMap.get(x.dataId).id;
-  let inputId = xId;
-  let input = x;
+late final Function(List)
+    _wasmProd; //: (xId: number, reduceSize: number, dtype: number, outId: number) => void;
 
-  const {transposed, axes, originalAxes, inputWasTransposed} =
-      permuteAxesAndTranspose(x, axis, backend);
+void _setupProd(BackendWasm backend) {
+  _wasmProd = backend.wasm.cwrap(Prod, null /*void*/, [
+    'number', // input_id
+    'number', // reduce_size
+    'number', // dtype
+    'number', // out_id
+  ]);
+}
 
-  let reductionAxes = axes;
+ListOrVal<TensorInfo> sum({
+  required BackendWasm backend,
+  required NamedTensorInfoMap inputs,
+  NamedAttrMap? attrs,
+}) {
+  return _reduction(
+    backend: backend,
+    inputs: inputs,
+    opName: 'sum',
+    wasmFunc: _wasmSum,
+    attrs: attrs!,
+  );
+}
+
+ListOrVal<TensorInfo> prod({
+  required BackendWasm backend,
+  required NamedTensorInfoMap inputs,
+  NamedAttrMap? attrs,
+}) {
+  return _reduction(
+    backend: backend,
+    inputs: inputs,
+    opName: 'prod',
+    wasmFunc: _wasmProd,
+    attrs: attrs!,
+  );
+}
+
+ListOrVal<TensorInfo> _reduction({
+  required String opName,
+  required dynamic Function(List) wasmFunc,
+  required BackendWasm backend,
+  required NamedTensorInfoMap inputs,
+  required NamedAttrMap attrs,
+}) {
+  final axis =
+      (attrs['axis'] is int ? [attrs['axis']] : attrs['axis']) as List<int>;
+  final keepDims = attrs['keepDims'] as bool;
+  final x = inputs['x']!;
+  final xId = backend.dataIdMap.get(x.dataId)!.id;
+  var inputId = xId;
+  var input = x;
+
+  final _p = permuteAxesAndTranspose(x, axis, backend);
+  final transposed = _p.transposed;
+  final axes = _p.axes;
+  final originalAxes = _p.originalAxes;
+  final inputWasTransposed = _p.inputWasTransposed;
+
+  var reductionAxes = axes;
   if (inputWasTransposed) {
-    const transposedId = backend.dataIdMap.get(transposed.dataId).id;
-    if (transposedId !== xId) {
+    final transposedId = backend.dataIdMap.get(transposed!.dataId)!.id;
+    if (transposedId != xId) {
       // transpose was not a no-op. We will need to dispose of this
       // once we are done.
       input = transposed;
@@ -60,34 +115,48 @@ function sum(args: {backend: BackendWasm, inputs: SumInputs, attrs: SumAttrs}):
   }
 
   backend_util.assertAxesAreInnerMostDims(
-      'sum', reductionAxes, input.shape.length);
-  const [outShape, reduceShape] =
+      opName, reductionAxes, input.shape.length);
+  final _shapes =
       backend_util.computeOutAndReduceShapes(input.shape, reductionAxes);
-  const reduceSize = util.sizeFromShape(reduceShape);
+  final outShape = _shapes.outShape;
+  final reduceShape = _shapes.reduceShape;
+  final reduceSize = util.sizeFromShape(reduceShape);
 
-  const out = backend.makeOutput(outShape, input.dtype);
-  if (util.sizeFromShape(input.shape) !== 0) {
-    const outId = backend.dataIdMap.get(out.dataId).id;
-    wasmSum(inputId, reduceSize, CppDType[out.dtype], outId);
+  final out = backend.makeOutput(outShape, input.dtype);
+  if (util.sizeFromShape(input.shape) != 0) {
+    final outId = backend.dataIdMap.get(out.dataId)!.id;
+    wasmFunc([
+      inputId,
+      reduceSize,
+      CppDType.values.byName(out.dtype).index,
+      outId,
+    ]);
   }
 
   if (inputWasTransposed) {
     // dispose of the transposed tensor.
-    backend.disposeData(transposed.dataId);
+    backend.disposeData(transposed!.dataId);
   }
 
   if (keepDims) {
     // reshape
-    const newShape = backend_util.expandShapeToKeepDim(out.shape, originalAxes);
+    final newShape = backend_util.expandShapeToKeepDim(out.shape, originalAxes);
     out.shape = newShape;
   }
 
   return out;
 }
 
-export const sumConfig: KernelConfig = {
+final sumConfig = KernelConfigG(
   kernelName: Sum,
   backendName: 'wasm',
-  setupFunc: setup,
-  kernelFunc: sum as {} as KernelFunc
-};
+  setupFunc: _setupSum,
+  kernelFunc: sum,
+);
+
+final prodConfig = KernelConfigG(
+  kernelName: Prod,
+  backendName: 'wasm',
+  setupFunc: _setupProd,
+  kernelFunc: prod,
+);

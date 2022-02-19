@@ -15,9 +15,29 @@
  * =============================================================================
  */
 
-import {backend_util, TensorInfo, util} from '@tensorflow/tfjs-core';
-import {BackendWasm} from '../backend_wasm';
-import {transpose} from './Transpose';
+// import {backend_util, TensorInfo, util} from '@tensorflow/tfjs-core';
+// import {BackendWasm} from '../backend_wasm';
+// import {transpose} from './Transpose';
+
+import '_prelude.dart';
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
+import 'package:tensorflow_wasm/backend_util.dart' as backend_util;
+
+import 'transpose.dart';
+
+class PermutedTensorInfo {
+  final TensorInfo? transposed;
+  final List<int> axes;
+  final List<int> originalAxes;
+  final bool inputWasTransposed;
+
+  PermutedTensorInfo({
+    this.transposed,
+    required this.axes,
+    required this.originalAxes,
+    required this.inputWasTransposed,
+  });
+}
 
 /**
  * Compute permutation axes and do a transpose if necessary.
@@ -27,37 +47,42 @@ import {transpose} from './Transpose';
  * @param axis reduction axes
  * @param backend wasm backend instance
  */
-export function permuteAxesAndTranspose(
-    x: TensorInfo, axis: number|number[], backend: BackendWasm): {
-  transposed: TensorInfo|null,
-  axes: number[],
-  originalAxes: number[],
-  inputWasTransposed: boolean
-} {
-  const xShape = x.shape;
-  const xRank = x.shape.length;
+PermutedTensorInfo permuteAxesAndTranspose(
+  TensorInfo x,
+  // : number|number[]
+  List<int> axis,
+  BackendWasm backend,
+) {
+  final xShape = x.shape;
+  final xRank = x.shape.length;
 
-  const originalAxes = util.parseAxisParam(axis, xShape);
-  let axes = originalAxes;
-  const permutedAxes = backend_util.getAxesPermutation(axes, xRank);
-  let xTransposed = null;
-  let inputWasTransposed = false;
+  final originalAxes = util.parseAxisParam(axis, xShape);
+  var axes = originalAxes;
+  final permutedAxes = backend_util.getAxesPermutation(axes, xRank);
+  var xTransposed = null;
+  var inputWasTransposed = false;
   if (permutedAxes != null) {
-    const newShape: number[] = new Array(xRank);
-    for (let i = 0; i < newShape.length; i++) {
-      newShape[i] = xShape[permutedAxes[i]];
-    }
+    final List<int> newShape =
+        List.generate(xRank, (i) => xShape[permutedAxes[i]]);
 
     axes = backend_util.getInnerMostAxes(axes.length, xRank);
-    xTransposed =
-        transpose({inputs: {x}, attrs: {perm: permutedAxes}, backend});
+    xTransposed = transpose(
+      inputs: {'x': x},
+      attrs: {'perm': permutedAxes},
+      backend: backend,
+    );
 
-    const xId = backend.dataIdMap.get(x.dataId).id;
-    const transposedId = backend.dataIdMap.get(xTransposed.dataId).id;
-    if (transposedId !== xId) {
+    final xId = backend.dataIdMap.get(x.dataId)!.id;
+    final transposedId = backend.dataIdMap.get(xTransposed.dataId)!.id;
+    if (transposedId != xId) {
       inputWasTransposed = true;
     }
   }
 
-  return {transposed: xTransposed, originalAxes, axes, inputWasTransposed};
+  return PermutedTensorInfo(
+    transposed: xTransposed,
+    originalAxes: originalAxes,
+    axes: axes,
+    inputWasTransposed: inputWasTransposed,
+  );
 }
