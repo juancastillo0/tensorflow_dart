@@ -31,12 +31,17 @@ import 'package:tensorflow_wasm/backend_util.dart' as backend_util;
 import 'identity.dart';
 import 'reshape.dart';
 
-ListOrVal<TensorInfo> concat(
-    {required ConcatInputs inputs, required BackendWasm backend, Map<String, Object?>? attrs,}) {
-final _axis = attrs!['axis'];
-  final axis = util.parseAxisParam(_axis is int ? [_axis] : _axis as List<int>, inputs[0].shape)[0];
+ListOrVal<TensorInfo> concat({
+  required ConcatInputs inputs,
+  required BackendWasm backend,
+  Map<String, Object?>? attrs,
+}) {
+  final _axis = attrs!['axis'];
+  final axis = util.parseAxisParam(
+      _axis is int ? [_axis] : _axis as List<int>, inputs[0].shape)[0];
 
-  var outShape = backend_util.computeOutShape(inputs.map((t) => t.shape).toList(), axis);
+  var outShape =
+      backend_util.computeOutShape(inputs.map((t) => t.shape).toList(), axis);
 
   // Keep only non-empty tensors (ignore tensors with 0 in their shape).
   final $inputs = inputs.where((t) => util.sizeFromShape(t.shape) > 0).toList();
@@ -64,7 +69,8 @@ final _axis = attrs!['axis'];
     final inputs2D = $inputs.map((t) {
       final innerSize = util.sizeFromShape(t.shape.slice(axis));
       final shape = [-1, innerSize];
-      return reshape(inputs: {'x': t}, backend: backend, attrs: {'shape': shape}).asVal!;
+      return reshape(
+          inputs: {'x': t}, backend: backend, attrs: {'shape': shape}).asVal!;
     }).toList();
 
     final inputsValShapes = inputs2D.map((t) {
@@ -72,15 +78,18 @@ final _axis = attrs!['axis'];
     });
 
     // Concats 2d tensors along axis=1.
-    outShape =
-        backend_util.computeOutShape(inputs2D.map((t) => t.shape).toList(), 1 /* axis */);
+    outShape = backend_util.computeOutShape(
+        inputs2D.map((t) => t.shape).toList(), 1 /* axis */);
     final simplyConcat = inputs2D[0].shape[0] == 1;
-    final outVals = concatImplCPU(
-                        inputsValShapes, outShape, inputs[0].dtype,
-                        simplyConcat) as string[];
+    final List<String> outVals = concatImplCPU(
+      inputsValShapes,
+      outShape,
+      inputs[0].dtype,
+      simplyConcat,
+    );
 
-    final finalOutShape =
-        backend_util.computeOutShape($inputs.map((t) => t.shape).toList(), axis);
+    final finalOutShape = backend_util.computeOutShape(
+        $inputs.map((t) => t.shape).toList(), axis);
 
     // out.shape = finalOutShape;
     final outData = backend.dataIdMap.get(out.dataId);
@@ -88,7 +97,11 @@ final _axis = attrs!['axis'];
 
     inputs2D.forEach((t) => backend.disposeData(t.dataId));
 
-    return ListOrVal.val(TensorInfo(dataId: out.dataId, dtype: out.dtype, shape: finalOutShape,));
+    return ListOrVal.val(TensorInfo(
+      dataId: out.dataId,
+      dtype: out.dtype,
+      shape: finalOutShape,
+    ));
   }
 
   final batchDim = util.sizeFromShape($inputs[0].shape.slice(0, axis));
@@ -98,7 +111,8 @@ final _axis = attrs!['axis'];
     sumInnerDims += innerDim;
     return innerDim;
   }).toList();
-  final inVals = $inputs.map((input) => backend.typedArrayFromHeap(input)).toList();
+  final inVals =
+      $inputs.map((input) => backend.typedArrayFromHeap(input)).toList();
   final outVals = backend.typedArrayFromHeap(out);
   for (int b = 0; b < batchDim; b++) {
     int outOffset = b * sumInnerDims;
@@ -113,8 +127,12 @@ final _axis = attrs!['axis'];
   return out;
 }
 
-final concatConfig =  KernelConfigG<BackendWasm, DepthwiseConv2dNativeAttrs>(
+final concatConfig = KernelConfigG<BackendWasm, DepthwiseConv2dNativeAttrs>(
   kernelName: Concat,
   backendName: 'wasm',
-  kernelFunc: ({required inputs, required backend, attrs}) => concat(inputs: List.generate(inputs.length, (index) => inputs[index.toString()]!), backend: backend, attrs: attrs,),
+  kernelFunc: ({required inputs, required backend, attrs}) => concat(
+    inputs: List.generate(inputs.length, (index) => inputs[index.toString()]!),
+    backend: backend,
+    attrs: attrs,
+  ),
 );
