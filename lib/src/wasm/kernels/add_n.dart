@@ -15,45 +15,66 @@
  * =============================================================================
  */
 
-import {AddN, KernelConfig, KernelFunc, TensorInfo, util} from '@tensorflow/tfjs-core';
+// import {AddN, KernelConfig, KernelFunc, TensorInfo, util} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-import {CppDType} from './types';
+// import {CppDType} from './types';
 
-let wasmFunc:
-    (inputIds: Uint8Array, inputIdsLen: number, dtype: number, outId: number) =>
-        void;
+import 'dart:typed_data';
 
-function setupFunc(backend: BackendWasm): void {
-  wasmFunc = backend.wasm.cwrap(AddN, null /* void */, [
-    'array',   // input_ids
-    'number',  // input_ids.length
-    'number',  // dtype
-    'number',  // out_id
+import '_prelude.dart';
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
+
+late final Function(List) _wasmFunc;
+// (inputIds: Uint8Array, inputIdsLen: number, dtype: number, outId: number) =>
+//     void;
+
+void _setupFunc(BackendWasm backend) {
+  _wasmFunc = backend.wasm.cwrap(AddN, null /* void */, [
+    'array', // input_ids
+    'number', // input_ids.length
+    'number', // dtype
+    'number', // out_id
   ]);
 }
 
-function addn(args: {inputs: TensorInfo[], backend: BackendWasm}) {
-  const {inputs, backend} = args;
-  const out = backend.makeOutput(inputs[0].shape, inputs[0].dtype);
+ListOrVal<TensorInfo> addn({
+  required List<TensorInfo> inputs,
+  required BackendWasm backend,
+}) {
+  final out = backend.makeOutput(inputs[0].shape, inputs[0].dtype);
 
   // Short-circuit zero-sized tensors.
-  if (util.sizeFromShape(out.shape) === 0) {
-    return out;
+  if (util.sizeFromShape(out.shape) == 0) {
+    return ListOrVal.val(out);
   }
 
-  const inputIds = inputs.map(x => backend.dataIdMap.get(x.dataId).id);
-  const inputIdsBytes = new Uint8Array(new Int32Array(inputIds).buffer);
-  const outId = backend.dataIdMap.get(out.dataId).id;
-  wasmFunc(inputIdsBytes, inputIds.length, CppDType[out.dtype], outId);
+  final inputIds =
+      inputs.map((x) => backend.dataIdMap.get(x.dataId)!.id).toList();
+  final inputIdsBytes = Uint8List.view(Int32List.fromList(inputIds).buffer);
+  final outId = backend.dataIdMap.get(out.dataId)!.id;
+  _wasmFunc([
+    inputIdsBytes,
+    inputIds.length,
+    CppDType.values.byName(out.dtype).index,
+    outId,
+  ]);
 
-  return out;
+  return ListOrVal.val(out);
 }
 
-export const addNConfig: KernelConfig = {
+final addNConfig = KernelConfigG(
   kernelName: AddN,
   backendName: 'wasm',
-  setupFunc,
-  kernelFunc: addn as {} as KernelFunc,
-};
+  setupFunc: _setupFunc,
+  kernelFunc: ({
+    required inputs,
+    required backend,
+    attrs,
+  }) =>
+      addn(
+    backend: backend,
+    inputs: List.generate(inputs.length, (index) => inputs['$index']!),
+  ),
+);

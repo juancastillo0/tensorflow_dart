@@ -15,42 +15,45 @@
  * =============================================================================
  */
 
-import {ArgMax, ArgMaxAttrs, ArgMaxInputs, KernelConfig, KernelFunc, util} from '@tensorflow/tfjs-core';
+import '_prelude.dart';
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
+import 'package:tensorflow_wasm/tensorflow_wasm.dart' show SliceList;
 
-import {BackendWasm} from '../backend_wasm';
+import 'kernel_utils.dart';
 
-import {permuteAxesAndTranspose} from './kernel_utils';
-import {CppDType} from './types';
+late final Function(List) _wasmFunc;
+// : (xId: number, dtype: number, outerSize: number, innerSize: number,
+//     outId: number) => void;
 
-let wasmFunc: (
-    xId: number, dtype: number, outerSize: number, innerSize: number,
-    outId: number) => void;
-
-function setup(backend: BackendWasm) {
-  wasmFunc = backend.wasm.cwrap(ArgMax, null /* void */, [
-    'number',  // x_id
-    'number',  // dtype
-    'number',  // outer_size
-    'number',  // inner_size
-    'number'   // out_id
+void _setup(BackendWasm backend) {
+  _wasmFunc = backend.wasm.cwrap(ArgMax, null /* void */, [
+    'number', // x_id
+    'number', // dtype
+    'number', // outer_size
+    'number', // inner_size
+    'number' // out_id
   ]);
 }
 
-function argmax(
-    args: {inputs: ArgMaxInputs, backend: BackendWasm, attrs: ArgMaxAttrs}) {
-  const {backend, inputs, attrs} = args;
-  const {axis} = attrs as {} as ArgMaxAttrs;
-  const {x} = inputs as {} as ArgMaxInputs;
-  const xId = backend.dataIdMap.get(x.dataId).id;
-  let inputId = xId;
-  let input = x;
+ListOrVal<TensorInfo> argmax({
+  required NamedTensorInfoMap inputs,
+  required BackendWasm backend,
+  NamedAttrMap? attrs,
+}) {
+  final axis = attrs!['axis']! as int;
+  final x = inputs['x']!;
+  final xId = backend.dataIdMap.get(x.dataId)!.id;
+  var inputId = xId;
+  var input = x;
 
-  const {transposed, axes, inputWasTransposed} =
-      permuteAxesAndTranspose(x, axis, backend);
+  final _p = permuteAxesAndTranspose(x, [axis], backend);
+  final transposed = _p.transposed;
+  final axes = _p.axes;
+  final inputWasTransposed = _p.inputWasTransposed;
 
   if (inputWasTransposed) {
-    const transposedId = backend.dataIdMap.get(transposed.dataId).id;
-    if (transposedId !== xId) {
+    final transposedId = backend.dataIdMap.get(transposed!.dataId)!.id;
+    if (transposedId != xId) {
       // transpose was not a no-op. We will need to dispose of this
       // once we are done.
       input = transposed;
@@ -58,24 +61,30 @@ function argmax(
     }
   }
 
-  const outShape = input.shape.slice(0, -1);
-  const out = backend.makeOutput(outShape, 'int32');
-  const outId = backend.dataIdMap.get(out.dataId).id;
-  const outerSize = util.sizeFromShape(out.shape);
-  const innerSize = input.shape[axes[0]];
-  wasmFunc(inputId, CppDType[input.dtype], outerSize, innerSize, outId);
+  final outShape = input.shape.slice(0, -1);
+  final out = backend.makeOutput(outShape, 'int32');
+  final outId = backend.dataIdMap.get(out.dataId)!.id;
+  final outerSize = util.sizeFromShape(out.shape);
+  final innerSize = input.shape[axes[0]];
+  _wasmFunc([
+    inputId,
+    CppDType.values.byName(input.dtype).index,
+    outerSize,
+    innerSize,
+    outId,
+  ]);
 
   if (inputWasTransposed) {
     // dispose of the transposed tensor.
-    backend.disposeData(transposed.dataId);
+    backend.disposeData(transposed!.dataId);
   }
 
-  return out;
+  return ListOrVal.val(out);
 }
 
-export const argMaxConfig: KernelConfig = {
+final argMaxConfig = KernelConfigG(
   kernelName: ArgMax,
   backendName: 'wasm',
-  kernelFunc: argmax as {} as KernelFunc,
-  setupFunc: setup
-};
+  kernelFunc: argmax,
+  setupFunc: _setup,
+);

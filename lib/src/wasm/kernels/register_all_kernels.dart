@@ -1,7 +1,10 @@
 import 'package:tensorflow_wasm/src/kernel_registry.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/add_n.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/all.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/any.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/arg_max.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/base_kernels.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/batch_mat_mul.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/concat.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/cumsum.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/depthwise_conv2d_native.dart';
@@ -53,6 +56,9 @@ void registerAllKernels() {
     reluConfig,
     //
     identityConfig,
+    addNConfig,
+    batchMatMulConfig,
+    argMaxConfig,
     allConfig,
     anyConfig,
     minConfig,
@@ -70,7 +76,6 @@ void registerAllKernels() {
     tileConfig,
     //
     depthwiseConv2dNativeConfig,
-    // ArgMax
     // Mean
     // FusedBatchNorm
     // FusedConv2D
@@ -80,6 +85,50 @@ void registerAllKernels() {
     // Softmax
     // TopK
     // _FusedMatMul
+
+    // AvgPool
+    // BatchToSpaceND
+    // ClipByValue
+    // Conv2D
+    // Conv2DBackpropInput
+    // CropAndResize
+    // DepthToSpace
+    // Fill
+    // FlipLeftRight
+    // FusedBatchNorm
+    // FusedConv2D
+    // FusedDepthwiseConv2D
+    // GatherNd
+    // GatherV2
+    // LeakyRelu
+    // MaxPool
+    // MirrorPad
+    // NonMaxSuppressionV3.ts
+    // NonMaxSuppressionV4.ts
+    // NonMaxSuppressionV5.ts
+    // NonMaxSuppression_util.ts
+    // OneHot
+    // OnesLike
+    // PadV2
+    // Prelu
+    // Range
+    // ResizeBilinear
+    // Reverse
+    // RotateWithOffset
+    // ScatterNd
+    // Slice
+    // SpaceToBatchND
+    // SparseFillEmptyRows
+    // SparseReshape
+    // SparseSegmentMean
+    // SparseSegmentReduction
+    // SparseSegmentSum
+    // SplitV
+    // Step
+    // StridedSlice
+    // Transform
+    // Unpack
+    // ZerosLike
   ];
 
   for (final config in configs) {

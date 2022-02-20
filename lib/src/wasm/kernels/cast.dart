@@ -15,24 +15,30 @@
  * =============================================================================
  */
 
-import {Cast, CastAttrs, CastInputs, KernelConfig, KernelFunc} from '@tensorflow/tfjs-core';
-import {TensorInfo} from '@tensorflow/tfjs-core';
+// import {Cast, CastAttrs, CastInputs, KernelConfig, KernelFunc} from '@tensorflow/tfjs-core';
+// import {TensorInfo} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-export function cast(
-    args: {inputs: CastInputs, attrs: CastAttrs, backend: BackendWasm}):
-    TensorInfo {
-  const {inputs: {x}, attrs: {dtype}, backend} = args;
-  const out = backend.makeOutput(x.shape, dtype);
-  const inVals = backend.typedArrayFromHeap(x);
-  const outVals = backend.typedArrayFromHeap(out);
-  outVals.set(inVals);
-  return out;
+import '_prelude.dart';
+
+ListOrVal<TensorInfo> cast({
+  required NamedTensorInfoMap inputs,
+  required BackendWasm backend,
+  NamedAttrMap? attrs,
+}) {
+  final x = inputs['x']!;
+  final dtype = attrs!['dtype']! as DataType;
+
+  final out = backend.makeOutput(x.shape, dtype);
+  final inVals = backend.typedArrayFromHeap(x);
+  final outVals = backend.typedArrayFromHeap(out);
+  (outVals as List).setAll(0, inVals as List);
+  return ListOrVal.val(out);
 }
 
-export const castConfig: KernelConfig = {
+final castConfig = KernelConfigG(
   kernelName: Cast,
   backendName: 'wasm',
-  kernelFunc: cast as {} as KernelFunc,
-};
+  kernelFunc: cast,
+);

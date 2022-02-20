@@ -1,3 +1,9 @@
+import 'package:tensorflow_wasm/src/backend_wasm.dart';
+import 'package:tensorflow_wasm/src/kernel_names.dart';
+import 'package:tensorflow_wasm/src/tensor.dart';
+
+import 'unary_kernel.dart';
+
 /**
  * @license
  * Copyright 2019 Google LLC. All Rights Reserved.
@@ -15,96 +21,121 @@
  * =============================================================================
  */
 
-import {backend_util, DepthwiseConv2dNative, DepthwiseConv2dNativeAttrs, DepthwiseConv2dNativeInputs, KernelConfig, KernelFunc, Tensor4D} from '@tensorflow/tfjs-core';
+// import {backend_util, DepthwiseConv2dNative, DepthwiseConv2dNativeAttrs, DepthwiseConv2dNativeInputs, KernelConfig, KernelFunc, Tensor4D} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-let wasmDepthwiseConv2d: (
-    xId: number, batchSize: number, inputHeight: number, inputWidth: number,
-    filterId: number, filterHeight: number, filterWidth: number, padTop: number,
-    padRight: number, padBottom: number, padLeft: number, isSamePad: number,
-    dilationHeight: number, dilationWidth: number, strideHeight: number,
-    strideWidth: number, inputChannels: number, outputChannels: number,
-    outId: number) => void;
+late Function(List) _wasmDepthwiseConv2d;
+// (
+//     xId: number, batchSize: number, inputHeight: number, inputWidth: number,
+//     filterId: number, filterHeight: number, filterWidth: number, padTop: number,
+//     padRight: number, padBottom: number, padLeft: number, isSamePad: number,
+//     dilationHeight: number, dilationWidth: number, strideHeight: number,
+//     strideWidth: number, inputChannels: number, outputChannels: number,
+//     outId: number) => void;
 
-function setup(backend: BackendWasm) {
-  wasmDepthwiseConv2d =
+_setup(BackendWasm backend) {
+  _wasmDepthwiseConv2d =
       backend.wasm.cwrap(DepthwiseConv2dNative, null /* void */, [
-        'number',  // xId
-        'number',  // batchSize
-        'number',  // inputHeight
-        'number',  // inputWidth
-        'number',  // filterId
-        'number',  // filterHeight
-        'number',  // filterWidth
-        'number',  // padTop
-        'number',  // padRight
-        'number',  // padBottom
-        'number',  // padLeft
-        'number',  // isSamePad
-        'number',  // dilationHeight
-        'number',  // dilationWidth
-        'number',  // strideHeight
-        'number',  // strideWidth
-        'number',  // inputChannels
-        'number',  // outputChannels
-        'number',  // outId
-      ]);
+    'number', // xId
+    'number', // batchSize
+    'number', // inputHeight
+    'number', // inputWidth
+    'number', // filterId
+    'number', // filterHeight
+    'number', // filterWidth
+    'number', // padTop
+    'number', // padRight
+    'number', // padBottom
+    'number', // padLeft
+    'number', // isSamePad
+    'number', // dilationHeight
+    'number', // dilationWidth
+    'number', // strideHeight
+    'number', // strideWidth
+    'number', // inputChannels
+    'number', // outputChannels
+    'number', // outId
+  ]);
 }
 
-function depthwiseConv2d(args: {
-  inputs: DepthwiseConv2dNativeInputs,
-  backend: BackendWasm,
-  attrs: DepthwiseConv2dNativeAttrs
+ListOrVal<TensorInfo> _depthwiseConv2d({
+  required DepthwiseConv2dNativeInputs inputs,
+  required BackendWasm backend,
+  DepthwiseConv2dNativeAttrs? attrs,
 }) {
-  const {inputs, attrs, backend} = args;
+  final x = inputs['x']!;
+  final filter = inputs['filter']!;
+  final xId = backend.dataIdMap.get(x.dataId)!.id;
+  final filterId = backend.dataIdMap.get(filter.dataId)!.id;
 
-  const {x, filter} = inputs;
-  const xId = backend.dataIdMap.get(x.dataId).id;
-  const filterId = backend.dataIdMap.get(filter.dataId).id;
+  final strides = attrs!.strides;
+  final dilations = attrs.dilations;
+  final pad = attrs.pad;
+  final dimRoundingMode = attrs.dimRoundingMode;
 
-  const {strides, dilations, pad, dimRoundingMode} = attrs;
+  final $dilations = dilations == null ? [1, 1] : dilations;
 
-  const $dilations = dilations == null ? [1, 1] : dilations;
-
-  const convInfo = backend_util.computeConv2DInfo(
-      (x as Tensor4D).shape, (filter as Tensor4D).shape, strides,
-      ($dilations as number | [number, number]), pad, dimRoundingMode,
+  final convInfo = backend_util.computeConv2DInfo(
+      (x as Tensor4D).shape,
+      (filter as Tensor4D).shape,
+      strides,
+      ($dilations // as number | [number, number]
+      ),
+      pad,
+      dimRoundingMode,
       true /* depthwise */);
 
-  const filterHeight = convInfo.filterHeight;
-  const filterWidth = convInfo.filterWidth;
-  const padTop = convInfo.padInfo.top;
-  const padRight = convInfo.padInfo.right;
-  const padBottom = convInfo.padInfo.bottom;
-  const padLeft = convInfo.padInfo.left;
-  const dilationHeight = convInfo.dilationHeight;
-  const dilationWidth = convInfo.dilationWidth;
-  const strideHeight = convInfo.strideHeight;
-  const strideWidth = convInfo.strideWidth;
-  const inputChannels = convInfo.inChannels;
-  const outputChannels = convInfo.outChannels;
-  const isSamePad = convInfo.padInfo.type === 'SAME' ? 1 : 0;
+  final filterHeight = convInfo.filterHeight;
+  final filterWidth = convInfo.filterWidth;
+  final padTop = convInfo.padInfo.top;
+  final padRight = convInfo.padInfo.right;
+  final padBottom = convInfo.padInfo.bottom;
+  final padLeft = convInfo.padInfo.left;
+  final dilationHeight = convInfo.dilationHeight;
+  final dilationWidth = convInfo.dilationWidth;
+  final strideHeight = convInfo.strideHeight;
+  final strideWidth = convInfo.strideWidth;
+  final inputChannels = convInfo.inChannels;
+  final outputChannels = convInfo.outChannels;
+  final isSamePad = convInfo.padInfo.type == 'SAME' ? 1 : 0;
 
-  if (convInfo.dataFormat !== 'channelsLast') {
-    throw new Error(
-        `wasm backend DepthwiseConv2dNative does not support dataFormat:'` +
-        `${convInfo.dataFormat}'. Please use 'channelsLast'.`);
+  if (convInfo.dataFormat != 'channelsLast') {
+    throw Exception(
+        "wasm backend DepthwiseConv2dNative does not support dataFormat:'" +
+            "${convInfo.dataFormat}'. Please use 'channelsLast'.");
   }
 
-  const out = backend.makeOutput(convInfo.outShape, 'float32');
-  const outId = backend.dataIdMap.get(out.dataId).id;
-  wasmDepthwiseConv2d(
-      xId, x.shape[0], x.shape[1], x.shape[2], filterId, filterHeight,
-      filterWidth, padTop, padRight, padBottom, padLeft, isSamePad,
-      dilationHeight, dilationWidth, strideHeight, strideWidth, inputChannels,
-      outputChannels, outId);
-  return out;
+  final out = backend.makeOutput(convInfo.outShape, 'float32');
+  final outId = backend.dataIdMap.get(out.dataId)!.id;
+  _wasmDepthwiseConv2d([
+    xId,
+    x.shape[0],
+    x.shape[1],
+    x.shape[2],
+    filterId,
+    filterHeight,
+    filterWidth,
+    padTop,
+    padRight,
+    padBottom,
+    padLeft,
+    isSamePad,
+    dilationHeight,
+    dilationWidth,
+    strideHeight,
+    strideWidth,
+    inputChannels,
+    outputChannels,
+    outId
+  ]);
+  return ListOrVal.val(out);
 }
 
-export const depthwiseConv2dNativeConfig: KernelConfig = {
+final depthwiseConv2dNativeConfig =
+    KernelConfigG<BackendWasm, DepthwiseConv2dNativeAttrs>(
   kernelName: DepthwiseConv2dNative,
   backendName: 'wasm',
-  setupFunc: setup,
-  kernelFunc: depthwiseConv2d as {} as KernelFunc
-};
+  setupFunc: _setup,
+  kernelFunc: _depthwiseConv2d,
+);
