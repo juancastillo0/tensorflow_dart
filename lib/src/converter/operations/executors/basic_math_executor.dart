@@ -197,8 +197,10 @@ List<Tensor> executeOp(
       ];
     case 'LeakyRelu':
       return [
-        tfOps.leakyRelu(getParamValue('x', node, tensorMap, context) as Tensor,
-            getParamValue('alpha', node, tensorMap, context) as number)
+        tfOps.leakyRelu(
+            getParamValue('x', node, tensorMap, context) as Tensor,
+            (getParamValue('alpha', node, tensorMap, context) as num)
+                .toDouble())
       ];
     case 'Prelu':
       return [

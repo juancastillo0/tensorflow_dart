@@ -424,22 +424,22 @@ typedef FloorInputs = UnaryInputs;
 const FloorDiv = 'FloorDiv';
 typedef FloorDivInputs = BinaryInputs;
 
-// export const FusedBatchNorm = 'FusedBatchNorm';
-// export type FusedBatchNormInputs =
+const FusedBatchNorm = 'FusedBatchNorm';
+// typedef FusedBatchNormInputs =
 //     Pick<NamedTensorInfoMap, 'x'|'scale'|'offset'|'mean'|'variance'>;
 // export interface FusedBatchNormAttrs {
 //   varianceEpsilon: number;
 // }
 
-// export const GatherV2 = 'GatherV2';
-// export type GatherV2Inputs = Pick<NamedTensorInfoMap, 'x'|'indices'>;
+const GatherV2 = 'GatherV2';
+// typedef GatherV2Inputs = Pick<NamedTensorInfoMap, 'x'|'indices'>;
 // export interface GatherV2Attrs {
 //   axis: number;
 //   batchDims: number;
 // }
 
-// export const GatherNd = 'GatherNd';
-// export type GatherNdInputs = Pick<NamedTensorInfoMap, 'params'|'indices'>;
+const GatherNd = 'GatherNd';
+// typedef GatherNdInputs = Pick<NamedTensorInfoMap, 'params'|'indices'>;
 
 const Greater = 'Greater';
 typedef GreaterInputs = BinaryInputs;
@@ -505,14 +505,14 @@ typedef LogicalNotInputs = UnaryInputs;
 const LogicalOr = 'LogicalOr';
 typedef LogicalOrInputs = BinaryInputs;
 
-// export const LogSoftmax = 'LogSoftmax';
-// export type LogSoftmaxInputs = Pick<NamedTensorInfoMap, 'logits'>;
+const LogSoftmax = 'LogSoftmax';
+// typedef LogSoftmaxInputs = Pick<NamedTensorInfoMap, 'logits'>;
 // export interface LogSoftmaxAttrs {
 //   axis: number;
 // }
 
-// export const LRN = 'LRN';
-// export type LRNInputs = Pick<NamedTensorInfoMap, 'x'>;
+const LRN = 'LRN';
+typedef LRNInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 // export interface LRNAttrs {
 //   depthRadius: number;
 //   bias: number;
@@ -751,8 +751,8 @@ typedef ReshapeInputs = UnaryInputs;
 const Relu6 = 'Relu6';
 typedef Relu6Inputs = UnaryInputs;
 
-// export const Reverse = 'Reverse';
-// export type ReverseInputs = Pick<NamedTensorInfoMap, 'x'>;
+const Reverse = 'Reverse';
+typedef ReverseInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 // export interface ReverseAttrs {
 //   dims: number|number[];
 // }
@@ -763,8 +763,8 @@ typedef RoundInputs = UnaryInputs;
 const Rsqrt = 'Rsqrt';
 typedef RsqrtInputs = UnaryInputs;
 
-// export const ScatterNd = 'ScatterNd';
-// export type ScatterNdInputs = Pick<NamedTensorInfoMap, 'indices'|'updates'>;
+const ScatterNd = 'ScatterNd';
+// typedef ScatterNdInputs = Pick<NamedTensorInfoMap, 'indices'|'updates'>;
 // export interface ScatterNdAttrs {
 //   shape: number[];
 // }
@@ -814,15 +814,15 @@ typedef SumInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 //   paddings: number[][];
 // }
 
-// export const SplitV = 'SplitV';
-// export type SplitVInputs = Pick<NamedTensorInfoMap, 'x'>;
+const SplitV = 'SplitV';
+typedef SplitVInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 // export interface SplitVAttrs {
 //   numOrSizeSplits: number[]|number;
 //   axis: number;
 // }
 
-// export const Softmax = 'Softmax';
-// export type SoftmaxInputs = Pick<NamedTensorInfoMap, 'logits'>;
+const Softmax = 'Softmax';
+// typedef SoftmaxInputs = Pick<NamedTensorInfoMap, 'logits'>;
 // export interface SoftmaxAttrs {
 //   dim: number;
 // }
@@ -856,18 +856,39 @@ typedef SquaredDifferenceInputs = BinaryInputs;
 const Square = 'Square';
 typedef SquareInputs = UnaryInputs;
 
-// export const StridedSlice = 'StridedSlice';
-// export type StridedSliceInputs = Pick<NamedTensorInfoMap, 'x'>;
-// export interface StridedSliceAttrs {
-//   begin: number[];
-//   end: number[];
-//   strides: number[];
-//   beginMask: number;
-//   endMask: number;
-//   ellipsisMask: number;
-//   newAxisMask: number;
-//   shrinkAxisMask: number;
-// }
+const StridedSlice = 'StridedSlice';
+typedef StridedSliceInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
+
+class StridedSliceAttrs extends UnmodifiableMapView<String, Object?> {
+  final List<int> begin;
+  final List<int> end;
+  final List<int> strides;
+  final int beginMask;
+  final int endMask;
+  final int ellipsisMask;
+  final int newAxisMask;
+  final int shrinkAxisMask;
+
+  StridedSliceAttrs({
+    required this.begin,
+    required this.end,
+    required this.strides,
+    required this.beginMask,
+    required this.endMask,
+    required this.ellipsisMask,
+    required this.newAxisMask,
+    required this.shrinkAxisMask,
+  }) : super({
+          'begin': begin,
+          'end': end,
+          'strides': strides,
+          'beginMask': beginMask,
+          'endMask': endMask,
+          'ellipsisMask': ellipsisMask,
+          'newAxisMask': newAxisMask,
+          'shrinkAxisMask': shrinkAxisMask,
+        });
+}
 
 // export const StringNGrams = 'StringNGrams';
 // export type StringNGramsInputs = Pick<NamedTensorInfoMap, 'data'|'dataSplits'>;

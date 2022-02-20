@@ -42,9 +42,11 @@ List<Tensor> executeOp(
               getParamValue('x', node, tensorMap, context) as Tensor,
               getParamValue('mean', node, tensorMap, context) as Tensor,
               getParamValue('variance', node, tensorMap, context) as Tensor,
-              getParamValue('offset', node, tensorMap, context) as Tensor,
-              getParamValue('scale', node, tensorMap, context) as Tensor,
-              getParamValue('epsilon', node, tensorMap, context) as num)
+              offset:
+                  getParamValue('offset', node, tensorMap, context) as Tensor,
+              scale: getParamValue('scale', node, tensorMap, context) as Tensor,
+              varianceEpsilon:
+                  getParamValue('epsilon', node, tensorMap, context) as double)
         ];
       }
     case 'FusedBatchNormV3':
@@ -54,9 +56,11 @@ List<Tensor> executeOp(
               getParamValue('x', node, tensorMap, context) as Tensor,
               getParamValue('mean', node, tensorMap, context) as Tensor,
               getParamValue('variance', node, tensorMap, context) as Tensor,
-              getParamValue('offset', node, tensorMap, context) as Tensor,
-              getParamValue('scale', node, tensorMap, context) as Tensor,
-              getParamValue('epsilon', node, tensorMap, context) as num)
+              offset:
+                  getParamValue('offset', node, tensorMap, context) as Tensor,
+              scale: getParamValue('scale', node, tensorMap, context) as Tensor,
+              varianceEpsilon:
+                  getParamValue('epsilon', node, tensorMap, context) as double)
         ];
       }
     case 'LRN':
@@ -65,10 +69,11 @@ List<Tensor> executeOp(
           tfOps.localResponseNormalization(
               getParamValue('x', node, tensorMap, context)
                   as Tensor, // Tensor3D | Tensor4D,
-              getParamValue('radius', node, tensorMap, context) as number,
-              getParamValue('bias', node, tensorMap, context) as number,
-              getParamValue('alpha', node, tensorMap, context) as number,
-              getParamValue('beta', node, tensorMap, context) as number)
+              depthRadius:
+                  getParamValue('radius', node, tensorMap, context) as int,
+              bias: getParamValue('bias', node, tensorMap, context) as double,
+              alpha: getParamValue('alpha', node, tensorMap, context) as double,
+              beta: getParamValue('beta', node, tensorMap, context) as double)
         ];
       }
     case 'Softmax':
