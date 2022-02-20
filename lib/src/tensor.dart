@@ -572,9 +572,9 @@ class Tensor<R extends Rank> with Tensors, TensorsOrMap implements TensorInfo {
    * Returns a copy of the tensor. See `tf.clone` for details.
    * @doc {heading: 'Tensors', subheading: 'Classes'}
    */
-  T clone<T extends Tensor>(T d) {
-    d.throwIfDisposed();
-    return opHandler.clone(d);
+  T clone<T extends Tensor>() {
+    this.throwIfDisposed();
+    return opHandler.clone(this as T);
   }
 
   /**

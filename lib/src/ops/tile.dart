@@ -15,16 +15,19 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../engine';
-import {Tile, TileAttrs, TileInputs} from '../kernel_names';
-import {NamedAttrMap} from '../kernel_registry';
-import {Tensor} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
-import * as util from '../util';
+// import {ENGINE} from '../engine';
+// import {Tile, TileAttrs, TileInputs} from '../kernel_names';
+// import {NamedAttrMap} from '../kernel_registry';
+// import {Tensor} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
+// import * as util from '../util';
 
-import {op} from './operation';
+// import {op} from './operation';
+
+import '_prelude.dart';
+import '../util_base.dart' as util;
 
 /**
  * Construct a tensor by repeating it the number of times given by reps.
@@ -51,19 +54,18 @@ import {op} from './operation';
  *
  * @doc {heading: 'Tensors', subheading: 'Slicing and Joining'}
  */
-function tile_<T extends Tensor>(x: T|TensorLike, reps: number[]): T {
-  const $x = convertToTensor(x, 'x', 'tile', 'string_or_numeric');
-  util.assert(
-      $x.rank === reps.length,
-      () => `Error in transpose: rank of input ${$x.rank} ` +
-          `must match length of reps ${reps}.`);
+T tile<T extends Tensor>(T x, List<int> reps) {
+  return execOp('tile', () {
+    final $x = convertToTensor(x, 'x', 'tile', 'string_or_numeric');
+    util.assert_(
+        $x.rank == reps.length,
+        () =>
+            'Error in transpose: rank of input ${$x.rank} ' +
+            'must match length of reps ${reps}.');
 
-  const inputs: TileInputs = {x: $x};
-  const attrs: TileAttrs = {reps};
+    final inputs = {'x': $x}; // : TileInputs
+    final attrs = {'reps': reps}; // : TileAttrs
 
-  return ENGINE.runKernel(
-      Tile, inputs as unknown as NamedTensorMap,
-      attrs as unknown as NamedAttrMap);
+    return ENGINE.runKernel(Tile, inputs, attrs) as T;
+  });
 }
-
-export const tile = op({tile_});

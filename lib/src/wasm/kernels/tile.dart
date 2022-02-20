@@ -15,52 +15,62 @@
  * =============================================================================
  */
 
-import {KernelConfig, KernelFunc, Tile, TileAttrs, TileInputs} from '@tensorflow/tfjs-core';
+// import {KernelConfig, KernelFunc, Tile, TileAttrs, TileInputs} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-import {CppDType} from './types';
+// import {CppDType} from './types';
 
-let wasmTile: (
-    xId: number, xShape: Uint8Array, xShapeSize: number, newShape: Uint8Array,
-    newShapeSize: number, dtype: number, outId: number) => void;
+import 'dart:typed_data';
 
-function setup(backend: BackendWasm) {
-  wasmTile = backend.wasm.cwrap(Tile, null /* void */, [
-    'number',  // x_id
-    'array',   // x_shape
-    'number',  // x_shape.length
-    'array',   // new_shape
-    'number',  // new_shape.length
-    'number'   // out_id
+import '_prelude.dart';
+
+late final Function(List) _wasmTile;
+// : (
+//     xId: number, xShape: Uint8Array, xShapeSize: number, newShape: Uint8Array,
+//     newShapeSize: number, dtype: number, outId: number) => void;
+
+void _setup(BackendWasm backend) {
+  _wasmTile = backend.wasm.cwrap(Tile, null /* void */, [
+    'number', // x_id
+    'array', // x_shape
+    'number', // x_shape.length
+    'array', // new_shape
+    'number', // new_shape.length
+    'number' // out_id
   ]);
 }
 
-function tile(
-    args: {inputs: TileInputs, backend: BackendWasm, attrs: TileAttrs}) {
-  const {inputs, backend, attrs} = args;
-  const {x} = inputs;
-  const xId = backend.dataIdMap.get(x.dataId).id;
-  const {reps} = attrs;
+ListOrVal<TensorInfo> tile({
+  required NamedTensorInfoMap inputs,
+  required BackendWasm backend,
+  NamedAttrMap? attrs,
+}) {
+  final x = inputs['x']!;
+  final xId = backend.dataIdMap.get(x.dataId)!.id;
+  final reps = attrs!['reps'] as List<int>;
 
-  const newShape: number[] = new Array(x.shape.length);
-  for (let i = 0; i < newShape.length; i++) {
-    newShape[i] = x.shape[i] * reps[i];
-  }
-  const xShapeBytes = new Uint8Array(new Int32Array(x.shape).buffer);
-  const newShapeBytes = new Uint8Array(new Int32Array(newShape).buffer);
+  final newShape = List.generate(x.shape.length, (i) => x.shape[i] * reps[i]);
+  final xShapeBytes = Uint8List.view(Int32List.fromList(x.shape).buffer);
+  final newShapeBytes = Uint8List.view(Int32List.fromList(newShape).buffer);
 
-  const out = backend.makeOutput(newShape, x.dtype);
-  const outId = backend.dataIdMap.get(out.dataId).id;
-  wasmTile(
-      xId, xShapeBytes, x.shape.length, newShapeBytes, newShape.length,
-      CppDType[out.dtype], outId);
-  return out;
+  final out = backend.makeOutput(newShape, x.dtype);
+  final outId = backend.dataIdMap.get(out.dataId)!.id;
+  _wasmTile([
+    xId,
+    xShapeBytes,
+    x.shape.length,
+    newShapeBytes,
+    newShape.length,
+    CppDType.values.byName(out.dtype).index,
+    outId
+  ]);
+  return ListOrVal.val(out);
 }
 
-export const tileConfig: KernelConfig = {
+final tileConfig = KernelConfigG(
   kernelName: Tile,
   backendName: 'wasm',
-  setupFunc: setup,
-  kernelFunc: tile as {} as KernelFunc
-};
+  setupFunc: _setup,
+  kernelFunc: tile,
+);

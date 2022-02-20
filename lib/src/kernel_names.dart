@@ -471,8 +471,8 @@ class UnaryInputs {
 // export const IsNan = 'IsNan';
 // export type IsNanInputs = UnaryInputs;
 
-// export const LeakyRelu = 'LeakyRelu';
-// export type LeakyReluInputs = Pick<NamedTensorInfoMap, 'x'>;
+const LeakyRelu = 'LeakyRelu';
+typedef LeakyReluInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 // export interface LeakyReluAttrs {
 //   alpha: number;
 // }
@@ -690,8 +690,8 @@ typedef PackInputs = UnaryInputs; // TODO: TensorInfo[];
 const Pow = 'Pow';
 typedef PowInputs = BinaryInputs;
 
-// export const Prelu = 'Prelu';
-// export type PreluInputs = Pick<NamedTensorInfoMap, 'x'|'alpha'>;
+const Prelu = 'Prelu';
+// typedef PreluInputs = Pick<NamedTensorInfoMap, 'x'|'alpha'>;
 
 const Prod = 'Prod';
 typedef ProdInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
@@ -769,8 +769,8 @@ typedef RsqrtInputs = UnaryInputs;
 //   shape: number[];
 // }
 
-// export const Select = 'Select';
-// export type SelectInputs = Pick<NamedTensorInfoMap, 'condition'|'t'|'e'>;
+const Select = 'Select';
+// typedef SelectInputs = Pick<NamedTensorInfoMap, 'condition'|'t'|'e'>;
 
 const Selu = 'Selu';
 typedef SeluInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
@@ -791,11 +791,11 @@ typedef SinhInputs = UnaryInputs;
 const Sign = 'Sign';
 typedef SignInputs = UnaryInputs;
 
-// export const Sigmoid = 'Sigmoid';
-// export type SigmoidInputs = UnaryInputs;
+const Sigmoid = 'Sigmoid';
+typedef SigmoidInputs = UnaryInputs;
 
-// export const Softplus = 'Softplus';
-// export type SoftplusInputs = UnaryInputs;
+const Softplus = 'Softplus';
+typedef SoftplusInputs = UnaryInputs;
 
 const Sqrt = 'Sqrt';
 typedef SqrtInputs = UnaryInputs;
@@ -901,8 +901,8 @@ typedef TanInputs = UnaryInputs;
 const Tanh = 'Tanh';
 typedef TanhInputs = UnaryInputs;
 
-// export const Tile = 'Tile';
-// export type TileInputs = Pick<NamedTensorInfoMap, 'x'>;
+const Tile = 'Tile';
+typedef TileInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 // export interface TileAttrs {
 //   reps: number[];
 // }

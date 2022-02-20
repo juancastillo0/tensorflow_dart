@@ -15,48 +15,57 @@
  * =============================================================================
  */
 
-import {KernelConfig, KernelFunc, Select, SelectInputs, util} from '@tensorflow/tfjs-core';
+// import {KernelConfig, KernelFunc, Select, SelectInputs, util} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-let wasmSelect: (
-    conditionId: number, tId: number, eId: number, offset: number,
-    outId: number) => void;
+import '_prelude.dart';
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
 
-function setup(backend: BackendWasm) {
-  wasmSelect = backend.wasm.cwrap('SelectV2', null, [
-    'number',  // conditionId
-    'number',  // tId
-    'number',  // eId
-    'number',  // offset
-    'number',  // outId
+late final Function(List) _wasmSelect;
+// : (    conditionId: number, tId: number, eId: number, offset: number,
+//     outId: number) => void;
+
+void _setup(BackendWasm backend) {
+  _wasmSelect = backend.wasm.cwrap('SelectV2', null, [
+    'number', // conditionId
+    'number', // tId
+    'number', // eId
+    'number', // offset
+    'number', // outId
   ]);
 }
 
-function select(args: {inputs: SelectInputs, backend: BackendWasm}) {
-  const {inputs, backend} = args;
-  const {condition, t, e} = inputs;
+ListOrVal<TensorInfo> select({
+  // SelectInputs
+  required NamedTensorInfoMap inputs,
+  required BackendWasm backend,
+  NamedAttrMap? attrs,
+}) {
+  final condition = inputs['condition']!;
+  final t = inputs['t']!;
+  final e = inputs['e']!;
 
-  const conditionId = backend.dataIdMap.get(condition.dataId).id;
-  const tId = backend.dataIdMap.get(t.dataId).id;
-  const eId = backend.dataIdMap.get(e.dataId).id;
-  const out = backend.makeOutput(t.shape, t.dtype);
-  const outId = backend.dataIdMap.get(out.dataId).id;
+  final conditionId = backend.dataIdMap.get(condition.dataId)!.id;
+  final tId = backend.dataIdMap.get(t.dataId)!.id;
+  final eId = backend.dataIdMap.get(e.dataId)!.id;
+  final out = backend.makeOutput(t.shape, t.dtype);
+  final outId = backend.dataIdMap.get(out.dataId)!.id;
 
-  const cRank = condition.shape.length;
-  const tRank = t.shape.length;
+  final cRank = condition.shape.length;
+  final tRank = t.shape.length;
 
-  const offset = cRank === 0 || cRank > 1 || tRank === 1 ?
-      1 :
-      util.sizeFromShape(t.shape.slice(1));
+  final offset = cRank == 0 || cRank > 1 || tRank == 1
+      ? 1
+      : util.sizeFromShape(t.shape.sublist(1));
 
-  wasmSelect(conditionId, tId, eId, offset, outId);
-  return out;
+  _wasmSelect([conditionId, tId, eId, offset, outId]);
+  return ListOrVal.val(out);
 }
 
-export const selectConfig: KernelConfig = {
+final selectConfig = KernelConfigG(
   kernelName: Select,
   backendName: 'wasm',
-  kernelFunc: select as {} as KernelFunc,
-  setupFunc: setup
-};
+  kernelFunc: select,
+  setupFunc: _setup,
+);

@@ -15,16 +15,20 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../engine';
-import {Select, SelectInputs} from '../kernel_names';
-import {Tensor} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
+// import {ENGINE} from '../engine';
+// import {Select, SelectInputs} from '../kernel_names';
+// import {Tensor} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
 
-import {broadcastTo} from './broadcast_to';
-import {assertAndGetBroadcastShape} from './broadcast_util';
-import {op} from './operation';
+// import {broadcastTo} from './broadcast_to';
+// import {assertAndGetBroadcastShape} from './broadcast_util';
+// import {op} from './operation';
+
+import '_prelude.dart';
+import 'broadcast_to.dart';
+import 'broadcast_util.dart';
 
 /**
  * Returns the elements, either `a` or `b` depending on the `condition`.
@@ -49,26 +53,25 @@ import {op} from './operation';
  *
  * @doc {heading: 'Operations', subheading: 'Logical'}
  */
-function where_<T extends Tensor>(
-    condition: Tensor|TensorLike, a: T|TensorLike, b: T|TensorLike): T {
-  const $a = convertToTensor(a, 'a', 'where');
-  const $b = convertToTensor(b, 'b', 'where');
-  const $condition = convertToTensor(condition, 'condition', 'where', 'bool');
-  // TODO: move this logic to forward function when the broadcastTo op is
-  // implemented in WASM.
-  // Find the broadcastable shape for $condition, $a, and $b.
-  const broadcastShape = assertAndGetBroadcastShape(
-      assertAndGetBroadcastShape($condition.shape, $a.shape), $b.shape);
-  const $broadcastedCondition = broadcastTo($condition, broadcastShape);
-  const $broadcastedA = broadcastTo($a, broadcastShape);
-  const $broadcastedB = broadcastTo($b, broadcastShape);
+T where<T extends Tensor>(Tensor condition, T a, T b) {
+  return execOp('where', () {
+    final $a = convertToTensor(a, 'a', 'where');
+    final $b = convertToTensor(b, 'b', 'where');
+    final $condition = convertToTensor(condition, 'condition', 'where', 'bool');
+    // TODO: move this logic to forward function when the broadcastTo op is
+    // implemented in WASM.
+    // Find the broadcastable shape for $condition, $a, and $b.
+    final broadcastShape = assertAndGetBroadcastShape(
+        assertAndGetBroadcastShape($condition.shape, $a.shape), $b.shape);
+    final $broadcastedCondition = broadcastTo($condition, broadcastShape);
+    final $broadcastedA = broadcastTo($a, broadcastShape);
+    final $broadcastedB = broadcastTo($b, broadcastShape);
 
-  const inputs: SelectInputs = {
-    condition: $broadcastedCondition,
-    t: $broadcastedA,
-    e: $broadcastedB
-  };
-  return ENGINE.runKernel(Select, inputs as {} as NamedTensorMap);
+    final inputs = {
+      'condition': $broadcastedCondition,
+      't': $broadcastedA,
+      'e': $broadcastedB
+    };
+    return ENGINE.runKernel(Select, inputs) as T;
+  });
 }
-
-export const where = op({where_});
