@@ -217,7 +217,7 @@ abstract class KernelInvocation<I extends NamedTensorMap> {
 //   return kernelInvocation.kernelName != null;
 // }
 
-class TensorInfoWithBackend implements TensorInfo {
+class TensorInfoWithBackend with TensorInfos implements TensorInfo {
   KernelBackend backend;
   final DataId dataId;
   final List<int> shape;
@@ -755,7 +755,7 @@ class Engine implements TensorTracker, DataMover {
       this.backend;
     }
 
-    late ListOrVal<TensorInfo> out;
+    late TensorInfos out;
 
     final kernelOrScopeName = kernelParams is RegisteredKernelInvocation
         ? kernelParams.kernelName!
@@ -787,7 +787,7 @@ class Engine implements TensorTracker, DataMover {
         final numDataIdsBefore = this.backend.numDataIds();
         out = kernel.kernelFunc(
             inputs: inputs, attrs: kernelParams.attrs, backend: this.backend);
-        final outInfos = out.toList();
+        final outInfos = out.toTensorInfoList();
         if (this._shouldCheckForMemLeaks()) {
           this._checkKernelForMemLeak(kernelName, numDataIdsBefore, outInfos);
         }
@@ -836,11 +836,8 @@ class Engine implements TensorTracker, DataMover {
 
       kernelFunc = () {
         final numDataIdsBefore = this.backend.numDataIds();
-        out = this.tidy(() => forwardFunc(this.backend, saveFunc)).match(
-              (tensor) => ListOrVal.val(tensor),
-              (list) => ListOrVal.list(list),
-            );
-        final outs = out.toList();
+        out = this.tidy(() => forwardFunc(this.backend, saveFunc));
+        final outs = out.toTensorInfoList();
         if (this._shouldCheckForMemLeaks()) {
           // Scope name is used to print a more helpful error message if needed.
           this._checkKernelForMemLeak(
@@ -904,7 +901,7 @@ class Engine implements TensorTracker, DataMover {
             extraInfo: kernelProfile.extraInfo,
           ));
     }
-    return (out.isList ? TensorList(outputs) : outputs[0]) as T;
+    return (out is TensorInfo ? outputs[0] : TensorList(outputs)) as T;
   }
 
   /**

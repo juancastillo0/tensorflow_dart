@@ -36,7 +36,7 @@ void _setup(BackendWasm backend) {
   ]);
 }
 
-ListOrVal<TensorInfo> select({
+TensorInfo select({
   // SelectInputs
   required NamedTensorInfoMap inputs,
   required BackendWasm backend,
@@ -60,7 +60,7 @@ ListOrVal<TensorInfo> select({
       : util.sizeFromShape(t.shape.sublist(1));
 
   _wasmSelect([conditionId, tId, eId, offset, outId]);
-  return ListOrVal.val(out);
+  return out;
 }
 
 final selectConfig = KernelConfigG(

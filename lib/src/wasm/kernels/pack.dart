@@ -30,7 +30,7 @@ import 'expand_dims.dart';
 // import {concat} from './Concat';
 // import {expandDims} from './ExpandDims';
 
-ListOrVal<TensorInfo> pack({
+TensorInfo pack({
   required List<TensorInfo> inputs,
   required BackendWasm backend,
   Map<String, Object?>? attrs,
@@ -61,7 +61,7 @@ ListOrVal<TensorInfo> pack({
       inputs: {'input': t},
       backend: backend,
       attrs: {'dim': axis},
-    ).asVal!;
+    );
     intermediateTensorInfos.add(expandedT);
     return expandedT;
   }).toList();

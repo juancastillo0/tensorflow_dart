@@ -23,7 +23,29 @@ import 'package:tensorflow_wasm/src/backend.dart';
 
 import 'util_base.dart' as util;
 
-class TensorInfo {
+mixin TensorInfos {
+  O matchTensorInfos<O>(
+    O Function(TensorInfo tensor) tensor,
+    O Function(TensorInfoList list) list,
+  ) =>
+      this is TensorInfoList
+          ? list(this as TensorInfoList)
+          : this is TensorList
+              ? list(TensorInfoList(this as TensorList))
+              : tensor(this as TensorInfo);
+
+  TensorInfoList toTensorInfoList() => this is TensorInfoList
+      ? this as TensorInfoList
+      : this is TensorList
+          ? TensorInfoList(this as TensorList)
+          : TensorInfoList([this as TensorInfo]);
+}
+
+class TensorInfoList extends DelegatingList<TensorInfo> with TensorInfos {
+  const TensorInfoList(List<TensorInfo> base) : super(base);
+}
+
+class TensorInfo with TensorInfos {
   final DataId dataId;
   final List<int> shape;
   final DataType dtype;
@@ -81,14 +103,15 @@ mixin TensorsOrMap {
 }
 
 class TensorMap extends DelegatingMap<String, Tensor> with TensorsOrMap {
-  TensorMap(Map<String, Tensor<Rank>> base) : super(base);
+  const TensorMap(Map<String, Tensor<Rank>> base) : super(base);
 }
 
-class TensorList extends DelegatingList<Tensor> with Tensors, TensorsOrMap {
-  TensorList(List<Tensor<Rank>> base) : super(base);
+class TensorList extends DelegatingList<Tensor>
+    with Tensors, TensorsOrMap, TensorInfos {
+  const TensorList(List<Tensor<Rank>> base) : super(base);
 }
 
-mixin Tensors implements TensorsOrMap {
+mixin Tensors implements TensorsOrMap, TensorInfos {
   O match<O>(
     O Function(Tensor tensor) tensor,
     O Function(TensorList list) list,
@@ -384,7 +407,9 @@ void setDeprecationWarningFn(void Function(String) fn) {
  *
  * @doc {heading: 'Tensors', subheading: 'Classes'}
  */
-class Tensor<R extends Rank> with Tensors, TensorsOrMap implements TensorInfo {
+class Tensor<R extends Rank>
+    with Tensors, TensorsOrMap, TensorInfos
+    implements TensorInfo {
   /** Unique id of this tensor. */
   final int id;
   /**

@@ -53,7 +53,7 @@ KernelConfig createBinaryKernelConfig(
     ]);
   }
 
-  ListOrVal<TensorInfo> kernelFunc({
+  TensorInfo kernelFunc({
     required NamedTensorInfoMap inputs,
     required Object backend,
     NamedAttrMap? attrs,
@@ -73,7 +73,7 @@ KernelConfig createBinaryKernelConfig(
 
     // Short-circuit zero-sized tensors.
     if (util.sizeFromShape(newShape) == 0) {
-      return ListOrVal.val(out);
+      return out;
     }
 
     final aShapeBytes = Uint8List.view(Int32List.fromList(a.shape).buffer);
@@ -92,7 +92,7 @@ KernelConfig createBinaryKernelConfig(
         ]);
 
     kernelFunc();
-    return ListOrVal.val(out);
+    return out;
   }
 
   return KernelConfig(

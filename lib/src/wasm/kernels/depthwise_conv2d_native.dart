@@ -59,7 +59,7 @@ _setup(BackendWasm backend) {
   ]);
 }
 
-ListOrVal<TensorInfo> _depthwiseConv2d({
+TensorInfo _depthwiseConv2d({
   required DepthwiseConv2dNativeInputs inputs,
   required BackendWasm backend,
   DepthwiseConv2dNativeAttrs? attrs,
@@ -129,7 +129,7 @@ ListOrVal<TensorInfo> _depthwiseConv2d({
     outputChannels,
     outId
   ]);
-  return ListOrVal.val(out);
+  return out;
 }
 
 final depthwiseConv2dNativeConfig =

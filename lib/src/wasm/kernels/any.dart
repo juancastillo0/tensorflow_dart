@@ -34,10 +34,11 @@ void _setup(BackendWasm backend) {
   _wasmAny = backend.wasm.cwrap(Any, null /*void*/, ['number, number, number']);
 }
 
-ListOrVal<TensorInfo> any(
-    {required BackendWasm backend,
-    required NamedTensorInfoMap inputs,
-    NamedAttrMap? attrs}) {
+TensorInfo any({
+  required BackendWasm backend,
+  required NamedTensorInfoMap inputs,
+  NamedAttrMap? attrs,
+}) {
   final axis =
       (attrs!['axis'] is int ? [attrs['axis']] : attrs['axis']) as List<int>;
   final keepDims = attrs['keepDims'] as bool;

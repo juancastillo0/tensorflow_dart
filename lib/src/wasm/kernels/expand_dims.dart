@@ -25,7 +25,7 @@ import 'package:tensorflow_wasm/src/util_base.dart' as util;
 
 import 'reshape.dart';
 
-ListOrVal<TensorInfo> expandDims({
+TensorInfo expandDims({
   required NamedTensorInfoMap inputs,
   NamedAttrMap? attrs,
   required BackendWasm backend,

@@ -39,7 +39,7 @@ typedef Attribute
     = AttributeValue; // AttributeValue|RecursiveArray<AttributeValue>;
 
 /** Specifies the code to run when executing a kernel. */
-typedef KernelFunc = ListOrVal<TensorInfo> Function({
+typedef KernelFunc = TensorInfos Function({
   required NamedTensorInfoMap inputs,
   required Object backend,
   NamedAttrMap? attrs,

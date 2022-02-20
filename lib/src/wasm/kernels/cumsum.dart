@@ -43,7 +43,7 @@ void _setup(BackendWasm backend) {
   ]);
 }
 
-ListOrVal<TensorInfo> cumsum({
+TensorInfo cumsum({
   required NamedTensorInfoMap inputs,
   required BackendWasm backend,
   NamedAttrMap? attrs,
@@ -65,7 +65,7 @@ ListOrVal<TensorInfo> cumsum({
       inputs: {'x': x},
       attrs: {'perm': permutation},
       backend: backend,
-    ).asVal!;
+    );
   }
   final permutedAxis = backend_util.getInnerMostAxes(1, xRank)[0];
   backend_util.assertAxesAreInnerMostDims('cumsum', [permutedAxis], xRank);
@@ -84,7 +84,7 @@ ListOrVal<TensorInfo> cumsum({
   ]);
 
   // transpose data back if permuted
-  var out = ListOrVal.val(permutedOut);
+  var out = permutedOut;
   if (permutation != null) {
     final undoPermutation = backend_util.getUndoAxesPermutation(permutation);
     out = transpose(

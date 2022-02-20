@@ -22,7 +22,7 @@ import 'package:tensorflow_wasm/src/wasm/kernels/_prelude.dart';
 
 // import {BackendWasm} from '../backend_wasm';
 
-ListOrVal<TensorInfo> identity({
+TensorInfo identity({
   required NamedTensorInfoMap inputs,
   required BackendWasm backend,
   NamedAttrMap? attrs,
@@ -32,7 +32,7 @@ ListOrVal<TensorInfo> identity({
   final inVals = backend.typedArrayFromHeap(x);
   final outVals = backend.typedArrayFromHeap(out);
   List.copyRange(outVals as List, 0, inVals as List);
-  return ListOrVal.val(out);
+  return out;
 }
 
 final identityConfig = KernelConfigG(

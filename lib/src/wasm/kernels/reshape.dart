@@ -21,7 +21,7 @@ import 'package:tensorflow_wasm/src/util_base.dart' as util;
 
 // import {BackendWasm} from '../backend_wasm';
 
-ListOrVal<TensorInfo> reshape({
+TensorInfo reshape({
   required NamedTensorInfoMap inputs,
   required BackendWasm backend,
   Map<String, Object?>? attrs,
@@ -40,11 +40,11 @@ ListOrVal<TensorInfo> reshape({
 
   // Backend needs to track refCount for the dataId for reshape op
   backend.incRef(x.dataId);
-  return ListOrVal.val(TensorInfo(
+  return TensorInfo(
     dataId: x.dataId,
     shape: $shape,
     dtype: x.dtype,
-  ));
+  );
 }
 
 final reshapeConfig = KernelConfigG<BackendWasm, Map<String, Object?>>(

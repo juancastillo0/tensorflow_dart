@@ -22,7 +22,7 @@
 
 import '_prelude.dart';
 
-ListOrVal<TensorInfo> cast({
+TensorInfo cast({
   required NamedTensorInfoMap inputs,
   required BackendWasm backend,
   NamedAttrMap? attrs,
@@ -34,7 +34,7 @@ ListOrVal<TensorInfo> cast({
   final inVals = backend.typedArrayFromHeap(x);
   final outVals = backend.typedArrayFromHeap(out);
   (outVals as List).setAll(0, inVals as List);
-  return ListOrVal.val(out);
+  return out;
 }
 
 final castConfig = KernelConfigG(

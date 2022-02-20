@@ -34,7 +34,7 @@ void _setup(BackendWasm backend) {
   _wasmAll = backend.wasm.cwrap(All, null /*void*/, ['number, number, number']);
 }
 
-ListOrVal<TensorInfo> all({
+TensorInfo all({
   required BackendWasm backend,
   required NamedTensorInfoMap inputs,
   NamedAttrMap? attrs,

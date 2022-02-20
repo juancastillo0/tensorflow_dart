@@ -43,7 +43,7 @@ void _setup(BackendWasm backend) {
   ]);
 }
 
-ListOrVal<TensorInfo> transpose({
+TensorInfo transpose({
   required NamedTensorInfoMap inputs,
   required BackendWasm backend,
   NamedAttrMap? attrs,
@@ -86,7 +86,7 @@ ListOrVal<TensorInfo> transpose({
     permBytes,
     perm.length
   ]);
-  return ListOrVal.val(out);
+  return out;
 }
 
 Shape _computeOutShape(Shape inShape, Shape perm) {

@@ -41,7 +41,7 @@ void _setup(BackendWasm backend) {
   ]);
 }
 
-ListOrVal<TensorInfo> tile({
+TensorInfo tile({
   required NamedTensorInfoMap inputs,
   required BackendWasm backend,
   NamedAttrMap? attrs,
@@ -65,7 +65,7 @@ ListOrVal<TensorInfo> tile({
     CppDType.values.byName(out.dtype).index,
     outId
   ]);
-  return ListOrVal.val(out);
+  return out;
 }
 
 final tileConfig = KernelConfigG(

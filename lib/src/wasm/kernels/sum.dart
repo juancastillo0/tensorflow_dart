@@ -52,7 +52,7 @@ void _setupProd(BackendWasm backend) {
   ]);
 }
 
-ListOrVal<TensorInfo> sum({
+TensorInfo sum({
   required BackendWasm backend,
   required NamedTensorInfoMap inputs,
   NamedAttrMap? attrs,
@@ -66,7 +66,7 @@ ListOrVal<TensorInfo> sum({
   );
 }
 
-ListOrVal<TensorInfo> prod({
+TensorInfo prod({
   required BackendWasm backend,
   required NamedTensorInfoMap inputs,
   NamedAttrMap? attrs,
@@ -80,7 +80,7 @@ ListOrVal<TensorInfo> prod({
   );
 }
 
-ListOrVal<TensorInfo> _reduction({
+TensorInfo _reduction({
   required String opName,
   required dynamic Function(List) wasmFunc,
   required BackendWasm backend,

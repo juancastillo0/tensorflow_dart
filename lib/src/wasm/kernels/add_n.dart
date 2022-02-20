@@ -39,7 +39,7 @@ void _setupFunc(BackendWasm backend) {
   ]);
 }
 
-ListOrVal<TensorInfo> addn({
+TensorInfo addn({
   required List<TensorInfo> inputs,
   required BackendWasm backend,
 }) {
@@ -47,7 +47,7 @@ ListOrVal<TensorInfo> addn({
 
   // Short-circuit zero-sized tensors.
   if (util.sizeFromShape(out.shape) == 0) {
-    return ListOrVal.val(out);
+    return out;
   }
 
   final inputIds =
@@ -61,7 +61,7 @@ ListOrVal<TensorInfo> addn({
     outId,
   ]);
 
-  return ListOrVal.val(out);
+  return out;
 }
 
 final addNConfig = KernelConfigG(

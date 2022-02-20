@@ -52,7 +52,7 @@ void _setupMin(BackendWasm backend) {
   ]);
 }
 
-ListOrVal<TensorInfo> max({
+TensorInfo max({
   required BackendWasm backend,
   required NamedTensorInfoMap inputs,
   NamedAttrMap? attrs,
@@ -71,7 +71,7 @@ ListOrVal<TensorInfo> max({
   );
 }
 
-ListOrVal<TensorInfo> min({
+TensorInfo min({
   required BackendWasm backend,
   required NamedTensorInfoMap inputs,
   NamedAttrMap? attrs,
@@ -90,7 +90,7 @@ ListOrVal<TensorInfo> min({
 }
 
 // function max(args: {backend: BackendWasm, inputs: MaxInputs, attrs: MaxAttrs}): TensorInfo {
-ListOrVal<TensorInfo> _reduction({
+TensorInfo _reduction({
   required TensorInfo x,
   required String opName,
   required BackendWasm backend,
@@ -143,7 +143,7 @@ ListOrVal<TensorInfo> _reduction({
     out.shape = newShape;
   }
 
-  return ListOrVal.val(out);
+  return out;
 }
 
 final maxConfig = KernelConfigG(

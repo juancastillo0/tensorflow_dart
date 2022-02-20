@@ -56,11 +56,11 @@ KernelConfig createUnaryKernelConfig(String kernelName, [DataType? outType]) {
 
       // Short-circuit zero-sized tensors.
       if (util.sizeFromShape(out.shape) == 0) {
-        return ListOrVal.val(out);
+        return out;
       }
 
       wasmFunc([xId, CppDType.values.byName(x.dtype), outId]);
-      return ListOrVal.val(out);
+      return out;
     },
   );
 }
@@ -71,7 +71,7 @@ class KernelConfigG<B extends KernelBackend, A extends NamedAttrMap>
   final String kernelName;
   @override
   final String backendName;
-  final ListOrVal<TensorInfo> Function({
+  final TensorInfos Function({
     required NamedTensorInfoMap inputs,
     required B backend,
     A? attrs,
@@ -104,7 +104,7 @@ class KernelConfigG<B extends KernelBackend, A extends NamedAttrMap>
   KernelConfigG({
     required this.kernelName,
     required this.backendName,
-    required ListOrVal<TensorInfo> Function({
+    required TensorInfos Function({
       required NamedTensorInfoMap inputs,
       required B backend,
       A? attrs,

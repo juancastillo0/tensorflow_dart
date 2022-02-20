@@ -50,7 +50,7 @@ void _setup(BackendWasm backend) {
   ]);
 }
 
-ListOrVal<TensorInfo> batchMatMul({
+TensorInfo batchMatMul({
   required NamedTensorInfoMap inputs,
   required BackendWasm backend,
   NamedAttrMap? attrs,
@@ -101,11 +101,9 @@ ListOrVal<TensorInfo> batchMatMul({
 
   // The rest of the implementation is designed to operate on rank-3 tensors
   final a3d =
-      reshape(inputs: {'x': a}, backend: backend, attrs: {'shape': a3dShape})
-          .asVal!;
+      reshape(inputs: {'x': a}, backend: backend, attrs: {'shape': a3dShape});
   final b3d =
-      reshape(inputs: {'x': b}, backend: backend, attrs: {'shape': b3dShape})
-          .asVal!;
+      reshape(inputs: {'x': b}, backend: backend, attrs: {'shape': b3dShape});
 
   final a3dId = backend.dataIdMap.get(a3d.dataId)!.id;
   final b3dId = backend.dataIdMap.get(b3d.dataId)!.id;
@@ -136,7 +134,7 @@ ListOrVal<TensorInfo> batchMatMul({
   backend.disposeData(b3d.dataId);
 
   out.shape = outShape;
-  return ListOrVal.val(out);
+  return out;
 }
 
 final batchMatMulConfig = KernelConfigG(

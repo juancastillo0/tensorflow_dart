@@ -35,7 +35,7 @@ void _setup(BackendWasm backend) {
   ]);
 }
 
-ListOrVal<TensorInfo> argmax({
+TensorInfo argmax({
   required NamedTensorInfoMap inputs,
   required BackendWasm backend,
   NamedAttrMap? attrs,
@@ -79,7 +79,7 @@ ListOrVal<TensorInfo> argmax({
     backend.disposeData(transposed!.dataId);
   }
 
-  return ListOrVal.val(out);
+  return out;
 }
 
 final argMaxConfig = KernelConfigG(

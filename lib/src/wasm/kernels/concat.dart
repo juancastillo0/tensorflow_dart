@@ -31,7 +31,7 @@ import 'package:tensorflow_wasm/backend_util.dart' as backend_util;
 import 'identity.dart';
 import 'reshape.dart';
 
-ListOrVal<TensorInfo> concat({
+TensorInfo concat({
   required ConcatInputs inputs,
   required BackendWasm backend,
   Map<String, Object?>? attrs,
@@ -52,7 +52,7 @@ ListOrVal<TensorInfo> concat({
   final out = backend.makeOutput(outShape, inputs[0].dtype);
 
   if (util.sizeFromShape(outShape) == 0) {
-    return ListOrVal.val(out);
+    return out;
   }
 
   final shapes = $inputs.map((t) => t.shape).toList();
@@ -97,11 +97,11 @@ ListOrVal<TensorInfo> concat({
 
     inputs2D.forEach((t) => backend.disposeData(t.dataId));
 
-    return ListOrVal.val(TensorInfo(
+    return TensorInfo(
       dataId: out.dataId,
       dtype: out.dtype,
       shape: finalOutShape,
-    ));
+    );
   }
 
   final batchDim = util.sizeFromShape($inputs[0].shape.slice(0, axis));
