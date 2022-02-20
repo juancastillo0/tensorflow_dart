@@ -15,43 +15,63 @@
  * =============================================================================
  */
 
-import {clone, Tensor, util} from '@tensorflow/tfjs-core';
+import 'package:tensorflow_wasm/src/converter/executor/execution_context.dart';
+import 'package:tensorflow_wasm/src/converter/executor/resource_manager.dart';
+import 'package:tensorflow_wasm/src/converter/operations/types.dart';
+import 'package:tensorflow_wasm/src/tensor.dart';
+import 'package:tensorflow_wasm/tensorflow_wasm.dart' show clone;
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
+import 'package:collection/collection.dart';
 
-import {NamedTensorsMap} from '../../data/types';
-import {ExecutionContext} from '../../executor/execution_context';
-import {ResourceManager} from '../../executor/resource_manager';
-import {Node, ValueType} from '../types';
+// import {clone, Tensor, util} from '@tensorflow/tfjs-core';
 
-export function getParamValue(
-    paramName: string, node: Node, tensorMap: NamedTensorsMap,
-    context: ExecutionContext, resourceManager?: ResourceManager): ValueType {
-  const inputParam = node.inputParams[paramName];
-  if (inputParam && inputParam.inputIndexStart !== undefined) {
-    const start = inputParam.inputIndexStart;
-    const end = inputParam.inputIndexEnd === 0 ?
-        undefined :
-        (inputParam.inputIndexEnd === undefined ? start + 1 :
-                                                  inputParam.inputIndexEnd);
-    if (inputParam.type === 'tensor') {
+// import {NamedTensorsMap} from '../../data/types';
+// import {ExecutionContext} from '../../executor/execution_context';
+// import {ResourceManager} from '../../executor/resource_manager';
+// import {Node, ValueType} from '../types';
+
+ValueType? getParamValue(
+  String paramName,
+  Node node,
+  NamedTensorsMap tensorMap,
+  ExecutionContext context, [
+  ResourceManager? resourceManager,
+]) {
+  final inputParam = node.inputParams[paramName];
+  if (inputParam != null && inputParam.inputIndexStart != null) {
+    final start = inputParam.inputIndexStart!;
+    final end = inputParam.inputIndexEnd == 0
+        ? null
+        : (inputParam.inputIndexEnd == null
+            ? start + 1
+            : inputParam.inputIndexEnd);
+    if (inputParam.type == 'tensor') {
       return getTensor(
-          node.inputNames[inputParam.inputIndexStart], tensorMap, context,
-          resourceManager);
+        node.inputNames[start],
+        tensorMap,
+        context,
+        resourceManager,
+      );
     }
-    if (inputParam.type === 'tensors') {
-      const inputs = node.inputNames.slice(start, end);
+    if (inputParam.type == 'tensors') {
+      final inputs = node.inputNames.slice(start, end);
 
-      return inputs.map(
-          name => getTensor(name, tensorMap, context, resourceManager));
+      return inputs
+          .map((name) => getTensor(name, tensorMap, context, resourceManager));
     }
-    const tensor = getTensor(
-        node.inputNames.slice(start)[0], tensorMap, context, resourceManager);
-    const data = tensor.dataSync();
-    return inputParam.type === 'number' ?
-        data[0] :
-        util.toNestedArray(tensor.shape, data);
+    final tensor = getTensor(
+      node.inputNames.slice(start)[0],
+      tensorMap,
+      context,
+      resourceManager,
+    )!;
+    final data = tensor.dataSync();
+    return inputParam.type == 'number'
+        ? data[0]
+        : util.toNestedArray(tensor.shape, data);
   }
-  const attrParam = node.attrParams[paramName];
-  return attrParam && attrParam.value;
+  final attrParam = node.attrParams[paramName];
+  return attrParam?.value;
 }
 
 /**
@@ -61,25 +81,32 @@ export function getParamValue(
  * @param context contains tensors and information for running the current node.
  * @param resourceManager Optional. Contains global resources of the model.
  */
-export function getTensor(
-    name: string, tensorsMap: NamedTensorsMap, context: ExecutionContext,
-    resourceManager?: ResourceManager): Tensor {
-  const [nodeName, index] = parseNodeName(name);
+Tensor? getTensor(
+  String name,
+  NamedTensorsMap tensorsMap,
+  ExecutionContext context, [
+  ResourceManager? resourceManager,
+]) {
+  final n = parseNodeName(name);
+  final nodeName = n.nodeName;
+  final index = n.index;
 
   if (resourceManager != null) {
-    const tensor = resourceManager.getHashTableHandleByName(nodeName);
+    final tensor = resourceManager.getHashTableHandleByName(nodeName);
     if (tensor != null) {
       return tensor;
     }
   }
 
-  const contextId = context.currentContextIds.find(contextId => {
-    return !!tensorsMap[getNodeNameWithContextId(nodeName, contextId)];
+  final contextId = context.currentContextIds.firstWhereOrNull((contextId) {
+    return tensorsMap.containsKey(
+      getNodeNameWithContextId(nodeName, contextId),
+    );
   });
 
-  return contextId !== undefined ?
-      tensorsMap[getNodeNameWithContextId(nodeName, contextId)][index] :
-      undefined;
+  return contextId != null
+      ? tensorsMap[getNodeNameWithContextId(nodeName, contextId)]![index]
+      : null;
 }
 
 /**
@@ -87,9 +114,11 @@ export function getTensor(
  * @param name Node input name
  * @param tensorsMap Tensors map keyed by the node
  */
-export function getTensorsForCurrentContenxt(
-    name: string, tensorsMap: NamedTensorsMap,
-    context: ExecutionContext): Tensor[] {
+List<Tensor>? getTensorsForCurrentContenxt(
+  String name,
+  NamedTensorsMap tensorsMap,
+  ExecutionContext context,
+) {
   return tensorsMap[getNodeNameWithContextId(name, context.currentContextId)];
 }
 
@@ -101,52 +130,84 @@ export function getTensorsForCurrentContenxt(
  * If the input name contains output name i.e. StringSplit:indices:0, it will
  * return ['StringSplit', 0, 'indices'].
  */
-export function getNodeNameAndIndex(
-    inputName: string, context?: ExecutionContext): [string, number, string] {
-  const [nodeName, index, outputName] = parseNodeName(inputName);
+NodeName getNodeNameAndIndex(
+  String inputName, [
+  ExecutionContext? context,
+]) {
+  final nodeName = parseNodeName(inputName);
 
-  return [
-    getNodeNameWithContextId(nodeName, context && context.currentContextId),
-    index, outputName
-  ];
+  return NodeName(
+    nodeName: getNodeNameWithContextId(
+      nodeName.nodeName,
+      context?.currentContextId,
+    ),
+    index: nodeName.index,
+    outputName: nodeName.outputName,
+  );
 }
 
-function getNodeNameWithContextId(name: string, contextId?: string): string {
-  return !!contextId ? `${name}-${contextId}` : name;
+String getNodeNameWithContextId(String name, [String? contextId]) {
+  return contextId != null ? '${name}-${contextId}' : name;
 }
 
-export function parseNodeName(name: string): [string, number, string] {
-  const parts = name.split(':');
-  if (parts.length === 1) {
-    return [name, 0, undefined];
+class NodeName {
+  final String nodeName;
+  final int index;
+  final String? outputName;
+
+  NodeName({
+    required this.nodeName,
+    required this.index,
+    required this.outputName,
+  });
+}
+
+NodeName parseNodeName(String name) {
+  final parts = name.split(':');
+  if (parts.length == 1) {
+    return NodeName(
+      nodeName: name,
+      index: 0,
+      outputName: null,
+    );
   }
 
-  const nodeName = parts[0];
-  const outputName = parts.length === 3 ? parts[1] : undefined;
-  const index = Number(parts[parts.length - 1]);
-  return [nodeName, index, outputName];
+  final nodeName = parts[0];
+  final outputName = parts.length == 3 ? parts[1] : null;
+  final index = int.parse(parts[parts.length - 1]);
+  return NodeName(
+    nodeName: nodeName,
+    index: index,
+    outputName: outputName,
+  );
 }
 
-export function split(arr: number[], size: number) {
-  const res = [];
-  for (let i = 0; i < arr.length; i += size) {
-    res.push(arr.slice(i, i + size));
+List<List<int>> split(List<int> arr, int size) {
+  final List<List<int>> res = [];
+  for (int i = 0; i < arr.length; i += size) {
+    res.add(arr.slice(i, i + size));
   }
   return res;
 }
-export function getPadding(
-    node: Node, tensorMap: NamedTensorsMap,
-    context: ExecutionContext): ValueType {
-  let pad = getParamValue('pad', node, tensorMap, context);
-  if (pad === 'explicit') {
+
+ValueType? getPadding(
+  Node node,
+  NamedTensorsMap tensorMap,
+  ExecutionContext context,
+) {
+  var pad = getParamValue('pad', node, tensorMap, context);
+  if (pad == 'explicit') {
     // This is 1d array, we need to convert it to 2d array
     pad = getParamValue('explicitPaddings', node, tensorMap, context);
-    const explicitPadding: [
-      [number, number], [number, number], [number, number], [number, number]
-    ] = [[0, 0], [0, 0], [0, 0], [0, 0]];
-    for (let i = 0; i < 4; i++) {
-      explicitPadding[i][0] = (pad as number[])[i * 2];
-      explicitPadding[i][1] = (pad as number[])[i * 2 + 1];
+    final explicitPadding = [
+      [0, 0],
+      [0, 0],
+      [0, 0],
+      [0, 0]
+    ];
+    for (int i = 0; i < 4; i++) {
+      explicitPadding[i][0] = (pad as List<int>)[i * 2];
+      explicitPadding[i][1] = (pad as List<int>)[i * 2 + 1];
     }
     return explicitPadding;
   }
@@ -162,7 +223,6 @@ export function getPadding(
  * them in order to create new Tensor.id.
  * @param tensor
  */
-export function cloneTensor(tensor: Tensor): Tensor {
+Tensor cloneTensor(Tensor tensor) {
   return tensor.kept ? tensor : clone(tensor);
 }
-
