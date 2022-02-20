@@ -15,19 +15,24 @@
  * =============================================================================
  */
 
-import {Tensor, Tensor2D} from '@tensorflow/tfjs-core';
-// tslint:disable-next-line: no-imports-from-dist
-import * as tfOps from '@tensorflow/tfjs-core/dist/ops/ops_for_converter';
+// import {Tensor, Tensor2D} from '@tensorflow/tfjs-core';
+// // tslint:disable-next-line: no-imports-from-dist
+// import * as tfOps from '@tensorflow/tfjs-core/dist/ops/ops_for_converter';
 
-import {NamedTensorsMap} from '../../data/types';
-import {ExecutionContext} from '../../executor/execution_context';
-import {InternalOpExecutor, Node} from '../types';
+// import {NamedTensorsMap} from '../../data/types';
+// import {ExecutionContext} from '../../executor/execution_context';
+// import {InternalOpExecutor, Node} from '../types';
 
-import {getParamValue} from './utils';
+// import {getParamValue} from './utils';
 
-export const executeOp: InternalOpExecutor =
-    (node: Node, tensorMap: NamedTensorsMap,
-     context: ExecutionContext): Tensor[] => {
+import 'package:tensorflow_wasm/tensorflow_wasm.dart' as tfOps;
+import '_prelude.dart';
+
+List<Tensor> executeOp(
+  Node node,
+  NamedTensorsMap tensorMap,
+  ExecutionContext context,
+) {
       switch (node.op) {
         case 'BatchMatMul':
         case 'BatchMatMulV2':
@@ -35,63 +40,66 @@ export const executeOp: InternalOpExecutor =
           return [tfOps.matMul(
               getParamValue('a', node, tensorMap, context) as Tensor2D,
               getParamValue('b', node, tensorMap, context) as Tensor2D,
-              getParamValue('transposeA', node, tensorMap, context) as boolean,
+              getParamValue('transposeA', node, tensorMap, context) as bool,
               getParamValue('transposeB', node, tensorMap, context) as
-                  boolean)];
+                  bool)];
 
         case 'Einsum':
-          return [tfOps.einsum(
-              getParamValue('equation', node, tensorMap, context) as string,
+          return [tfOps.einsum([
+              getParamValue('equation', node, tensorMap, context) as String,
               ...getParamValue('tensors', node, tensorMap, context) as
-                  Tensor[])];
+                  List<Tensor>])];
 
         case 'Transpose':
           return [tfOps.transpose(
               getParamValue('x', node, tensorMap, context) as Tensor,
-              getParamValue('perm', node, tensorMap, context) as number[])];
+              getParamValue('perm', node, tensorMap, context) as List<int>)];
 
         case '_FusedMatMul':
-          const [extraOp, activationFunc] =
-              (getParamValue('fusedOps', node, tensorMap, context) as string[]);
+        final _ops = getParamValue('fusedOps', node, tensorMap, context) as List<String>;
+          final extraOp = _ops.first;
+          final activationFunc = _ops.last;
 
-          const isBiasAdd = extraOp === 'biasadd';
-          const isPrelu = activationFunc === 'prelu';
+          final isBiasAdd = extraOp == 'biasadd';
+          final isPrelu = activationFunc == 'prelu';
 
-          const numArgs =
-              (getParamValue('numArgs', node, tensorMap, context) as number);
-          const leakyreluAlpha =
+          final numArgs =
+              (getParamValue('numArgs', node, tensorMap, context) as int);
+          final leakyreluAlpha =
               getParamValue('leakyreluAlpha', node, tensorMap, context) as
-              number;
+              num;
 
           if (isBiasAdd) {
-            if (isPrelu && numArgs !== 2) {
-              throw new Error(
+            if (isPrelu && numArgs != 2) {
+              throw Exception(
                   'Fused MatMul with BiasAdd and Prelu must have two ' +
                   'extra arguments: bias and alpha.');
             }
-            if (!isPrelu && numArgs !== 1) {
-              throw new Error(
+            if (!isPrelu && numArgs != 1) {
+              throw Exception(
                   'Fused MatMul with BiasAdd must have one extra argument: bias.');
             }
           }
-          const [biasArg, preluArg] =
-              getParamValue('args', node, tensorMap, context) as Tensor[];
-          return [tfOps.fused.matMul({
+          final _args = getParamValue('args', node, tensorMap, context) as List<Tensor>;
+          final biasArg = _args.first;
+          final preluArg = _args.last;
+              
+          return [tfOps.fused.matMul(
             a: getParamValue('a', node, tensorMap, context) as Tensor2D,
             b: getParamValue('b', node, tensorMap, context) as Tensor2D,
             transposeA: getParamValue('transposeA', node, tensorMap, context) as
-                boolean,
+                bool,
             transposeB: getParamValue('transposeB', node, tensorMap, context) as
-                boolean,
+                bool,
             bias: biasArg,
             activation: activationFunc as tfOps.fused.Activation,
             preluActivationWeights: preluArg,
             leakyreluAlpha
-          })];
+          )];
 
         default:
-          throw TypeError(`Node type ${node.op} is not implemented`);
+          throw StateError('Node type ${node.op} is not implemented');
       }
-    };
+    }
 
-export const CATEGORY = 'matrices';
+const CATEGORY = 'matrices';

@@ -15,114 +15,120 @@
  * =============================================================================
  */
 
-import {Scalar, Tensor, Tensor1D, tidy, util} from '@tensorflow/tfjs-core';
-// tslint:disable-next-line: no-imports-from-dist
-import * as tfOps from '@tensorflow/tfjs-core/dist/ops/ops_for_converter';
+// import {Scalar, Tensor, Tensor1D, tidy, util} from '@tensorflow/tfjs-core';
+// // tslint:disable-next-line: no-imports-from-dist
+// import * as tfOps from '@tensorflow/tfjs-core/dist/ops/ops_for_converter';
 
-import {NamedTensorsMap} from '../../data/types';
-import {ExecutionContext} from '../../executor/execution_context';
-import {InternalOpExecutor, Node} from '../types';
+// import {NamedTensorsMap} from '../../data/types';
+// import {ExecutionContext} from '../../executor/execution_context';
+// import {InternalOpExecutor, Node} from '../types';
 
-import {getParamValue} from './utils';
+// import {getParamValue} from './utils';
 
-export const executeOp: InternalOpExecutor =
-    (node: Node, tensorMap: NamedTensorsMap,
-     context: ExecutionContext): Tensor[] => {
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
+import 'package:tensorflow_wasm/tensorflow_wasm.dart' as tfOps;
+import '_prelude.dart';
+
+List<Tensor> executeOp(
+  Node node,
+  NamedTensorsMap tensorMap,
+  ExecutionContext context,
+) {
       switch (node.op) {
         case 'ConcatV2':
         case 'Concat': {
-          const n = getParamValue('n', node, tensorMap, context) as number;
-          const axis =
-              getParamValue('axis', node, tensorMap, context) as number;
-          let inputs =
-              getParamValue('tensors', node, tensorMap, context) as Tensor[];
+          final n = getParamValue('n', node, tensorMap, context) as int;
+          final axis =
+              getParamValue('axis', node, tensorMap, context) as int;
+          var inputs =
+              getParamValue('tensors', node, tensorMap, context) as List<Tensor>;
           inputs = inputs.slice(0, n);
           return [tfOps.concat(inputs, axis)];
         }
         case 'Gather': {
-          const input = getParamValue('x', node, tensorMap, context) as Tensor;
-          const indices =
+          final input = getParamValue('x', node, tensorMap, context) as Tensor;
+          final indices =
               getParamValue('indices', node, tensorMap, context) as Tensor1D;
           return [tfOps.gather(input, tfOps.cast(indices, 'int32'), 0)];
         }
         case 'GatherV2': {
-          const axis =
+          final axis =
               getParamValue('axis', node, tensorMap, context) as number;
-          const batchDims =
+          final batchDims =
               getParamValue('batchDims', node, tensorMap, context) as number;
-          const input = getParamValue('x', node, tensorMap, context) as Tensor;
-          const indices =
+          final input = getParamValue('x', node, tensorMap, context) as Tensor;
+          final indices =
               getParamValue('indices', node, tensorMap, context) as Tensor1D;
           return [tfOps.gather(
               input, tfOps.cast(indices, 'int32'), axis, batchDims)];
         }
         case 'Reverse': {
-          const dims =
-              getParamValue('dims', node, tensorMap, context) as boolean[];
-          const axis = [];
-          for (let i = 0; i < dims.length; i++) {
+          final dims =
+              getParamValue('dims', node, tensorMap, context) as List<bool>;
+          final List<int> axis = [];
+          for (int i = 0; i < dims.length; i++) {
             if (dims[i]) {
-              axis.push(i);
+              axis.add(i);
             }
           }
-          const input = getParamValue('x', node, tensorMap, context) as Tensor;
+          final input = getParamValue('x', node, tensorMap, context) as Tensor;
           return [tfOps.reverse(input, axis)];
         }
         case 'ReverseV2': {
-          const axis =
-              getParamValue('axis', node, tensorMap, context) as number[];
-          const input = getParamValue('x', node, tensorMap, context) as Tensor;
+          final axis =
+              getParamValue('axis', node, tensorMap, context) as List<int>;
+          final input = getParamValue('x', node, tensorMap, context) as Tensor;
           return [tfOps.reverse(input, axis)];
         }
         case 'Slice': {
           // tslint:disable-next-line:no-any
-          const begin = getParamValue('begin', node, tensorMap, context) as any;
+          final begin = getParamValue('begin', node, tensorMap, context) as any;
           // tslint:disable-next-line:no-any
-          const size = getParamValue('size', node, tensorMap, context) as any;
+          final size = getParamValue('size', node, tensorMap, context) as any;
           return [tfOps.slice(
               getParamValue('x', node, tensorMap, context) as Tensor, begin,
               size)];
         }
         case 'StridedSlice': {
-          const begin =
+          final begin =
               getParamValue('begin', node, tensorMap, context) as number[];
-          const end =
+          final end =
               getParamValue('end', node, tensorMap, context) as number[];
-          const strides =
+          final strides =
               getParamValue('strides', node, tensorMap, context) as number[];
-          const beginMask =
+          final beginMask =
               getParamValue('beginMask', node, tensorMap, context) as number;
-          const endMask =
+          final endMask =
               getParamValue('endMask', node, tensorMap, context) as number;
-          const ellipsisMask =
+          final ellipsisMask =
               getParamValue('ellipsisMask', node, tensorMap, context) as number;
-          const newAxisMask =
+          final newAxisMask =
               getParamValue('newAxisMask', node, tensorMap, context) as number;
-          const shrinkAxisMask =
+          final shrinkAxisMask =
               getParamValue('shrinkAxisMask', node, tensorMap, context) as
               number;
-          const tensor = getParamValue('x', node, tensorMap, context) as Tensor;
+          final tensor = getParamValue('x', node, tensorMap, context) as Tensor;
 
           return [tfOps.stridedSlice(
               tensor, begin, end, strides, beginMask, endMask, ellipsisMask,
               newAxisMask, shrinkAxisMask)];
         }
         case 'Pack': {
-          return tidy(() => {
-            const axis =
-                getParamValue('axis', node, tensorMap, context) as number;
-            const tensors =
-                getParamValue('tensors', node, tensorMap, context) as Tensor[];
+          return tfOps.tidy(() {
+            final axis =
+                getParamValue('axis', node, tensorMap, context) as int;
+            final tensors =
+                getParamValue('tensors', node, tensorMap, context) as List<Tensor>;
             // Reshape the tensors to the first tensor's shape if they don't
             // match.
-            const shape = tensors[0].shape;
-            const squeezedShape = tfOps.squeeze(tensors[0]).shape;
-            const mapped = tensors.map(tensor => {
-              const sameShape = util.arraysEqual(tensor.shape, shape);
+            final shape = tensors[0].shape;
+            final squeezedShape = tfOps.squeeze(tensors[0]).shape;
+            final mapped = tensors.map((tensor) {
+              final sameShape = util.arraysEqual(tensor.shape, shape);
               if (!sameShape &&
                   !util.arraysEqual(
                       tfOps.squeeze(tensor).shape, squeezedShape)) {
-                throw new Error('the input tensors shape does not match');
+                throw Exception('the input tensors shape does not match');
               }
               return sameShape ? tensor : tfOps.reshape(tensor, shape);
             });
@@ -130,65 +136,64 @@ export const executeOp: InternalOpExecutor =
           });
         }
         case 'Unpack': {
-          const axis =
-              getParamValue('axis', node, tensorMap, context) as number;
-          const tensor =
+          final axis =
+              getParamValue('axis', node, tensorMap, context) as int;
+          final tensor =
               getParamValue('tensor', node, tensorMap, context) as Tensor;
           return tfOps.unstack(tensor, axis);
         }
         case 'Tile': {
-          const reps =
+          final reps =
               getParamValue('reps', node, tensorMap, context) as number[];
           return [tfOps.tile(
               getParamValue('x', node, tensorMap, context) as Tensor, reps)];
         }
         case 'Split':
         case 'SplitV': {
-          const axis =
+          final axis =
               getParamValue('axis', node, tensorMap, context) as number;
-          const numOrSizeSplits =
+          final numOrSizeSplits =
               getParamValue('numOrSizeSplits', node, tensorMap, context) as
-                  number |
-              number[];
-          const tensor = getParamValue('x', node, tensorMap, context) as Tensor;
+                  number | number[];
+          final tensor = getParamValue('x', node, tensorMap, context) as Tensor;
 
           return tfOps.split(tensor, numOrSizeSplits, axis);
         }
         case 'ScatterNd': {
-          const indices =
+          final indices =
               getParamValue('indices', node, tensorMap, context) as Tensor;
-          const values =
+          final values =
               getParamValue('values', node, tensorMap, context) as Tensor;
-          const shape =
-              getParamValue('shape', node, tensorMap, context) as number[];
+          final shape =
+              getParamValue('shape', node, tensorMap, context) as List<int>;
           return [tfOps.scatterND(indices, values, shape)];
         }
         case 'GatherNd': {
-          const x = getParamValue('x', node, tensorMap, context) as Tensor;
-          const indices =
+          final x = getParamValue('x', node, tensorMap, context) as Tensor;
+          final indices =
               getParamValue('indices', node, tensorMap, context) as Tensor;
           return [tfOps.gatherND(x, indices)];
         }
         case 'SparseToDense': {
-          const indices =
+          final indices =
               getParamValue('sparseIndices', node, tensorMap, context) as
               Tensor;
-          const shape =
+          final shape =
               getParamValue('outputShape', node, tensorMap, context) as
-              number[];
-          const sparseValues =
+              List<int>;
+          final sparseValues =
               getParamValue('sparseValues', node, tensorMap, context) as Tensor;
-          const defaultValue =
+          final defaultValue =
               getParamValue('defaultValue', node, tensorMap, context) as Scalar;
           return [tfOps.sparseToDense(
               indices, sparseValues, shape,
-              sparseValues.dtype === defaultValue.dtype ?
+              sparseValues.dtype == defaultValue.dtype ?
                   defaultValue :
                   tfOps.cast(defaultValue, sparseValues.dtype))];
         }
         default:
-          throw TypeError(`Node type ${node.op} is not implemented`);
+          throw StateError('Node type ${node.op} is not implemented');
       }
-    };
+    }
 
-export const CATEGORY = 'slice_join';
+const CATEGORY = 'slice_join';

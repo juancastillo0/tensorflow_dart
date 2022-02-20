@@ -15,132 +15,157 @@
  * =============================================================================
  */
 
-import {Tensor, Tensor1D, Tensor2D} from '@tensorflow/tfjs-core';
-// tslint:disable-next-line: no-imports-from-dist
-import * as tfOps from '@tensorflow/tfjs-core/dist/ops/ops_for_converter';
+// import {Tensor, Tensor1D, Tensor2D} from '@tensorflow/tfjs-core';
+// // tslint:disable-next-line: no-imports-from-dist
+// import * as tfOps from '@tensorflow/tfjs-core/dist/ops/ops_for_converter';
 
-import {NamedTensorsMap} from '../../data/types';
-import {ExecutionContext} from '../../executor/execution_context';
-import {InternalOpExecutor, Node} from '../types';
+// import {NamedTensorsMap} from '../../data/types';
+// import {ExecutionContext} from '../../executor/execution_context';
+// import {InternalOpExecutor, Node} from '../types';
 
-import {getParamValue} from './utils';
+// import {getParamValue} from './utils';
 
-export const executeOp: InternalOpExecutor =
-    (node: Node, tensorMap: NamedTensorsMap,
-     context: ExecutionContext): Tensor[] => {
-      switch (node.op) {
-        case 'Max': {
-          const axis =
-              getParamValue('axis', node, tensorMap, context) as number[];
-          const keepDims =
-              getParamValue('keepDims', node, tensorMap, context) as boolean;
-          return [tfOps.max(
-              getParamValue('x', node, tensorMap, context) as Tensor, axis,
-              keepDims)];
-        }
-        case 'Mean': {
-          const axis =
-              getParamValue('axis', node, tensorMap, context) as number[];
-          const keepDims =
-              getParamValue('keepDims', node, tensorMap, context) as boolean;
-          return [tfOps.mean(
-              getParamValue('x', node, tensorMap, context) as Tensor, axis,
-              keepDims)];
-        }
-        case 'Min': {
-          const axis =
-              getParamValue('axis', node, tensorMap, context) as number[];
-          const keepDims =
-              getParamValue('keepDims', node, tensorMap, context) as boolean;
-          return [tfOps.min(
-              getParamValue('x', node, tensorMap, context) as Tensor, axis,
-              keepDims)];
-        }
-        case 'Sum': {
-          const axis =
-              getParamValue('axis', node, tensorMap, context) as number[];
-          const keepDims =
-              getParamValue('keepDims', node, tensorMap, context) as boolean;
-          return [tfOps.sum(
-              getParamValue('x', node, tensorMap, context) as Tensor, axis,
-              keepDims)];
-        }
-        case 'All': {
-          const axis =
-              getParamValue('axis', node, tensorMap, context) as number[];
-          const keepDims =
-              getParamValue('keepDims', node, tensorMap, context) as boolean;
-          return [tfOps.all(
-              getParamValue('x', node, tensorMap, context) as Tensor, axis,
-              keepDims)];
-        }
-        case 'Any': {
-          const axis =
-              getParamValue('axis', node, tensorMap, context) as number[];
-          const keepDims =
-              getParamValue('keepDims', node, tensorMap, context) as boolean;
-          return [tfOps.any(
-              getParamValue('x', node, tensorMap, context) as Tensor, axis,
-              keepDims)];
-        }
-        case 'ArgMax': {
-          const axis =
-              getParamValue('axis', node, tensorMap, context) as number;
-          return [tfOps.argMax(
-              getParamValue('x', node, tensorMap, context) as Tensor, axis)];
-        }
-        case 'ArgMin': {
-          const axis =
-              getParamValue('axis', node, tensorMap, context) as number;
-          return [tfOps.argMin(
-              getParamValue('x', node, tensorMap, context) as Tensor, axis)];
-        }
-        case 'Prod': {
-          const axis =
-              getParamValue('axis', node, tensorMap, context) as number[];
-          const keepDims =
-              getParamValue('keepDims', node, tensorMap, context) as boolean;
-          return [tfOps.prod(
-              getParamValue('x', node, tensorMap, context) as Tensor, axis,
-              keepDims)];
-        }
-        case 'Cumsum': {
-          const axis =
-              getParamValue('axis', node, tensorMap, context) as number;
-          const exclusive =
-              getParamValue('exclusive', node, tensorMap, context) as boolean;
-          const reverse =
-              getParamValue('reverse', node, tensorMap, context) as boolean;
-          return [tfOps.cumsum(
-              getParamValue('x', node, tensorMap, context) as Tensor, axis,
-              exclusive, reverse)];
-        }
-        case 'Bincount':
-          const x = getParamValue('x', node, tensorMap, context) as Tensor1D;
-          const weights =
-              getParamValue('weights', node, tensorMap, context) as Tensor1D;
-          const size =
-              getParamValue('size', node, tensorMap, context) as number;
+import 'package:tensorflow_wasm/tensorflow_wasm.dart' as tfOps;
+import '_prelude.dart';
 
-          return [tfOps.bincount(x, weights, size)];
-        case 'DenseBincount': {
-          const x = getParamValue('x', node, tensorMap, context) as Tensor1D |
-              Tensor2D;
-          const weights =
-              getParamValue('weights', node, tensorMap, context) as Tensor1D |
-              Tensor2D;
-          const size =
-              getParamValue('size', node, tensorMap, context) as number;
-
-          const binaryOutput =
-              getParamValue('binaryOutput', node, tensorMap, context) as
-              boolean;
-
-          return [tfOps.denseBincount(x, weights, size, binaryOutput)];
-        }
-        default:
-          throw TypeError(`Node type ${node.op} is not implemented`);
+List<Tensor> executeOp(
+  Node node,
+  NamedTensorsMap tensorMap,
+  ExecutionContext context,
+) {
+  switch (node.op) {
+    case 'Max':
+      {
+        final axis =
+            getParamValue('axis', node, tensorMap, context) as List<int>;
+        final keepDims =
+            getParamValue('keepDims', node, tensorMap, context) as bool;
+        return [
+          tfOps.max(getParamValue('x', node, tensorMap, context) as Tensor,
+              axis, keepDims)
+        ];
       }
-    };
+    case 'Mean':
+      {
+        final axis =
+            getParamValue('axis', node, tensorMap, context) as List<int>;
+        final keepDims =
+            getParamValue('keepDims', node, tensorMap, context) as bool;
+        return [
+          tfOps.mean(getParamValue('x', node, tensorMap, context) as Tensor,
+              axis, keepDims)
+        ];
+      }
+    case 'Min':
+      {
+        final axis =
+            getParamValue('axis', node, tensorMap, context) as List<int>;
+        final keepDims =
+            getParamValue('keepDims', node, tensorMap, context) as bool;
+        return [
+          tfOps.min(getParamValue('x', node, tensorMap, context) as Tensor,
+              axis, keepDims)
+        ];
+      }
+    case 'Sum':
+      {
+        final axis =
+            getParamValue('axis', node, tensorMap, context) as List<int>;
+        final keepDims =
+            getParamValue('keepDims', node, tensorMap, context) as bool;
+        return [
+          tfOps.sum(getParamValue('x', node, tensorMap, context) as Tensor,
+              axis, keepDims)
+        ];
+      }
+    case 'All':
+      {
+        final axis =
+            getParamValue('axis', node, tensorMap, context) as List<int>;
+        final keepDims =
+            getParamValue('keepDims', node, tensorMap, context) as bool;
+        return [
+          tfOps.all(getParamValue('x', node, tensorMap, context) as Tensor,
+              axis, keepDims)
+        ];
+      }
+    case 'Any':
+      {
+        final axis =
+            getParamValue('axis', node, tensorMap, context) as List<int>;
+        final keepDims =
+            getParamValue('keepDims', node, tensorMap, context) as bool;
+        return [
+          tfOps.any(getParamValue('x', node, tensorMap, context) as Tensor,
+              axis, keepDims)
+        ];
+      }
+    case 'ArgMax':
+      {
+        final axis = getParamValue('axis', node, tensorMap, context) as int;
+        return [
+          tfOps.argMax(
+              getParamValue('x', node, tensorMap, context) as Tensor, axis)
+        ];
+      }
+    case 'ArgMin':
+      {
+        final axis = getParamValue('axis', node, tensorMap, context) as int;
+        return [
+          tfOps.argMin(
+              getParamValue('x', node, tensorMap, context) as Tensor, axis)
+        ];
+      }
+    case 'Prod':
+      {
+        final axis =
+            getParamValue('axis', node, tensorMap, context) as List<int>;
+        final keepDims =
+            getParamValue('keepDims', node, tensorMap, context) as bool;
+        return [
+          tfOps.prod(getParamValue('x', node, tensorMap, context) as Tensor,
+              axis, keepDims)
+        ];
+      }
+    case 'Cumsum':
+      {
+        final axis = getParamValue('axis', node, tensorMap, context) as int;
+        final exclusive =
+            getParamValue('exclusive', node, tensorMap, context) as bool;
+        final reverse =
+            getParamValue('reverse', node, tensorMap, context) as bool;
+        return [
+          tfOps.cumsum(
+            getParamValue('x', node, tensorMap, context) as Tensor,
+            axis: axis,
+            exclusive: exclusive,
+            reverse: reverse,
+          )
+        ];
+      }
+    case 'Bincount':
+      final x = getParamValue('x', node, tensorMap, context) as Tensor1D;
+      final weights =
+          getParamValue('weights', node, tensorMap, context) as Tensor1D;
+      final size = getParamValue('size', node, tensorMap, context) as int;
 
-export const CATEGORY = 'reduction';
+      return [tfOps.bincount(x, weights, size)];
+    case 'DenseBincount':
+      {
+        final x = getParamValue('x', node, tensorMap, context)
+            as Tensor; // TODO: Tensor1D | Tensor2D;
+        final weights = getParamValue('weights', node, tensorMap, context)
+            as Tensor; // TODO: Tensor1D | Tensor2D;
+        final size = getParamValue('size', node, tensorMap, context) as int;
+
+        final binaryOutput =
+            getParamValue('binaryOutput', node, tensorMap, context) as bool;
+
+        return [tfOps.denseBincount(x, weights, size, binaryOutput)];
+      }
+    default:
+      throw StateError('Node type ${node.op} is not implemented');
+  }
+}
+
+const CATEGORY = 'reduction';
