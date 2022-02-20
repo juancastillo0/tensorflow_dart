@@ -15,49 +15,63 @@
  * =============================================================================
  */
 
-import {Tensor} from './tensor';
-import {NamedTensorMap} from './tensor_types';
-import {DataType} from './types';
+import 'package:tensorflow_wasm/src/tensor.dart';
 
-export interface ModelPredictConfig {
+// import {Tensor} from './tensor';
+// import {NamedTensorMap} from './tensor_types';
+// import {DataType} from './types';
+
+class ModelPredictConfig {
   /**
    * Optional. Batch size (Integer). If unspecified, it will default to 32.
    */
-  batchSize?: number;
+  final int? batchSize;
 
   /**
    * Optional. Verbosity mode. Defaults to false.
    */
-  verbose?: boolean;
+  final bool? verbose;
+
+  ModelPredictConfig({
+    this.batchSize,
+    this.verbose,
+  });
 }
 
 /**
  * Interface for model input/output tensor info.
  */
-export interface ModelTensorInfo {
+class ModelTensorInfo {
   // Name of the tensor.
-  name: string;
+  final String name;
   // Tensor shape information, Optional.
-  shape?: number[];
+  final List<int>? shape;
   // Data type of the tensor.
-  dtype: DataType;
+  final DataType dtype;
   // TensorFlow native Data type of the tensor.
-  tfDtype?: string;
+  final String? tfDtype;
+
+  ModelTensorInfo({
+    required this.name,
+    this.shape,
+    required this.dtype,
+    this.tfDtype,
+  });
 }
 
 /**
  * Common interface for a machine learning model that can do inference.
  */
-export interface InferenceModel {
+abstract class InferenceModel {
   /**
    * Return the array of input tensor info.
    */
-  readonly inputs: ModelTensorInfo[];
+  List<ModelTensorInfo> get inputs;
 
   /**
    * Return the array of output tensor info.
    */
-  readonly outputs: ModelTensorInfo[];
+  List<ModelTensorInfo> get outputs;
 
   /**
    * Execute the inference for the input tensors.
@@ -78,8 +92,13 @@ export interface InferenceModel {
    * model has single output node, otherwise Tensor[] or NamedTensorMap[] will
    * be returned for model with multiple outputs.
    */
-  predict(inputs: Tensor|Tensor[]|NamedTensorMap, config: ModelPredictConfig):
-      Tensor|Tensor[]|NamedTensorMap;
+
+  Tensors predict(
+    // Tensor|Tensor[]|NamedTensorMap
+    // : Tensor|Tensor[]|NamedTensorMap
+    Tensors inputs,
+    ModelPredictConfig config,
+  );
 
   /**
    * Single Execute the inference for the input tensors and return activation
@@ -98,59 +117,63 @@ export interface InferenceModel {
    * Tensor if single output is specified, otherwise Tensor[] for multiple
    * outputs.
    */
-  execute(inputs: Tensor|Tensor[]|NamedTensorMap, outputs: string|string[]):
-      Tensor|Tensor[];
+  Tensors execute(
+    // Tensor|Tensor[]|NamedTensorMap
+    Tensors inputs,
+    // string|string[]
+    List<String> outputs,
+  );
 }
 
-/**
- * @deprecated Deprecated interface for SavedModel/GraphModel MetaGraph info.
- *     User MetaGraph instead.
- */
-export interface MetaGraphInfo {
-  tags: string[];
-  signatureDefs: SignatureDefInfo;
-}
+// /**
+//  * @deprecated Deprecated interface for SavedModel/GraphModel MetaGraph info.
+//  *     User MetaGraph instead.
+//  */
+// export interface MetaGraphInfo {
+//   tags: string[];
+//   signatureDefs: SignatureDefInfo;
+// }
 
-/**
- * @deprecated Deprecated interface for SavedModel/GraphModel SignatureDef info.
- *     User SignatureDef instead.
- */
-export interface SignatureDefInfo {
-  [key: string]: {
-    inputs: {[key: string]: SavedModelTensorInfo};
-    outputs: {[key: string]: SavedModelTensorInfo};
-  };
-}
+// /**
+//  * @deprecated Deprecated interface for SavedModel/GraphModel SignatureDef info.
+//  *     User SignatureDef instead.
+//  */
+// export interface SignatureDefInfo {
+//   [key: string]: {
+//     inputs: {[key: string]: SavedModelTensorInfo};
+//     outputs: {[key: string]: SavedModelTensorInfo};
+//   };
+// }
 
-/**
- * @deprecated Deprecated interface for SavedModel/GraphModel signature
- *     input/output Tensor info. User ModelTensorInfo instead.
- */
-export interface SavedModelTensorInfo {
-  dtype: string;
-  shape: number[];
-  name: string;
-}
+// /**
+//  * @deprecated Deprecated interface for SavedModel/GraphModel signature
+//  *     input/output Tensor info. User ModelTensorInfo instead.
+//  */
+// export interface SavedModelTensorInfo {
+//   dtype: string;
+//   shape: number[];
+//   name: string;
+// }
 
-/**
- * Interface for SavedModel/GraphModel MetaGraph info.
- */
-export interface MetaGraph {
-  tags: string[];
-  signatureDefs: SignatureDef;
-}
+// /**
+//  * Interface for SavedModel/GraphModel MetaGraph info.
+//  */
+// export interface MetaGraph {
+//   tags: string[];
+//   signatureDefs: SignatureDef;
+// }
 
-/**
- * Interface for SavedModel/GraphModel SignatureDef entry.
- */
-export interface SignatureDefEntry {
-  inputs: {[key: string]: ModelTensorInfo};
-  outputs: {[key: string]: ModelTensorInfo};
-}
+// /**
+//  * Interface for SavedModel/GraphModel SignatureDef entry.
+//  */
+// export interface SignatureDefEntry {
+//   inputs: {[key: string]: ModelTensorInfo};
+//   outputs: {[key: string]: ModelTensorInfo};
+// }
 
-/**
- * Interface for SavedModel/GraphModel SignatureDef info.
- */
-export interface SignatureDef {
-  [key: string]: SignatureDefEntry;
-}
+// /**
+//  * Interface for SavedModel/GraphModel SignatureDef info.
+//  */
+// export interface SignatureDef {
+//   [key: string]: SignatureDefEntry;
+// }

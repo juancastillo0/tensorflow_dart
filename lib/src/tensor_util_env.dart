@@ -15,122 +15,157 @@
  * =============================================================================
  */
 
-import {ENGINE} from './engine';
-import {env} from './environment';
-import {Tensor} from './tensor';
-import {DataType, TensorLike} from './types';
-import {assert, flatten, inferDtype, isTypedArray, toTypedArray} from './util';
+import 'dart:typed_data';
 
-export function inferShape(val: TensorLike, dtype?: DataType): number[] {
-  let firstElem: typeof val = val;
+import 'package:tensorflow_wasm/src/engine.dart';
+import 'package:tensorflow_wasm/src/environment.dart';
+import 'package:tensorflow_wasm/src/tensor.dart';
+import 'util_base.dart' as util;
 
-  if (isTypedArray(val)) {
-    return dtype === 'string' ? [] : [val.length];
+// import {ENGINE} from './engine';
+// import {env} from './environment';
+// import {Tensor} from './tensor';
+// import {DataType, TensorLike} from './types';
+// import {assert, flatten, inferDtype, isTypedArray, toTypedArray} from './util';
+
+typedef TensorLike = Object;
+// TypedArray|number|boolean|string|RecursiveArray<number|number[]|TypedArray>|
+// RecursiveArray<boolean>|RecursiveArray<string>|Uint8Array[];
+
+List<int> inferShape(TensorLike val, [DataType? dtype]) {
+  var firstElem = val;
+
+  if (val is TypedData) {
+    return dtype == 'string' ? [] : [(val as List).length];
   }
-  if (!Array.isArray(val)) {
-    return [];  // Scalar.
+  if (val is! List) {
+    return []; // Scalar.
   }
-  const shape: number[] = [];
+  final shape = <int>[];
 
-  while (Array.isArray(firstElem) ||
-         isTypedArray(firstElem) && dtype !== 'string') {
-    shape.push(firstElem.length);
+  while (firstElem is List || firstElem is TypedData && dtype != 'string') {
+    shape.add((firstElem as List).length);
     firstElem = firstElem[0];
   }
-  if (Array.isArray(val) &&
-      env().getBool('TENSORLIKE_CHECK_SHAPE_CONSISTENCY')) {
-    deepAssertShapeConsistency(val, shape, []);
+  if (val is List && env().getBool('TENSORLIKE_CHECK_SHAPE_CONSISTENCY')) {
+    _deepAssertShapeConsistency(val, shape, []);
   }
 
   return shape;
 }
 
-function deepAssertShapeConsistency(
-    val: TensorLike, shape: number[], indices: number[]) {
-  indices = indices || [];
-  if (!(Array.isArray(val)) && !isTypedArray(val)) {
+_deepAssertShapeConsistency(
+  TensorLike val,
+  List<int> shape,
+  List<int> indices,
+) {
+  // indices = indices || [];
+  if (val is! List && val is! TypedData) {
     assert(
-        shape.length === 0,
-        () => `Element arr[${indices.join('][')}] is a primitive, ` +
-            `but should be an array/TypedArray of ${shape[0]} elements`);
+        shape.length == 0,
+        () =>
+            "Element arr[${indices.join('][')}] is a primitive, " +
+            'but should be an array/TypedArray of ${shape[0]} elements');
     return;
   }
+  val = val as List;
+  final length = val.length;
   assert(
       shape.length > 0,
-      () => `Element arr[${indices.join('][')}] should be a primitive, ` +
-          `but is an array of ${val.length} elements`);
+      () =>
+          "Element arr[${indices.join('][')}] should be a primitive, " +
+          'but is an array of ${length} elements');
   assert(
-      val.length === shape[0],
-      () => `Element arr[${indices.join('][')}] should have ${shape[0]} ` +
-          `elements, but has ${val.length} elements`);
-  const subShape = shape.slice(1);
-  for (let i = 0; i < val.length; ++i) {
-    deepAssertShapeConsistency(val[i], subShape, indices.concat(i));
+      length == shape[0],
+      () =>
+          "Element arr[${indices.join('][')}] should have ${shape[0]} " +
+          'elements, but has ${length} elements');
+  final subShape = shape.sublist(1);
+  for (int i = 0; i < length; ++i) {
+    _deepAssertShapeConsistency(val[i], subShape, [...indices, i]);
   }
 }
 
-function assertDtype(
-    expectedDtype: DataType|'numeric'|'string_or_numeric',
-    actualDType: DataType, argName: string, functionName: string) {
-  if (expectedDtype === 'string_or_numeric') {
+void _assertDtype(
+    // DataType|'numeric'|'string_or_numeric'
+    String expectedDtype,
+    DataType actualDType,
+    String argName,
+    String functionName) {
+  if (expectedDtype == 'string_or_numeric') {
     return;
   }
   if (expectedDtype == null) {
-    throw new Error(`Expected dtype cannot be null.`);
+    throw Exception('Expected dtype cannot be null.');
   }
-  if (expectedDtype !== 'numeric' && expectedDtype !== actualDType ||
-      expectedDtype === 'numeric' && actualDType === 'string') {
-    throw new Error(
-        `Argument '${argName}' passed to '${functionName}' must ` +
-        `be ${expectedDtype} tensor, but got ${actualDType} tensor`);
+  if (expectedDtype != 'numeric' && expectedDtype != actualDType ||
+      expectedDtype == 'numeric' && actualDType == 'string') {
+    throw Exception("Argument '${argName}' passed to '${functionName}' must " +
+        'be ${expectedDtype} tensor, but got ${actualDType} tensor');
   }
 }
 
-export function convertToTensor<T extends Tensor>(
-    x: T|TensorLike, argName: string, functionName: string,
-    parseAsDtype: DataType|'numeric'|'string_or_numeric' = 'numeric'): T {
-  if (x instanceof Tensor) {
-    assertDtype(parseAsDtype, x.dtype, argName, functionName);
+T convertToTensor<T extends Tensor>(
+  // TODO: TensorLike
+  T x,
+  String argName,
+  String functionName,
+  // DataType|'numeric'|'string_or_numeric'
+  [
+  String parseAsDtype = 'numeric',
+]) {
+  if (x is Tensor) {
+    _assertDtype(parseAsDtype, x.dtype, argName, functionName);
     return x;
   }
-  let inferredDtype = inferDtype(x);
+  DataType inferredDtype = util.inferDtype(x);
   // If the user expects a bool/int/float, use that info to update the
   // inferredDtype when it is not a string.
-  if (inferredDtype !== 'string' &&
+  if (inferredDtype != 'string' &&
       ['bool', 'int32', 'float32'].indexOf(parseAsDtype) >= 0) {
     inferredDtype = parseAsDtype as DataType;
   }
-  assertDtype(parseAsDtype, inferredDtype, argName, functionName);
+  _assertDtype(parseAsDtype, inferredDtype, argName, functionName);
 
-  if ((x == null) ||
-      (!isTypedArray(x) && !Array.isArray(x) && typeof x !== 'number' &&
-       typeof x !== 'boolean' && typeof x !== 'string')) {
-    const type = x == null ? 'null' : (x as {}).constructor.name;
-    throw new Error(
-        `Argument '${argName}' passed to '${functionName}' must be a ` +
-        `Tensor or TensorLike, but got '${type}'`);
+  if ((x == null) || (x is! List && x is! num && x is! bool && x is! String)) {
+    final type = x == null ? 'null' : '${x.runtimeType}:${x}';
+    throw Exception(
+        "Argument '${argName}' passed to '${functionName}' must be a " +
+            "Tensor or TensorLike, but got '${type}'");
   }
-  const inferredShape = inferShape(x, inferredDtype);
-  if (!isTypedArray(x) && !Array.isArray(x)) {
-    x = [x] as number[];
+  final inferredShape = inferShape(x, inferredDtype);
+  final List xList;
+  if (x is! TypedData && x is! List) {
+    xList = [x as num];
+  } else {
+    xList = x as List;
   }
-  const skipTypedArray = true;
-  const values = inferredDtype !== 'string' ?
-      toTypedArray(x, inferredDtype as DataType) :
-      flatten(x as string[], [], skipTypedArray) as string[];
+  final values = inferredDtype != 'string'
+      ? util.toTypedArray(xList, inferredDtype as DataType) as List
+      : util.flatten(xList as List<String>, skipTypedArray: true);
   return ENGINE.makeTensor(values, inferredShape, inferredDtype) as T;
 }
 
-export function convertToTensorArray<T extends Tensor>(
-    arg: Array<T|TensorLike>, argName: string, functionName: string,
-    parseAsDtype: DataType|'numeric'|'string_or_numeric' = 'numeric'): T[] {
-  if (!Array.isArray(arg)) {
-    throw new Error(
-        `Argument ${argName} passed to ${functionName} must be a ` +
+List<T> convertToTensorArray<T extends Tensor>(
+  List<T> arg,
+  String argName,
+  String functionName,
+  // DataType|'numeric'|'string_or_numeric'
+  [
+  String parseAsDtype = 'numeric',
+]) {
+  if (arg is! List) {
+    throw Exception('Argument ${argName} passed to ${functionName} must be a ' +
         '`Tensor[]` or `TensorLike[]`');
   }
-  const tensors = arg as T[];
-  return tensors.map(
-      (t, i) =>
-          convertToTensor(t, `${argName}[${i}]`, functionName, parseAsDtype));
+  final tensors = arg as List<T>;
+  int i = 0;
+  return tensors
+      .map((t) => convertToTensor(
+            t,
+            '${argName}[${i++}]',
+            functionName,
+            parseAsDtype,
+          ))
+      .toList();
 }

@@ -17,6 +17,14 @@
 
 // Importing local_storage and indexed_db is necessary for the routers to be
 // registered.
+
+export 'router_registry.dart';
+export 'types.dart';
+export 'http.dart';
+export 'weights_loader.dart';
+export 'io_utils.dart';
+
+/*
 import './indexed_db';
 import './local_storage';
 
@@ -64,3 +72,4 @@ export {
   WeightsManifestEntry,
   withSaveHandler
 };
+*/
