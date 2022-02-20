@@ -15,17 +15,49 @@
  * =============================================================================
  */
 
-import {InferenceModel, io, ModelPredictConfig, NamedTensorMap, Tensor} from '@tensorflow/tfjs-core';
+// import {InferenceModel, io, ModelPredictConfig, NamedTensorMap, Tensor} from '@tensorflow/tfjs-core';
 
-import * as tensorflow from '../data/compiled_api';
-import {NamedTensorsMap, TensorInfo} from '../data/types';
-import {OperationMapper} from '../operations/operation_mapper';
+// import * as tensorflow from '../data/compiled_api';
+// import {NamedTensorsMap, TensorInfo} from '../data/types';
+// import {OperationMapper} from '../operations/operation_mapper';
 
-import {GraphExecutor} from './graph_executor';
-import {ResourceManager} from './resource_manager';
+// import {GraphExecutor} from './graph_executor';
+// import {ResourceManager} from './resource_manager';
 
-export const TFHUB_SEARCH_PARAM = '?tfjs-format=file';
-export const DEFAULT_MODEL_NAME = 'model.json';
+// ignore_for_file: unnecessary_this
+
+import 'package:tensorflow_wasm/src/converter/executor/graph_executor.dart';
+import 'package:tensorflow_wasm/src/converter/data/compiled_api.dart'
+    as tensorflow;
+import 'package:tensorflow_wasm/src/converter/executor/resource_manager.dart';
+import 'package:tensorflow_wasm/src/io/types.dart';
+import 'package:tensorflow_wasm/src/io/io.dart' as io;
+import 'package:tensorflow_wasm/src/model_types.dart';
+import 'package:tensorflow_wasm/src/tensor.dart' hide TensorInfo;
+
+class ModelHandler {
+  final LoadHandler? load;
+  final SaveHandler? save;
+  final String? url;
+
+  const ModelHandler.fromUrl(String this.url)
+      : load = null,
+        save = null;
+  const ModelHandler.handlerLoad({
+    required LoadHandler this.load,
+    SaveHandler? this.save,
+  }) : url = null;
+  const ModelHandler.handlerSave({
+    LoadHandler? this.load,
+    required SaveHandler? this.save,
+  }) : url = null;
+
+  bool get isUrl => url != null;
+}
+
+const TFHUB_SEARCH_PARAM = '?tfjs-format=file';
+const DEFAULT_MODEL_NAME = 'model.json';
+
 /**
  * A `tf.GraphModel` is a directed, acyclic graph built from a
  * SavedModel GraphDef and allows inference execution.
@@ -36,46 +68,49 @@ export const DEFAULT_MODEL_NAME = 'model.json';
  *
  * @doc {heading: 'Models', subheading: 'Classes'}
  */
-export class GraphModel implements InferenceModel {
-  private executor: GraphExecutor;
-  private version = 'n/a';
-  private handler: io.IOHandler;
-  private artifacts: io.ModelArtifacts;
-  private initializer: GraphExecutor;
-  private resourceManager: ResourceManager;
-  private signature: tensorflow.ISignatureDef;
+class GraphModel implements InferenceModel {
+  late final GraphExecutor _executor;
+  String _version = 'n/a';
+  late final io.IOHandler _handler;
+  late final io.ModelArtifacts _artifacts;
+  GraphExecutor? _initializer;
+  final ResourceManager _resourceManager;
+  late final tensorflow.ISignatureDef _signature;
+
+  final ModelHandler _modelUrl;
+  final io.LoadOptions _loadOptions;
 
   // Returns the version information for the tensorflow model GraphDef.
-  get modelVersion(): string {
-    return this.version;
+  String get modelVersion {
+    return this._version;
   }
 
-  get inputNodes(): string[] {
-    return this.executor.inputNodes;
+  List<String> get inputNodes {
+    return this._executor.inputNodes;
   }
 
-  get outputNodes(): string[] {
-    return this.executor.outputNodes;
+  List<String> get outputNodes {
+    return this._executor.outputNodes;
   }
 
-  get inputs(): TensorInfo[] {
-    return this.executor.inputs;
+  List<ModelTensorInfo> get inputs {
+    return this._executor.inputs;
   }
 
-  get outputs(): TensorInfo[] {
-    return this.executor.outputs;
+  List<ModelTensorInfo> get outputs {
+    return this._executor.outputs;
   }
 
-  get weights(): NamedTensorsMap {
-    return this.executor.weightMap;
+  NamedTensorsMap get weights {
+    return this._executor.weightMap;
   }
 
-  get metadata(): {} {
-    return this.artifacts.userDefinedMetadata;
+  Map<String, Map>? get metadata {
+    return this._artifacts.userDefinedMetadata;
   }
 
-  get modelSignature(): {} {
-    return this.signature;
+  tensorflow.ISignatureDef get modelSignature {
+    return this._signature;
   }
 
   /**
@@ -87,34 +122,32 @@ export class GraphModel implements InferenceModel {
    * @param onProgress Optional, progress callback function, fired periodically
    * before the load is completed.
    */
-  constructor(
-      private modelUrl: string|io.IOHandler,
-      private loadOptions: io.LoadOptions = {}) {
-    if (loadOptions == null) {
-      this.loadOptions = {};
-    }
-    this.resourceManager = new ResourceManager();
-  }
+  GraphModel(
+    this._modelUrl, [
+    this._loadOptions = const LoadOptions(),
+  ]) : _resourceManager = ResourceManager();
 
-  private findIOHandler() {
-    const path = this.modelUrl;
-    if ((path as io.IOHandler).load != null) {
+  void _findIOHandler() {
+    if (_modelUrl.load != null) {
       // Path is an IO Handler.
-      this.handler = path as io.IOHandler;
-    } else if (this.loadOptions.requestInit != null) {
-      this.handler = io.browserHTTPRequest(path as string, this.loadOptions);
+      this._handler = io.IOHandler(load: _modelUrl.load, save: _modelUrl.save);
     } else {
-      const handlers = io.getLoadHandlers(path as string, this.loadOptions);
-      if (handlers.length === 0) {
-        // For backward compatibility: if no load handler can be found,
-        // assume it is a relative http path.
-        handlers.push(io.browserHTTPRequest(path as string, this.loadOptions));
-      } else if (handlers.length > 1) {
-        throw new Error(
-            `Found more than one (${handlers.length}) load handlers for ` +
-            `URL '${[path]}'`);
+      final path = _modelUrl.url!;
+      if (this._loadOptions.requestInit != null) {
+        this._handler = io.httpHandler(path, this._loadOptions);
+      } else {
+        final handlers = io.getLoadHandlers([path], this._loadOptions);
+        if (handlers.length == 0) {
+          // For backward compatibility: if no load handler can be found,
+          // assume it is a relative http path.
+          handlers.add(io.httpHandler(path, this._loadOptions));
+        } else if (handlers.length > 1) {
+          throw Exception(
+              "Found more than one (${handlers.length}) load handlers for " +
+                  "URL '${[path]}'");
+        }
+        this._handler = handlers[0];
       }
-      this.handler = handlers[0];
     }
   }
 
@@ -122,14 +155,14 @@ export class GraphModel implements InferenceModel {
    * Loads the model and weight files, construct the in memory weight map and
    * compile the inference graph.
    */
-  async load(): Promise<boolean> {
-    this.findIOHandler();
-    if (this.handler.load == null) {
-      throw new Error(
+  Future<bool> load() async {
+    this._findIOHandler();
+    if (this._handler.load == null) {
+      throw Exception(
           'Cannot proceed with model loading because the IOHandler provided ' +
-          'does not have the `load` method implemented.');
+              'does not have the `load` method implemented.');
     }
-    const artifacts = await this.handler.load();
+    final artifacts = await this._handler.load!();
 
     return this.loadSync(artifacts);
   }
@@ -140,42 +173,41 @@ export class GraphModel implements InferenceModel {
    *
    * @doc {heading: 'Models', subheading: 'Classes', ignoreCI: true}
    */
-  loadSync(artifacts: io.ModelArtifacts) {
-    this.artifacts = artifacts;
-    const graph = this.artifacts.modelTopology as tensorflow.IGraphDef;
+  bool loadSync(io.ModelArtifacts artifacts) {
+    this._artifacts = artifacts;
+    final graph = this._artifacts.modelTopology as tensorflow.IGraphDef;
 
-    let signature;
-    if (this.artifacts.userDefinedMetadata != null &&
-        this.artifacts.userDefinedMetadata.signature != null) {
-      signature =  // tslint:disable-next-line:no-any
-          (this.artifacts.userDefinedMetadata as any).signature as
-          tensorflow.ISignatureDef;
-    } else {
-      signature = this.artifacts.signature;
-    }
-    this.signature = signature;
+    final Map<String, Object?> signature =
+        (this._artifacts.userDefinedMetadata?['signature'] ??
+                this._artifacts.signature)!
+            .cast();
+    this._signature = tensorflow.ISignatureDef.fromJson(signature);
 
-    this.version = `${graph.versions.producer}.${graph.versions.minConsumer}`;
-    const weightMap =
-        io.decodeWeights(this.artifacts.weightData, this.artifacts.weightSpecs);
-    this.executor = new GraphExecutor(
-        OperationMapper.Instance.transformGraph(graph, this.signature));
-    this.executor.weightMap = this.convertTensorMapToTensorsMap(weightMap);
+    this._version =
+        '${graph.versions!.producer}.${graph.versions!.minConsumer}';
+    final weightMap = io.decodeWeights(
+      this._artifacts.weightData!,
+      this._artifacts.weightSpecs!,
+    );
+    this._executor = GraphExecutor(
+        OperationMapper.Instance.transformGraph(graph, this._signature));
+    this._executor.weightMap = this._convertTensorMapToTensorsMap(weightMap);
     // Attach a model-level resourceManager to each executor to share resources,
     // such as `HashTable`.
-    this.executor.resourceManager = this.resourceManager;
+    this._executor.resourceManager = this._resourceManager;
 
     if (artifacts.modelInitializer != null &&
         (artifacts.modelInitializer as tensorflow.IGraphDef).node != null) {
-      const initializer =
+      final graph =
           OperationMapper.Instance.transformGraph(artifacts.modelInitializer);
-      this.initializer = new GraphExecutor(initializer);
-      this.initializer.weightMap = this.executor.weightMap;
+      final initializer = GraphExecutor(graph);
+      this._initializer = initializer;
+      initializer.weightMap = this._executor.weightMap;
       // Attach a model-level resourceManager to the initializer, the
       // hashTables created from when executing the initializer will be stored
       // in the resourceManager.
-      this.initializer.resourceManager = this.resourceManager;
-      this.initializer.executeAsync({}, []);
+      initializer.resourceManager = this._resourceManager;
+      initializer.executeAsync({}, []);
     }
 
     return true;
@@ -225,27 +257,32 @@ export class GraphModel implements InferenceModel {
    *
    * @doc {heading: 'Models', subheading: 'Classes', ignoreCI: true}
    */
-  async save(handlerOrURL: io.IOHandler|string, config?: io.SaveConfig):
-      Promise<io.SaveResult> {
-    if (typeof handlerOrURL === 'string') {
-      const handlers = io.getSaveHandlers(handlerOrURL);
-      if (handlers.length === 0) {
-        throw new Error(
-            `Cannot find any save handlers for URL '${handlerOrURL}'`);
+  Future<io.SaveResult> save(
+    ModelHandler handlerOrURL, {
+    io.SaveConfig? config,
+  }) async {
+    if (handlerOrURL.isUrl) {
+      final handlers = io.getSaveHandlers([handlerOrURL.url!]);
+      if (handlers.length == 0) {
+        throw Exception(
+            "Cannot find any save handlers for URL '${handlerOrURL}'");
       } else if (handlers.length > 1) {
-        throw new Error(
-            `Found more than one (${handlers.length}) save handlers for ` +
-            `URL '${handlerOrURL}'`);
+        throw Exception(
+            "Found more than one (${handlers.length}) save handlers for " +
+                "URL '${handlerOrURL}'");
       }
-      handlerOrURL = handlers[0];
+      handlerOrURL = ModelHandler.handlerSave(
+        load: handlers[0].load,
+        save: handlers[0].save,
+      );
     }
     if (handlerOrURL.save == null) {
-      throw new Error(
+      throw Exception(
           'GraphModel.save() cannot proceed because the IOHandler ' +
-          'provided does not have the `save` attribute defined.');
+              'provided does not have the `save` attribute defined.');
     }
 
-    return handlerOrURL.save(this.artifacts);
+    return handlerOrURL.save!(this._artifacts);
   }
 
   /**
@@ -286,33 +323,31 @@ export class GraphModel implements InferenceModel {
    *
    * @doc {heading: 'Models', subheading: 'Classes'}
    */
-  predict(inputs: Tensor|Tensor[]|NamedTensorMap, config?: ModelPredictConfig):
-      Tensor|Tensor[]|NamedTensorMap {
+  Tensors predict(Tensors inputs, [ModelPredictConfig? config]) {
     return this.execute(inputs, this.outputNodes);
   }
 
-  private normalizeInputs(inputs: Tensor|Tensor[]|
-                          NamedTensorMap): NamedTensorMap {
-    if (!(inputs instanceof Tensor) && !Array.isArray(inputs)) {
+  TensorMap _normalizeInputs(TensorsOrMap inputs) {
+    if (inputs is TensorMap) {
       // The input is already a NamedTensorMap.
       return inputs;
     }
-    inputs = Array.isArray(inputs) ? inputs : [inputs];
-    if (inputs.length !== this.inputNodes.length) {
-      throw new Error(
-          'Input tensor count mismatch,' +
-          `the graph model has ${this.inputNodes.length} placeholders, ` +
-          `while there are ${inputs.length} input tensors.`);
+    final inputList = (inputs as Tensors).toTensorList();
+    if (inputList.length != this.inputNodes.length) {
+      throw Exception('Input tensor count mismatch,' +
+          'the graph model has ${this.inputNodes.length} placeholders, ' +
+          'while there are ${inputList.length} input tensors.');
     }
-    return this.inputNodes.reduce((map, inputName, i) => {
-      map[inputName] = (inputs as Tensor[])[i];
+    int i = 0;
+    return this.inputNodes.fold(TensorMap({}), (map, inputName) {
+      map[inputName] = inputList[i++];
       return map;
-    }, {} as NamedTensorMap);
+    });
   }
 
-  private normalizeOutputs(outputs: string|string[]): string[] {
-    outputs = outputs || this.outputNodes;
-    return !Array.isArray(outputs) ? [outputs] : outputs;
+  List<String> _normalizeOutputs(List<String>? outputs) {
+    outputs = outputs ?? this.outputNodes;
+    return outputs is String ? [outputs as String] : outputs;
   }
 
   /**
@@ -331,13 +366,16 @@ export class GraphModel implements InferenceModel {
    *
    * @doc {heading: 'Models', subheading: 'Classes'}
    */
-  execute(inputs: Tensor|Tensor[]|NamedTensorMap, outputs?: string|string[]):
-      Tensor|Tensor[] {
-    inputs = this.normalizeInputs(inputs);
-    outputs = this.normalizeOutputs(outputs);
-    const result = this.executor.execute(inputs, outputs);
-    return result.length > 1 ? result : result[0];
+  Tensors execute(
+    TensorsOrMap inputs, [
+    List<String>? outputs,
+  ]) {
+    final normalizedInputs = this._normalizeInputs(inputs);
+    outputs = this._normalizeOutputs(outputs);
+    final result = this._executor.execute(normalizedInputs, outputs);
+    return result.length > 1 ? TensorList(result) : result[0];
   }
+
   /**
    * Executes inference for the model for given input tensors in async
    * fashion, use this method when your model contains control flow ops.
@@ -354,13 +392,14 @@ export class GraphModel implements InferenceModel {
    *
    * @doc {heading: 'Models', subheading: 'Classes'}
    */
-  async executeAsync(
-      inputs: Tensor|Tensor[]|NamedTensorMap,
-      outputs?: string|string[]): Promise<Tensor|Tensor[]> {
-    inputs = this.normalizeInputs(inputs);
-    outputs = this.normalizeOutputs(outputs);
-    const result = await this.executor.executeAsync(inputs, outputs);
-    return result.length > 1 ? result : result[0];
+  Future<Tensors> executeAsync(
+    TensorsOrMap inputs, [
+    List<String>? outputs,
+  ]) async {
+    final normalizedInputs = this._normalizeInputs(inputs);
+    outputs = this._normalizeOutputs(outputs);
+    final result = await this._executor.executeAsync(normalizedInputs, outputs);
+    return result.length > 1 ? TensorList(result) : result[0];
   }
 
   /**
@@ -369,8 +408,8 @@ export class GraphModel implements InferenceModel {
    *
    * @doc {heading: 'Models', subheading: 'Classes'}
    */
-  getIntermediateTensors(): NamedTensorsMap {
-    return this.executor.getIntermediateTensors();
+  NamedTensorsMap? getIntermediateTensors() {
+    return this._executor.getIntermediateTensors();
   }
 
   /**
@@ -379,15 +418,15 @@ export class GraphModel implements InferenceModel {
    *
    * @doc {heading: 'Models', subheading: 'Classes'}
    */
-  disposeIntermediateTensors() {
-    this.executor.disposeIntermediateTensors();
+  void disposeIntermediateTensors() {
+    this._executor.disposeIntermediateTensors();
   }
 
-  private convertTensorMapToTensorsMap(map: NamedTensorMap): NamedTensorsMap {
-    return Object.keys(map).reduce((newMap: NamedTensorsMap, key) => {
-      newMap[key] = [map[key]];
+  NamedTensorsMap _convertTensorMapToTensorsMap(NamedTensorMap map) {
+    return map.keys.fold({}, (newMap, key) {
+      newMap[key] = [map[key]!];
       return newMap;
-    }, {});
+    });
   }
 
   /**
@@ -395,14 +434,14 @@ export class GraphModel implements InferenceModel {
    *
    * @doc {heading: 'Models', subheading: 'Classes'}
    */
-  dispose() {
-    this.executor.dispose();
+  void dispose() {
+    this._executor.dispose();
 
-    if (this.initializer) {
-      this.initializer.dispose();
+    if (this._initializer != null) {
+      this._initializer!.dispose();
     }
 
-    this.resourceManager.dispose();
+    this._resourceManager.dispose();
   }
 }
 
@@ -436,27 +475,29 @@ export class GraphModel implements InferenceModel {
  *
  * @doc {heading: 'Models', subheading: 'Loading'}
  */
-export async function loadGraphModel(
-    modelUrl: string|io.IOHandler,
-    options: io.LoadOptions = {}): Promise<GraphModel> {
+Future<GraphModel> loadGraphModel(
+  ModelHandler modelUrl, [
+  io.LoadOptions options = const io.LoadOptions(),
+]) async {
   if (modelUrl == null) {
-    throw new Error(
+    throw Exception(
         'modelUrl in loadGraphModel() cannot be null. Please provide a url ' +
-        'or an IOHandler that loads the model');
+            'or an IOHandler that loads the model');
   }
-  if (options == null) {
-    options = {};
-  }
+  // if (options == null) {
+  //   options = {};
+  // }
 
-  if (options.fromTFHub) {
+  if (options.fromTFHub == true) {
     if ((modelUrl as io.IOHandler).load == null) {
-      if (!(modelUrl as string).endsWith('/')) {
-        modelUrl = (modelUrl as string) + '/';
+      if (!(modelUrl.url!).endsWith('/')) {
+        modelUrl = ModelHandler.fromUrl(modelUrl.url! + '/');
       }
-      modelUrl = `${modelUrl}${DEFAULT_MODEL_NAME}${TFHUB_SEARCH_PARAM}`;
+      modelUrl = ModelHandler.fromUrl(
+          '${modelUrl}${DEFAULT_MODEL_NAME}${TFHUB_SEARCH_PARAM}');
     }
   }
-  const model = new GraphModel(modelUrl, options);
+  final model = GraphModel(modelUrl, options);
   await model.load();
   return model;
 }

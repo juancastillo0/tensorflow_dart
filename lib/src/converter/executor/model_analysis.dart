@@ -15,19 +15,32 @@
  * =============================================================================
  */
 
-import {NamedTensorMap} from '@tensorflow/tfjs-core';
+import 'package:tensorflow_wasm/src/converter/operations/executors/utils.dart';
+import 'package:tensorflow_wasm/src/converter/operations/types.dart';
+import 'package:tensorflow_wasm/src/tensor.dart';
 
-import {NamedTensorsMap} from '../data/types';
-import {parseNodeName} from '../operations/executors/utils';
-import {Graph, Node} from '../operations/types';
+// import {NamedTensorMap} from '@tensorflow/tfjs-core';
 
-export interface ExecutionInfo {
-  inputs: NamedTensorMap;
-  outputs: Node[];
-  usedNodes: Set<string>;
-  missingInputs: string[];
-  dynamicNode: Node;
-  syncInputs: string[];
+// import {NamedTensorsMap} from '../data/types';
+// import {parseNodeName} from '../operations/executors/utils';
+// import {Graph, Node} from '../operations/types';
+
+class ExecutionInfo {
+  final NamedTensorMap inputs;
+  final List<Node> outputs;
+  final Set<String> usedNodes;
+  final List<String> missingInputs;
+  final Node? dynamicNode;
+  final List<String>? syncInputs;
+
+  const ExecutionInfo({
+    required this.inputs,
+    required this.outputs,
+    required this.usedNodes,
+    required this.missingInputs,
+    required this.dynamicNode,
+    required this.syncInputs,
+  });
 }
 
 /**
@@ -38,33 +51,39 @@ export interface ExecutionInfo {
  * - Whether the subgraph contains dynamic ops (control flow, dynamic shape).
  * - Alternative inputs in order to avoid async (dynamic op) execution.
  */
-export function getExecutionSubgraph(
-    inputs: NamedTensorMap, outputs: Node[], weightMap: NamedTensorsMap,
-    initNodes?: Node[]): ExecutionInfo {
-  const usedNodes = new Set<string>();
-  const missingInputs: string[] = [];
-  let dynamicNode: Node = null;
-  let syncInputs: string[] = null;
+ExecutionInfo getExecutionSubgraph(
+  NamedTensorMap inputs,
+  List<Node> outputs,
+  NamedTensorsMap weightMap, [
+  List<Node>? initNodes,
+]) {
+  final Set<String> usedNodes = {};
+  final List<String> missingInputs = [];
+  Node? dynamicNode = null;
+  List<String>? syncInputs = null;
 
   // Start with the outputs, going backwards and find all the nodes that are
   // needed to compute those outputs.
-  const seen = new Set<string>();
-  const inputNodeNames =
-      Object.keys(inputs).map(name => parseNodeName(name)[0]);
+  final Set<String> seen = {};
+  final inputNodeNames =
+      inputs.keys.map((name) => parseNodeName(name).nodeName).toList();
 
-  let initNodeNames: string[] = [];
+  List<String> initNodeNames = [];
   if (initNodes != null) {
-    initNodeNames = initNodes.map(node => parseNodeName(node.name)[0]);
+    initNodeNames =
+        initNodes.map((node) => parseNodeName(node.name).nodeName).toList();
   }
 
-  const frontier = [...outputs];
+  final frontier = [...outputs];
   while (frontier.length > 0) {
-    const node = frontier.pop();
+    final node = frontier.removeLast();
     if (isControlFlow(node) || isDynamicShape(node) || isHashTable(node)) {
       if (dynamicNode == null) {
         dynamicNode = node;
-        syncInputs = dynamicNode.children.map(child => child.name)
-                         .filter(name => usedNodes.has(name));
+        syncInputs = dynamicNode.children
+            .map((child) => child.name)
+            .where((name) => usedNodes.contains(name))
+            .toList();
       }
     }
     usedNodes.add(node.name);
@@ -74,72 +93,84 @@ export function getExecutionSubgraph(
       continue;
     }
     // This node is a dead end since it's one of the user-provided inputs.
-    if (inputNodeNames.indexOf(node.name) !== -1) {
+    if (inputNodeNames.indexOf(node.name) != -1) {
       continue;
     }
     // This node is a dead end since it doesn't have any inputs.
-    if (initNodeNames.indexOf(node.name) !== -1) {
+    if (initNodeNames.indexOf(node.name) != -1) {
       continue;
     }
-    if (node.inputs.length === 0) {
-      missingInputs.push(node.name);
+    if (node.inputs.length == 0) {
+      missingInputs.add(node.name);
       continue;
     }
-    node.inputs.forEach(input => {
+    node.inputs.forEach((input) {
       // Don't add to the frontier if it is already there.
-      if (seen.has(input.name)) {
+      if (seen.contains(input.name)) {
         return;
       }
       seen.add(input.name);
-      frontier.push(input);
+      frontier.add(input);
     });
   }
-  return {inputs, outputs, usedNodes, missingInputs, dynamicNode, syncInputs};
+  return ExecutionInfo(
+    inputs: inputs,
+    outputs: outputs,
+    usedNodes: usedNodes,
+    missingInputs: missingInputs,
+    dynamicNode: dynamicNode,
+    syncInputs: syncInputs,
+  );
 }
 
 /**
  * Given the execution info, return a list of nodes in topological order that
  * need to be executed to compute the output.
  */
-export function getNodesInTopologicalOrder(
-    graph: Graph, weightMap: NamedTensorsMap,
-    executionInfo: ExecutionInfo): Node[] {
-  const {usedNodes, inputs} = executionInfo;
-  const frontier: Node[] = [];
-  const inputNodes = Object.keys(inputs)
-                         .map(name => parseNodeName(name)[0])
-                         .map(name => graph.nodes[name]);
-  const initNodes = graph.initNodes;
+List<Node> getNodesInTopologicalOrder(
+  Graph graph,
+  NamedTensorsMap weightMap,
+  ExecutionInfo executionInfo,
+) {
+  final usedNodes = executionInfo.usedNodes;
+  final inputs = executionInfo.inputs;
 
-  inputNodes.forEach(input => {
-    if (usedNodes.has(input.name)) {
-      frontier.push(input);
+  final List<Node> frontier = [];
+  final inputNodes = inputs.keys
+      .map((name) => parseNodeName(name).nodeName)
+      .map((name) => graph.nodes[name]!);
+  final initNodes = graph.initNodes;
+
+  inputNodes.forEach((input) {
+    if (usedNodes.contains(input.name)) {
+      frontier.add(input);
     }
   });
-  graph.weights.forEach(weight => {
-    if (usedNodes.has(weight.name)) {
-      frontier.push(weight);
+  graph.weights.forEach((weight) {
+    if (usedNodes.contains(weight.name)) {
+      frontier.add(weight);
     }
   });
   if (initNodes != null) {
-    initNodes.forEach(node => {
-      if (usedNodes.has(node.name)) {
-        frontier.push(node);
+    initNodes.forEach((node) {
+      if (usedNodes.contains(node.name)) {
+        frontier.add(node);
       }
     });
   }
-  const seen = new Set<string>();
-  const orderedNodes: Node[] = [];
+  final Set<String> seen = {};
+  final List<Node> orderedNodes = [];
   while (frontier.length > 0) {
-    const node = frontier.pop();
+    final node = frontier.removeLast();
     seen.add(node.name);
-    if (!weightMap[node.name]) {
-      orderedNodes.push(node);
+    if (!weightMap.containsKey(node.name)) {
+      orderedNodes.add(node);
     }
-    node.children.forEach(child => {
-      if (!seen.has(child.name) && usedNodes.has(child.name) &&
-          child.inputs.every(input => seen.has(input.name))) {
-        frontier.push(child);
+    node.children.forEach((child) {
+      if (!seen.contains(child.name) &&
+          usedNodes.contains(child.name) &&
+          child.inputs.every((input) => seen.contains(input.name))) {
+        frontier.add(child);
       }
     });
   }
@@ -147,25 +178,41 @@ export function getNodesInTopologicalOrder(
 }
 
 const CONTROL_FLOW_OPS = [
-  'Switch', 'Merge', 'Enter', 'Exit', 'NextIteration', 'StatelessIf',
-  'StatelessWhile', 'if', 'While'
+  'Switch',
+  'Merge',
+  'Enter',
+  'Exit',
+  'NextIteration',
+  'StatelessIf',
+  'StatelessWhile',
+  'if',
+  'While'
 ];
 const DYNAMIC_SHAPE_OPS = [
-  'NonMaxSuppressionV2', 'NonMaxSuppressionV3', 'NonMaxSuppressionV5', 'Where'
+  'NonMaxSuppressionV2',
+  'NonMaxSuppressionV3',
+  'NonMaxSuppressionV5',
+  'Where'
 ];
 const HASH_TABLE_OPS = [
-  'HashTable', 'HashTableV2', 'LookupTableImport', 'LookupTableImportV2',
-  'LookupTableFind', 'LookupTableFindV2', 'LookupTableSize', 'LookupTableSizeV2'
+  'HashTable',
+  'HashTableV2',
+  'LookupTableImport',
+  'LookupTableImportV2',
+  'LookupTableFind',
+  'LookupTableFindV2',
+  'LookupTableSize',
+  'LookupTableSizeV2'
 ];
 
-export function isControlFlow(node: Node) {
+bool isControlFlow(Node node) {
   return CONTROL_FLOW_OPS.indexOf(node.op) >= 0;
 }
 
-export function isDynamicShape(node: Node) {
+bool isDynamicShape(Node node) {
   return DYNAMIC_SHAPE_OPS.indexOf(node.op) >= 0;
 }
 
-export function isHashTable(node: Node) {
+bool isHashTable(Node node) {
   return HASH_TABLE_OPS.indexOf(node.op) >= 0;
 }

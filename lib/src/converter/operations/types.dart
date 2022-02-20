@@ -14,31 +14,55 @@
  * limitations under the License.
  * =============================================================================
  */
-import {Tensor} from '@tensorflow/tfjs-core';
+import 'dart:async';
 
-import * as tensorflow from '../data/compiled_api';
-import {NamedTensorsMap} from '../data/types';
-import {ExecutionContext} from '../executor/execution_context';
-import {ResourceManager} from '../executor/resource_manager';
+import 'package:tensorflow_wasm/src/converter/executor/execution_context.dart';
+import 'package:tensorflow_wasm/src/converter/executor/resource_manager.dart';
+import 'package:tensorflow_wasm/src/tensor.dart';
+import 'package:tensorflow_wasm/src/converter/data/compiled_api.dart'
+    as tensorflow;
 
-export type ParamType = 'number'|'string'|'string[]'|'number[]'|'bool'|'bool[]'|
-    'shape'|'shape[]'|'tensor'|'tensors'|'dtype'|'dtype[]'|'func';
-export type Category = 'arithmetic'|'basic_math'|'control'|'convolution'|
-    'creation'|'custom'|'dynamic'|'evaluation'|'graph'|'hash_table'|'image'|
-    'logical'|'matrices'|'normalization'|'reduction'|'slice_join'|'sparse'|
-    'spectral'|'string'|'transformation';
+// import {Tensor} from '@tensorflow/tfjs-core';
+
+// import * as tensorflow from '../data/compiled_api';
+// import {NamedTensorsMap} from '../data/types';
+// import {ExecutionContext} from '../executor/execution_context';
+// import {ResourceManager} from '../executor/resource_manager';
+
+/// 'number'|'string'|'string[]'|'number[]'|'bool'|'bool[]'|
+///     'shape'|'shape[]'|'tensor'|'tensors'|'dtype'|'dtype[]'|'func';
+typedef ParamType = String;
+
+/// 'arithmetic'|'basic_math'|'control'|'convolution'|
+///     'creation'|'custom'|'dynamic'|'evaluation'|'graph'|'hash_table'|'image'|
+///     'logical'|'matrices'|'normalization'|'reduction'|'slice_join'|'sparse'|
+///     'spectral'|'string'|'transformation'
+typedef Category = String;
 
 // For mapping input or attributes of NodeDef into TensorFlow.js op param.
-export declare interface ParamMapper {
+class ParamMapper {
   // tensorflow.js name for the field, it should be in camelcase format.
-  name: string;
-  type: ParamType;
-  defaultValue?: ValueType;
-  notSupported?: boolean;
+  final String name;
+  final ParamType type;
+  final ValueType? defaultValue;
+  final bool? notSupported;
+
+  ParamMapper({
+    required this.name,
+    required this.type,
+    this.defaultValue,
+    this.notSupported,
+  });
+
+  ParamMapper.fromModel(ParamMapper mapper)
+      : name = mapper.name,
+        notSupported = mapper.notSupported,
+        defaultValue = mapper.defaultValue,
+        type = mapper.type;
 }
 
 // For mapping the input of TensorFlow NodeDef into TensorFlow.js Op param.
-export declare interface InputParamMapper extends ParamMapper {
+class InputParamMapper extends ParamMapper {
   // The first number is the starting index of the param, the second number is
   // the length of the param. If the length value is positive number, it
   // represents the true length of the param. Otherwise, it represents a
@@ -51,7 +75,7 @@ export declare interface InputParamMapper extends ParamMapper {
   // Zero-based index at where in the input array this param starts.
   // A negative index can be used, indicating an offset from the end of the
   // sequence. slice(-2) extracts the last two elements in the sequence.
-  start: number;
+  final int start;
   // Zero-based index before where in the input array the param ends. The
   // mapping is up to but not including end. For example, start = 1, end = 4
   // includes the second element through the fourth element (elements indexed 1,
@@ -62,80 +86,154 @@ export declare interface InputParamMapper extends ParamMapper {
   // end is set to 0, the mapping is through the end of the input array
   // (arr.length). If end is greater than the length of the inputs, mapping
   // inncludes through to the end of the sequence (arr.length).
-  end?: number;
+  final int? end;
+
+  InputParamMapper({
+    required this.start,
+    this.end,
+    required ParamMapper mapper,
+  }) : super.fromModel(mapper);
 }
 
 // For mapping the attributes of TensorFlow NodeDef into TensorFlow.js op param.
-export declare interface AttrParamMapper extends ParamMapper {
+class AttrParamMapper extends ParamMapper {
   // TensorFlow attribute name, this should be set if the tensorflow attribute
   // name is different form the tensorflow.js name.
-  tfName?: string;
+  final String? tfName;
   // TensorFlow deprecated attribute name, this is used to support old models.
-  tfDeprecatedName?: string;
+  final String? tfDeprecatedName;
+  AttrParamMapper({
+    this.tfName,
+    this.tfDeprecatedName,
+    required ParamMapper mapper,
+  }) : super.fromModel(mapper);
 }
 
-export interface InternalOpExecutor {
-  (node: Node, tensorMap: NamedTensorsMap, context: ExecutionContext): Tensor
-      |Tensor[];
+abstract class InternalOpExecutor {
+  // TODO: was Tensors
+  List<Tensor> call(
+    Node node,
+    NamedTensorsMap tensorMap,
+    ExecutionContext context,
+  );
 }
 
-export interface InternalOpAsyncExecutor {
-  (node: Node, tensorMap: NamedTensorsMap, context: ExecutionContext,
-   resourceManager?: ResourceManager): Promise<Tensor[]>;
+abstract class InternalOpAsyncExecutor {
+  Future<List<Tensor>> call(
+    Node node,
+    NamedTensorsMap tensorMap,
+    ExecutionContext context,
+    ResourceManager? resourceManager,
+  );
 }
 
-export declare interface OpMapper {
-  tfOpName: string;
-  category?: Category;
-  inputs?: InputParamMapper[];
-  attrs?: AttrParamMapper[];
-  outputs?: string[];
-  customExecutor?: OpExecutor;
+class OpMapper {
+  final String tfOpName;
+  final Category? category;
+  final List<InputParamMapper>? inputs;
+  final List<AttrParamMapper>? attrs;
+  final List<String>? outputs;
+  final OpExecutor? customExecutor;
+
+  OpMapper({
+    required this.tfOpName,
+    this.category,
+    this.inputs,
+    this.attrs,
+    this.outputs,
+    this.customExecutor,
+  });
 }
 
-export declare interface Node {
-  signatureKey?: string;
-  name: string;
-  op: string;
-  category: Category;
-  inputNames: string[];
-  inputs: Node[];
-  inputParams: {[key: string]: InputParamValue};
-  attrParams: {[key: string]: ParamValue};
-  children: Node[];
-  rawAttrs?: {[k: string]: tensorflow.IAttrValue};
-  defaultOutput?: number;
-  outputs?: string[];
+class Node {
+  final String? signatureKey;
+  final String name;
+  final String op;
+  final Category category;
+  final List<String> inputNames;
+  final List<Node> inputs;
+  final Map<String, InputParamValue> inputParams;
+  final Map<String, ParamValue> attrParams;
+  final List<Node> children;
+  final Map<String, tensorflow.IAttrValue>? rawAttrs;
+  final int? defaultOutput;
+  final List<String>? outputs;
+
+  Node({
+    this.signatureKey,
+    required this.name,
+    required this.op,
+    required this.category,
+    required this.inputNames,
+    required this.inputs,
+    required this.inputParams,
+    required this.attrParams,
+    required this.children,
+    this.rawAttrs,
+    this.defaultOutput,
+    this.outputs,
+  });
 }
 
-export declare interface Graph {
-  nodes: {[key: string]: Node};
-  placeholders: Node[];
-  inputs: Node[];
-  outputs: Node[];
-  weights: Node[];
-  signature?: tensorflow.ISignatureDef;
-  functions?: {[key: string]: Graph};
-  initNodes?: Node[];
+class Graph {
+  final Map<String, Node> nodes;
+  final List<Node> placeholders;
+  final List<Node> inputs;
+  final List<Node> outputs;
+  final List<Node> weights;
+  final tensorflow.ISignatureDef? signature;
+  final Map<String, Graph>? functions;
+  final List<Node>? initNodes;
+
+  Graph({
+    required this.nodes,
+    required this.placeholders,
+    required this.inputs,
+    required this.outputs,
+    required this.weights,
+    this.signature,
+    this.functions,
+    this.initNodes,
+  });
 }
 
-export type ValueType = string|string[]|number|number[]|number[][]|boolean|
-    boolean[]|Tensor|Tensor[];
-export declare interface ParamValue {
-  value?: ValueType;
-  type: ParamType;
+/// String|List<String>|number|List<number>|List<number>[]|boolean|boolean[]|Tensor|Tensor[]
+typedef ValueType = Object;
+
+class ParamValue {
+  final ValueType? value;
+  final ParamType type;
+
+  ParamValue({
+    this.value,
+    required this.type,
+  });
 }
 
-export declare interface InputParamValue extends ParamValue {
-  inputIndexStart?: number;
-  inputIndexEnd?: number;
+class InputParamValue implements ParamValue {
+  final int? inputIndexStart;
+  final int? inputIndexEnd;
+  final ValueType? value;
+  final ParamType type;
+
+  InputParamValue({
+    this.inputIndexStart,
+    this.inputIndexEnd,
+    this.value,
+    required this.type,
+  });
 }
 
-export interface OpExecutor {
-  (node: GraphNode): Tensor|Tensor[]|Promise<Tensor|Tensor[]>;
+abstract class OpExecutor {
+  FutureOr<Tensors> call(GraphNode node);
 }
 
-export interface GraphNode {
-  inputs: Tensor[];
-  attrs: {[key: string]: ValueType};
+class GraphNode {
+  final List<Tensor> inputs;
+  final Map<String, ValueType> attrs;
+
+  GraphNode({
+    required this.inputs,
+    required this.attrs,
+  });
 }

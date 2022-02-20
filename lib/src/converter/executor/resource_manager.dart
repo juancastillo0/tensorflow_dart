@@ -14,16 +14,44 @@
  * limitations under the License.
  * =============================================================================
  */
-import {HashTableMap, NamedTensorMap} from '../data/types';
-import {HashTable} from './hash_table';
+// import {HashTableMap, NamedTensorMap} from '../data/types';
+// import {HashTable} from './hash_table';
+
+import 'package:tensorflow_wasm/src/converter/executor/hash_table.dart';
+import 'package:tensorflow_wasm/src/converter/executor/tensor_array.dart';
+import 'package:tensorflow_wasm/src/converter/executor/tensor_list.dart';
+import 'package:tensorflow_wasm/src/tensor.dart' hide TensorList;
+
+typedef TensorArrayMap = Map<int, TensorArray>;
+
+typedef TensorListMap = Map<int, TensorListContainer>;
+
+typedef HashTableMap = Map<int, HashTable>;
+
+// class TensorInfo {
+//   final String name;
+//   final List<int>? shape;
+//   final DataType dtype;
+
+//   const TensorInfo({
+//     required this.name,
+//     this.shape,
+//     required this.dtype,
+//   });
+// }
 
 /**
  * Contains global resources of a model.
  */
-export class ResourceManager {
-  constructor(
-      readonly hashTableNameToHandle: NamedTensorMap = {},
-      readonly hashTableMap: HashTableMap = {}) {}
+class ResourceManager {
+  final NamedTensorMap hashTableNameToHandle;
+  final HashTableMap hashTableMap;
+
+  ResourceManager([
+    NamedTensorMap? hashTableNameToHandle,
+    HashTableMap? hashTableMap,
+  ])  : hashTableNameToHandle = hashTableNameToHandle ?? {},
+        hashTableMap = hashTableMap ?? {};
 
   /**
    * Register a `HashTable` in the resource manager.
@@ -34,7 +62,7 @@ export class ResourceManager {
    * @param name Op node name that creates the `HashTable`.
    * @param hashTable The `HashTable` to be added to resource manager.
    */
-  addHashTable(name: string, hashTable: HashTable) {
+  void addHashTable(String name, HashTable hashTable) {
     this.hashTableNameToHandle[name] = hashTable.handle;
     this.hashTableMap[hashTable.id] = hashTable;
   }
@@ -44,7 +72,7 @@ export class ResourceManager {
    * @param name Op node name that creates the `HashTable`. This name is also
    *     used in the inputs list of lookup and import `HashTable` ops.
    */
-  getHashTableHandleByName(name: string) {
+  getHashTableHandleByName(String name) {
     return this.hashTableNameToHandle[name];
   }
 
@@ -52,22 +80,22 @@ export class ResourceManager {
    * Get the actual `HashTable` by its handle tensor's id.
    * @param id The id of the handle tensor.
    */
-  getHashTableById(id: number): HashTable {
+  HashTable? getHashTableById(int id) {
     return this.hashTableMap[id];
   }
 
   /**
    * Dispose `ResourceManager`, including its hashTables and tensors in them.
    */
-  dispose() {
-    for (const key in this.hashTableMap) {
-      this.hashTableMap[key].clearAndClose();
-      delete this.hashTableMap[key];
+  void dispose() {
+    for (final key in this.hashTableMap.keys.toList()) {
+      this.hashTableMap[key]!.clearAndClose();
+      this.hashTableMap.remove(key);
     }
 
-    for (const name in this.hashTableNameToHandle) {
-      this.hashTableNameToHandle[name].dispose();
-      delete this.hashTableNameToHandle[name];
+    for (final name in this.hashTableNameToHandle.keys.toList()) {
+      this.hashTableNameToHandle[name]!.dispose();
+      this.hashTableNameToHandle.remove(name);
     }
   }
 }

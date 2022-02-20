@@ -1,3 +1,5 @@
+// ignore_for_file: camel_case_types, constant_identifier_names
+
 /**
  * @license
  * Copyright 2019 Google LLC. All Rights Reserved.
@@ -18,561 +20,646 @@
 
 /* tslint:disable */
 
+import 'dart:typed_data';
+
 /** Properties of an Any. */
-export declare interface IAny {
+abstract class IAny {
   /** Any typeUrl */
-  typeUrl?: (string|null);
+  String? typeUrl;
 
   /** Any value */
-  value?: (Uint8Array|null);
+  Uint8List? value;
 }
 
 /** DataType enum. */
-export enum DataType {
+enum DataType {
   // Not a legal value for DataType.  Used to indicate a DataType field
   // has not been set.
-  DT_INVALID = 0,
+  DT_INVALID, // = 0,
 
   // Data types that all computation devices are expected to be
   // capable to support.
-  DT_FLOAT = 1,
-  DT_DOUBLE = 2,
-  DT_INT32 = 3,
-  DT_UINT8 = 4,
-  DT_INT16 = 5,
-  DT_INT8 = 6,
-  DT_STRING = 7,
-  DT_COMPLEX64 = 8,  // Single-precision complex
-  DT_INT64 = 9,
-  DT_BOOL = 10,
-  DT_QINT8 = 11,     // Quantized int8
-  DT_QUINT8 = 12,    // Quantized uint8
-  DT_QINT32 = 13,    // Quantized int32
-  DT_BFLOAT16 = 14,  // Float32 truncated to 16 bits.  Only for cast ops.
-  DT_QINT16 = 15,    // Quantized int16
-  DT_QUINT16 = 16,   // Quantized uint16
-  DT_UINT16 = 17,
-  DT_COMPLEX128 = 18,  // Double-precision complex
-  DT_HALF = 19,
-  DT_RESOURCE = 20,
-  DT_VARIANT = 21,  // Arbitrary C++ data types
-  DT_UINT32 = 22,
-  DT_UINT64 = 23,
+  DT_FLOAT, // = 1,
+  DT_DOUBLE, // = 2,
+  DT_INT32, // = 3,
+  DT_UINT8, // = 4,
+  DT_INT16, // = 5,
+  DT_INT8, // = 6,
+  DT_STRING, // = 7,
+  DT_COMPLEX64, // = 8,  // Single-precision complex
+  DT_INT64, // = 9,
+  DT_BOOL, // = 10,
+  DT_QINT8, // = 11,     // Quantized int8
+  DT_QUINT8, // = 12,    // Quantized uint8
+  DT_QINT32, // = 13,    // Quantized int32
+  DT_BFLOAT16, // = 14,  // Float32 truncated to 16 bits.  Only for cast ops.
+  DT_QINT16, // = 15,    // Quantized int16
+  DT_QUINT16, // = 16,   // Quantized uint16
+  DT_UINT16, // = 17,
+  DT_COMPLEX128, // = 18,  // Double-precision complex
+  DT_HALF, // = 19,
+  DT_RESOURCE, // = 20,
+  DT_VARIANT, // = 21,  // Arbitrary C++ data types
+  DT_UINT32, // = 22,
+  DT_UINT64, // = 23,
 
   // Do not use!  These are only for parameters.  Every enum above
   // should have a corresponding value below (verified by types_test).
-  DT_FLOAT_REF = 101,
-  DT_DOUBLE_REF = 102,
-  DT_INT32_REF = 103,
-  DT_UINT8_REF = 104,
-  DT_INT16_REF = 105,
-  DT_INT8_REF = 106,
-  DT_STRING_REF = 107,
-  DT_COMPLEX64_REF = 108,
-  DT_INT64_REF = 109,
-  DT_BOOL_REF = 110,
-  DT_QINT8_REF = 111,
-  DT_QUINT8_REF = 112,
-  DT_QINT32_REF = 113,
-  DT_BFLOAT16_REF = 114,
-  DT_QINT16_REF = 115,
-  DT_QUINT16_REF = 116,
-  DT_UINT16_REF = 117,
-  DT_COMPLEX128_REF = 118,
-  DT_HALF_REF = 119,
-  DT_RESOURCE_REF = 120,
-  DT_VARIANT_REF = 121,
-  DT_UINT32_REF = 122,
-  DT_UINT64_REF = 123,
+  DT_FLOAT_REF, // = 101,
+  DT_DOUBLE_REF, // = 102,
+  DT_INT32_REF, // = 103,
+  DT_UINT8_REF, // = 104,
+  DT_INT16_REF, // = 105,
+  DT_INT8_REF, // = 106,
+  DT_STRING_REF, // = 107,
+  DT_COMPLEX64_REF, // = 108,
+  DT_INT64_REF, // = 109,
+  DT_BOOL_REF, // = 110,
+  DT_QINT8_REF, // = 111,
+  DT_QUINT8_REF, // = 112,
+  DT_QINT32_REF, // = 113,
+  DT_BFLOAT16_REF, // = 114,
+  DT_QINT16_REF, // = 115,
+  DT_QUINT16_REF, // = 116,
+  DT_UINT16_REF, // = 117,
+  DT_COMPLEX128_REF, // = 118,
+  DT_HALF_REF, // = 119,
+  DT_RESOURCE_REF, // = 120,
+  DT_VARIANT_REF, // = 121,
+  DT_UINT32_REF, // = 122,
+  DT_UINT64_REF, // = 123,
 }
 
 /** Properties of a TensorShape. */
-export declare interface ITensorShape {
+class ITensorShape {
   /** TensorShape dim */
-  dim?: (TensorShape.IDim[]|null);
+  final List<TensorShape_IDim>? dim;
 
   /** TensorShape unknownRank */
-  unknownRank?: (boolean|null);
+  final bool? unknownRank;
+
+  ITensorShape({
+    this.dim,
+    this.unknownRank,
+  });
+
+  factory ITensorShape.fromJson(Map<String, Object?> json) => ITensorShape(
+        dim: json['dim'] == null
+            ? null
+            : (json['dim'] as List)
+                .map((e) => TensorShape_IDim.fromJson(e))
+                .toList(),
+        unknownRank: json['unknownRank'] as bool?,
+      );
 }
 
-export namespace TensorShape {
-  /** Properties of a Dim. */
-  export declare interface IDim {
-    /** Dim size */
-    size?: (number|string|null);
+// class TensorShape {
+/** Properties of a Dim. */
+class TensorShape_IDim {
+  /** Dim size */
+  final Object? size; // number|string
 
-    /** Dim name */
-    name?: (string|null);
-  }
+  /** Dim name */
+  final String? name;
+
+  TensorShape_IDim({
+    this.size,
+    this.name,
+  });
+
+  factory TensorShape_IDim.fromJson(Map<String, Object?> json) =>
+      TensorShape_IDim(
+        name: json['name'] as String?,
+        size: json['size'],
+      );
 }
+// }
 
 /** Properties of a Tensor. */
-export declare interface ITensor {
+abstract class ITensor {
   /** Tensor dtype */
-  dtype?: (DataType|null);
+  DataType? dtype;
 
   /** Tensor tensorShape */
-  tensorShape?: (ITensorShape|null);
+  ITensorShape? tensorShape;
 
   /** Tensor versionNumber */
-  versionNumber?: (number|null);
+  int? versionNumber;
 
   /** Tensor tensorContent */
-  tensorContent?: (Uint8Array|null);
+  Uint8List? tensorContent;
 
   /** Tensor floatVal */
-  floatVal?: (number[]|null);
+  List<int>? floatVal;
 
   /** Tensor doubleVal */
-  doubleVal?: (number[]|null);
+  List<int>? doubleVal;
 
   /** Tensor intVal */
-  intVal?: (number[]|null);
+  List<int>? intVal;
 
   /** Tensor stringVal */
-  stringVal?: (Uint8Array[]|null);
+  List<Uint8List>? stringVal;
 
   /** Tensor scomplexVal */
-  scomplexVal?: (number[]|null);
+  List<int>? scomplexVal;
 
   /** Tensor int64Val */
-  int64Val?: ((number | string)[]|null);
+  List<Object?>? int64Val; // (number | string)[]
 
   /** Tensor boolVal */
-  boolVal?: (boolean[]|null);
+  List<bool>? boolVal;
 
   /** Tensor uint32Val */
-  uint32Val?: (number[]|null);
+  List<int>? uint32Val;
 
   /** Tensor uint64Val */
-  uint64Val?: ((number | string)[]|null);
+  List<Object?>? uint64Val; // (number | string)[]
 }
 
 /** Properties of an AttrValue. */
-export declare interface IAttrValue {
+abstract class IAttrValue {
   /** AttrValue list */
-  list?: (AttrValue.IListValue|null);
+  AttrValue_IListValue? list;
 
   /** AttrValue s */
-  s?: (string|null);
+  String? s;
 
   /** AttrValue i */
-  i?: (number|string|null);
+  Object? i; // number|string
 
   /** AttrValue f */
-  f?: (number|null);
+  int? f;
 
   /** AttrValue b */
-  b?: (boolean|null);
+  bool? b;
 
   /** AttrValue type */
-  type?: (DataType|null);
+  DataType? type;
 
   /** AttrValue shape */
-  shape?: (ITensorShape|null);
+  ITensorShape? shape;
 
   /** AttrValue tensor */
-  tensor?: (ITensor|null);
+  ITensor? tensor;
 
   /** AttrValue placeholder */
-  placeholder?: (string|null);
+  String? placeholder;
 
   /** AttrValue func */
-  func?: (INameAttrList|null);
+  INameAttrList? func;
 }
 
-export namespace AttrValue {
-  /** Properties of a ListValue. */
-  export declare interface IListValue {
-    /** ListValue s */
-    s?: (string[]|null);
+// class AttrValue {
+/** Properties of a ListValue. */
+abstract class AttrValue_IListValue {
+  /** ListValue s */
+  List<String>? s;
 
-    /** ListValue i */
-    i?: ((number | string)[]|null);
+  /** ListValue i */
+  List<Object>? i; // (number | string)
 
-    /** ListValue f */
-    f?: (number[]|null);
+  /** ListValue f */
+  List<int>? f;
 
-    /** ListValue b */
-    b?: (boolean[]|null);
+  /** ListValue b */
+  List<bool>? b;
 
-    /** ListValue type */
-    type?: (DataType[]|null);
+  /** ListValue type */
+  List<DataType>? type;
 
-    /** ListValue shape */
-    shape?: (ITensorShape[]|null);
+  /** ListValue shape */
+  List<ITensorShape>? shape;
 
-    /** ListValue tensor */
-    tensor?: (ITensor[]|null);
+  /** ListValue tensor */
+  List<ITensor>? tensor;
 
-    /** ListValue func */
-    func?: (INameAttrList[]|null);
-  }
+  /** ListValue func */
+  List<INameAttrList>? func;
 }
+// }
 
 /** Properties of a NameAttrList. */
-export declare interface INameAttrList {
+abstract class INameAttrList {
   /** NameAttrList name */
-  name?: (string|null);
+  String? name;
 
   /** NameAttrList attr */
-  attr?: ({[k: string]: IAttrValue}|null);
+  Map<String, IAttrValue>? attr;
 }
 
 /** Properties of a NodeDef. */
-export declare interface INodeDef {
+abstract class INodeDef {
   /** NodeDef name */
-  name?: (string|null);
+  String? name;
 
   /** NodeDef op */
-  op?: (string|null);
+  String? op;
 
   /** NodeDef input */
-  input?: (string[]|null);
+  List<String>? input;
 
   /** NodeDef device */
-  device?: (string|null);
+  String? device;
 
   /** NodeDef attr */
-  attr?: ({[k: string]: IAttrValue}|null);
+  Map<String, IAttrValue>? attr;
 }
 
 /** Properties of a VersionDef. */
-export declare interface IVersionDef {
+abstract class IVersionDef {
   /** VersionDef producer */
-  producer?: (number|null);
+  int? producer;
 
   /** VersionDef minConsumer */
-  minConsumer?: (number|null);
+  int? minConsumer;
 
   /** VersionDef badConsumers */
-  badConsumers?: (number[]|null);
+  List<int>? badConsumers;
 }
 
 /** Properties of a GraphDef. */
-export declare interface IGraphDef {
+abstract class IGraphDef {
   /** GraphDef node */
-  node?: (INodeDef[]|null);
+  List<INodeDef>? node;
 
   /** GraphDef versions */
-  versions?: (IVersionDef|null);
+  IVersionDef? versions;
 
   /** GraphDef library */
-  library?: (IFunctionDefLibrary|null);
+  IFunctionDefLibrary? library;
 }
 
 /** Properties of a CollectionDef. */
-export declare interface ICollectionDef {
+abstract class ICollectionDef {
   /** CollectionDef nodeList */
-  nodeList?: (CollectionDef.INodeList|null);
+  CollectionDef_INodeList? nodeList;
 
   /** CollectionDef bytesList */
-  bytesList?: (CollectionDef.IBytesList|null);
+  CollectionDef_IBytesList? bytesList;
 
   /** CollectionDef int64List */
-  int64List?: (CollectionDef.IInt64List|null);
+  CollectionDef_IInt64List? int64List;
 
   /** CollectionDef floatList */
-  floatList?: (CollectionDef.IFloatList|null);
+  CollectionDef_IFloatList? floatList;
 
   /** CollectionDef anyList */
-  anyList?: (CollectionDef.IAnyList|null);
+  CollectionDef_IAnyList? anyList;
 }
 
-export namespace CollectionDef {
-  /** Properties of a NodeList. */
-  export declare interface INodeList {
-    /** NodeList value */
-    value?: (string[]|null);
-  }
-
-  /** Properties of a BytesList. */
-  export declare interface IBytesList {
-    /** BytesList value */
-    value?: (Uint8Array[]|null);
-  }
-
-  /** Properties of an Int64List. */
-  export declare interface IInt64List {
-    /** Int64List value */
-    value?: ((number | string)[]|null);
-  }
-
-  /** Properties of a FloatList. */
-  export declare interface IFloatList {
-    /** FloatList value */
-    value?: (number[]|null);
-  }
-
-  /** Properties of an AnyList. */
-  export declare interface IAnyList {
-    /** AnyList value */
-    value?: (IAny[]|null);
-  }
+// class CollectionDef {
+/** Properties of a NodeList. */
+abstract class CollectionDef_INodeList {
+  /** NodeList value */
+  List<String>? value;
 }
+
+/** Properties of a BytesList. */
+abstract class CollectionDef_IBytesList {
+  /** BytesList value */
+  List<Uint8List>? value;
+}
+
+/** Properties of an Int64List. */
+abstract class CollectionDef_IInt64List {
+  /** Int64List value */
+  List<Object>? value; // number | string
+}
+
+/** Properties of a FloatList. */
+abstract class CollectionDef_IFloatList {
+  /** FloatList value */
+  List<int>? value;
+}
+
+/** Properties of an AnyList. */
+abstract class CollectionDef_IAnyList {
+  /** AnyList value */
+  List<IAny>? value;
+}
+// }
 
 /** Properties of a SaverDef. */
-export declare interface ISaverDef {
+abstract class ISaverDef {
   /** SaverDef filenameTensorName */
-  filenameTensorName?: (string|null);
+  String? filenameTensorName;
 
   /** SaverDef saveTensorName */
-  saveTensorName?: (string|null);
+  String? saveTensorName;
 
   /** SaverDef restoreOpName */
-  restoreOpName?: (string|null);
+  String? restoreOpName;
 
   /** SaverDef maxToKeep */
-  maxToKeep?: (number|null);
+  int? maxToKeep;
 
   /** SaverDef sharded */
-  sharded?: (boolean|null);
+  bool? sharded;
 
   /** SaverDef keepCheckpointEveryNHours */
-  keepCheckpointEveryNHours?: (number|null);
+  int? keepCheckpointEveryNHours;
 
   /** SaverDef version */
-  version?: (SaverDef.CheckpointFormatVersion|null);
+  SaverDef_CheckpointFormatVersion? version;
 }
 
-export namespace SaverDef {
-  /** CheckpointFormatVersion enum. */
-  export enum CheckpointFormatVersion {'LEGACY' = 0, 'V1' = 1, 'V2' = 2}
-}
+// class SaverDef {
+/** CheckpointFormatVersion enum. */
+enum SaverDef_CheckpointFormatVersion { LEGACY, V1, V2 }
+// }
 
 /** Properties of a TensorInfo. */
-export declare interface ITensorInfo {
+class ITensorInfo {
   /** TensorInfo name */
-  name?: (string|null);
+  final String? name;
 
   /** TensorInfo cooSparse */
-  cooSparse?: (TensorInfo.ICooSparse|null);
+  final TensorInfo_ICooSparse? cooSparse;
 
   /** TensorInfo dtype */
-  dtype?: (DataType|null);
+  final DataType? dtype;
 
   /** TensorInfo tensorShape */
-  tensorShape?: (ITensorShape|null);
+  final ITensorShape? tensorShape;
+
+  ITensorInfo({
+    this.name,
+    this.cooSparse,
+    this.dtype,
+    this.tensorShape,
+  });
+
+  factory ITensorInfo.fromJson(Map<String, Object?> json) => ITensorInfo(
+        name: json['name'] as String?,
+        cooSparse: json['cooSparse'] == null
+            ? null
+            : TensorInfo_ICooSparse.fromMap(
+                json['cooSparse'] as Map<String, Object?>),
+        dtype: json['dtype'] == null
+            ? null
+            : DataType.values[json['dtype'] as int],
+        tensorShape: json['tensorShape'] == null
+            ? null
+            : ITensorShape.fromJson(
+                json['tensorShape'] as Map<String, Object?>),
+      );
 }
 
-export namespace TensorInfo {
-  /** Properties of a CooSparse. */
-  export declare interface ICooSparse {
-    /** CooSparse valuesTensorName */
-    valuesTensorName?: (string|null);
+// class TensorInfo {
+/** Properties of a CooSparse. */
+class TensorInfo_ICooSparse {
+  /** CooSparse valuesTensorName */
+  final String? valuesTensorName;
 
-    /** CooSparse indicesTensorName */
-    indicesTensorName?: (string|null);
+  /** CooSparse indicesTensorName */
+  final String? indicesTensorName;
 
-    /** CooSparse denseShapeTensorName */
-    denseShapeTensorName?: (string|null);
+  /** CooSparse denseShapeTensorName */
+  final String? denseShapeTensorName;
+
+  TensorInfo_ICooSparse({
+    this.valuesTensorName,
+    this.indicesTensorName,
+    this.denseShapeTensorName,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'valuesTensorName': valuesTensorName,
+      'indicesTensorName': indicesTensorName,
+      'denseShapeTensorName': denseShapeTensorName,
+    };
+  }
+
+  factory TensorInfo_ICooSparse.fromMap(Map<String, dynamic> map) {
+    return TensorInfo_ICooSparse(
+      valuesTensorName: map['valuesTensorName'],
+      indicesTensorName: map['indicesTensorName'],
+      denseShapeTensorName: map['denseShapeTensorName'],
+    );
   }
 }
+// }
 
 /** Properties of a SignatureDef. */
-export declare interface ISignatureDef {
+class ISignatureDef {
   /** SignatureDef inputs */
-  inputs?: ({[k: string]: ITensorInfo}|null);
+  final Map<String, ITensorInfo>? inputs;
 
   /** SignatureDef outputs */
-  outputs?: ({[k: string]: ITensorInfo}|null);
+  final Map<String, ITensorInfo>? outputs;
 
   /** SignatureDef methodName */
-  methodName?: (string|null);
+  final String? methodName;
+
+  ISignatureDef({
+    this.inputs,
+    this.outputs,
+    this.methodName,
+  });
+
+  factory ISignatureDef.fromJson(Map<String, Object?> json) => ISignatureDef(
+        methodName: json['methodName'] as String?,
+        inputs: (json['inputs'] as Map<String, Object?>).map((key, value) =>
+            MapEntry(key, ITensorInfo.fromJson(value as Map<String, Object?>))),
+        outputs: (json['outputs'] as Map<String, Object?>).map((key, value) =>
+            MapEntry(key, ITensorInfo.fromJson(value as Map<String, Object?>))),
+      );
 }
 
 /** Properties of an AssetFileDef. */
-export declare interface IAssetFileDef {
+abstract class IAssetFileDef {
   /** AssetFileDef tensorInfo */
-  tensorInfo?: (ITensorInfo|null);
+  ITensorInfo? tensorInfo;
 
   /** AssetFileDef filename */
-  filename?: (string|null);
+  String? filename;
 }
 
 /** Properties of an OpDef. */
-export declare interface IOpDef {
+abstract class IOpDef {
   /** OpDef name */
-  name?: (string|null);
+  String? name;
 
   /** OpDef inputArg */
-  inputArg?: (OpDef.IArgDef[]|null);
+  List<OpDef_IArgDef>? inputArg;
 
   /** OpDef outputArg */
-  outputArg?: (OpDef.IArgDef[]|null);
+  List<OpDef_IArgDef>? outputArg;
 
   /** OpDef attr */
-  attr?: (OpDef.IAttrDef[]|null);
+  List<OpDef_IAttrDef>? attr;
 
   /** OpDef deprecation */
-  deprecation?: (OpDef.IOpDeprecation|null);
+  OpDef_IOpDeprecation? deprecation;
 
   /** OpDef summary */
-  summary?: (string|null);
+  String? summary;
 
   /** OpDef description */
-  description?: (string|null);
+  String? description;
 
   /** OpDef isCommutative */
-  isCommutative?: (boolean|null);
+  bool? isCommutative;
 
   /** OpDef isAggregate */
-  isAggregate?: (boolean|null);
+  bool? isAggregate;
 
   /** OpDef isStateful */
-  isStateful?: (boolean|null);
+  bool? isStateful;
 
   /** OpDef allowsUninitializedInput */
-  allowsUninitializedInput?: (boolean|null);
+  bool? allowsUninitializedInput;
 }
 
-export namespace OpDef {
-  /** Properties of an ArgDef. */
-  export declare interface IArgDef {
-    /** ArgDef name */
-    name?: (string|null);
+// class OpDef {
+/** Properties of an ArgDef. */
+abstract class OpDef_IArgDef {
+  /** ArgDef name */
+  String? name;
 
-    /** ArgDef description */
-    description?: (string|null);
+  /** ArgDef description */
+  String? description;
 
-    /** ArgDef type */
-    type?: (DataType|null);
+  /** ArgDef type */
+  DataType? type;
 
-    /** ArgDef typeAttr */
-    typeAttr?: (string|null);
+  /** ArgDef typeAttr */
+  String? typeAttr;
 
-    /** ArgDef numberAttr */
-    numberAttr?: (string|null);
+  /** ArgDef numberAttr */
+  String? numberAttr;
 
-    /** ArgDef typeListAttr */
-    typeListAttr?: (string|null);
+  /** ArgDef typeListAttr */
+  String? typeListAttr;
 
-    /** ArgDef isRef */
-    isRef?: (boolean|null);
-  }
-
-  /** Properties of an AttrDef. */
-  export declare interface IAttrDef {
-    /** AttrDef name */
-    name?: (string|null);
-
-    /** AttrDef type */
-    type?: (string|null);
-
-    /** AttrDef defaultValue */
-    defaultValue?: (IAttrValue|null);
-
-    /** AttrDef description */
-    description?: (string|null);
-
-    /** AttrDef hasMinimum */
-    hasMinimum?: (boolean|null);
-
-    /** AttrDef minimum */
-    minimum?: (number|string|null);
-
-    /** AttrDef allowedValues */
-    allowedValues?: (IAttrValue|null);
-  }
-
-  /** Properties of an OpDeprecation. */
-  export declare interface IOpDeprecation {
-    /** OpDeprecation version */
-    version?: (number|null);
-
-    /** OpDeprecation explanation */
-    explanation?: (string|null);
-  }
+  /** ArgDef isRef */
+  bool? isRef;
 }
+
+/** Properties of an AttrDef. */
+abstract class OpDef_IAttrDef {
+  /** AttrDef name */
+  String? name;
+
+  /** AttrDef type */
+  String? type;
+
+  /** AttrDef defaultValue */
+  IAttrValue? defaultValue;
+
+  /** AttrDef description */
+  String? description;
+
+  /** AttrDef hasMinimum */
+  bool? hasMinimum;
+
+  /** AttrDef minimum */
+  Object? minimum; // number|String
+
+  /** AttrDef allowedValues */
+  IAttrValue? allowedValues;
+}
+
+/** Properties of an OpDeprecation. */
+abstract class OpDef_IOpDeprecation {
+  /** OpDeprecation version */
+  int? version;
+
+  /** OpDeprecation explanation */
+  String? explanation;
+}
+// }
 
 /** Properties of an OpList. */
-export declare interface IOpList {
+abstract class IOpList {
   /** OpList op */
-  op?: (IOpDef[]|null);
+  List<IOpDef>? op;
 }
 
 /** Properties of a MetaGraphDef. */
-export declare interface IMetaGraphDef {
+abstract class IMetaGraphDef {
   /** MetaGraphDef metaInfoDef */
-  metaInfoDef?: (MetaGraphDef.IMetaInfoDef|null);
+  MetaGraphDef_IMetaInfoDef? metaInfoDef;
 
   /** MetaGraphDef graphDef */
-  graphDef?: (IGraphDef|null);
+  IGraphDef? graphDef;
 
   /** MetaGraphDef saverDef */
-  saverDef?: (ISaverDef|null);
+  ISaverDef? saverDef;
 
   /** MetaGraphDef collectionDef */
-  collectionDef?: ({[k: string]: ICollectionDef}|null);
+  Map<String, ICollectionDef>? collectionDef;
 
   /** MetaGraphDef signatureDef */
-  signatureDef?: ({[k: string]: ISignatureDef}|null);
+  Map<String, ISignatureDef>? signatureDef;
 
   /** MetaGraphDef assetFileDef */
-  assetFileDef?: (IAssetFileDef[]|null);
+  List<IAssetFileDef>? assetFileDef;
 }
 
-export namespace MetaGraphDef {
-  /** Properties of a MetaInfoDef. */
-  export declare interface IMetaInfoDef {
-    /** MetaInfoDef metaGraphVersion */
-    metaGraphVersion?: (string|null);
+// class MetaGraphDef {
+/** Properties of a MetaInfoDef. */
+class MetaGraphDef_IMetaInfoDef {
+  /** MetaInfoDef metaGraphVersion */
+  String? metaGraphVersion;
 
-    /** MetaInfoDef strippedOpList */
-    strippedOpList?: (IOpList|null);
+  /** MetaInfoDef strippedOpList */
+  IOpList? strippedOpList;
 
-    /** MetaInfoDef anyInfo */
-    anyInfo?: (IAny|null);
+  /** MetaInfoDef anyInfo */
+  IAny? anyInfo;
 
-    /** MetaInfoDef tags */
-    tags?: (string[]|null);
+  /** MetaInfoDef tags */
+  List<String>? tags;
 
-    /** MetaInfoDef tensorflowVersion */
-    tensorflowVersion?: (string|null);
+  /** MetaInfoDef tensorflowVersion */
+  String? tensorflowVersion;
 
-    /** MetaInfoDef tensorflowGitVersion */
-    tensorflowGitVersion?: (string|null);
-  }
+  /** MetaInfoDef tensorflowGitVersion */
+  String? tensorflowGitVersion;
 }
+// }
 
 /** Properties of a SavedModel. */
-export declare interface ISavedModel {
+abstract class ISavedModel {
   /** SavedModel savedModelSchemaVersion */
-  savedModelSchemaVersion?: (number|string|null);
+  Object? savedModelSchemaVersion; // number|string|null
 
   /** SavedModel metaGraphs */
-  metaGraphs?: (IMetaGraphDef[]|null);
+  List<IMetaGraphDef>? metaGraphs;
 }
 
 /** Properties of a FunctionDefLibrary. */
-export declare interface IFunctionDefLibrary {
+abstract class IFunctionDefLibrary {
   /** FunctionDefLibrary function */
-  'function'?: (IFunctionDef[]|null);
+  List<IFunctionDef>? function;
 
   /** FunctionDefLibrary gradient */
-  gradient?: (IGradientDef[]|null);
+  List<IGradientDef>? gradient;
 }
 
 /** Properties of a FunctionDef. */
-export declare interface IFunctionDef {
+abstract class IFunctionDef {
   /** FunctionDef signature */
-  signature?: (IOpDef|null);
+  IOpDef? signature;
 
   /** FunctionDef attr */
-  attr?: ({[k: string]: IAttrValue}|null);
+  Map<String, IAttrValue>? attr;
 
   /** FunctionDef nodeDef */
-  nodeDef?: (INodeDef[]|null);
+  List<INodeDef>? nodeDef;
 
   /** FunctionDef ret */
-  ret?: ({[k: string]: string}|null);
+  Map<String, String>? ret;
 }
 
 /** Properties of a GradientDef. */
-export declare interface IGradientDef {
+abstract class IGradientDef {
   /** GradientDef functionName */
-  functionName?: (string|null);
+  String? functionName;
 
   /** GradientDef gradientFunc */
-  gradientFunc?: (string|null);
+  String? gradientFunc;
 }
