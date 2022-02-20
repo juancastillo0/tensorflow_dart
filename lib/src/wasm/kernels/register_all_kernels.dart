@@ -10,7 +10,9 @@ import 'package:tensorflow_wasm/src/wasm/kernels/identity.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/max.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/pack.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/reshape.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/select.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/sum.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/tile.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/transpose.dart';
 
 void registerAllKernels() {
@@ -64,6 +66,8 @@ void registerAllKernels() {
     expandDimsConfig,
     packConfig,
     reshapeConfig,
+    selectConfig,
+    tileConfig,
     //
     depthwiseConv2dNativeConfig,
     // ArgMax
