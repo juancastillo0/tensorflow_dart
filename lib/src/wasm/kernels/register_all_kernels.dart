@@ -3,6 +3,7 @@ import 'package:tensorflow_wasm/src/wasm/kernels/all.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/any.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/base_kernels.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/concat.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/cumsum.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/depthwise_conv2d_native.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/expand_dims.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/identity.dart';
@@ -56,6 +57,7 @@ void registerAllKernels() {
     maxConfig,
     sumConfig,
     prodConfig,
+    cumsumConfig,
     //
     transposeConfig,
     concatConfig,
@@ -65,15 +67,10 @@ void registerAllKernels() {
     //
     depthwiseConv2dNativeConfig,
     // ArgMax
-    // Cumsum
+    // Mean
     // FusedBatchNorm
     // FusedConv2D
     // FusedDepthwiseConv2D
-    // Max
-    // Min
-    // Prod
-    // Sum
-    // Mean
     // OneHot
     // Sigmoid
     // Softmax

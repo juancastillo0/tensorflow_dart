@@ -46,7 +46,7 @@ typedef AcoshInputs = UnaryInputs;
 const Add = 'Add';
 typedef AddInputs = BinaryInputs;
 
-// export const AddN = 'AddN';
+const AddN = 'AddN';
 // export type AddNInputs = TensorInfo[];
 
 const All = 'All';
@@ -63,14 +63,15 @@ typedef AnyInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 //   keepDims: boolean;
 // }
 
-// export const ArgMax = 'ArgMax';
-// export type ArgMaxInputs = Pick<NamedTensorInfoMap, 'x'>;
+const ArgMax = 'ArgMax';
+typedef ArgMaxInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 // export interface ArgMaxAttrs {
 //   axis: number;
 // }
 
-// export const ArgMin = 'ArgMin';
-// export type ArgMinInputs = Pick<NamedTensorInfoMap, 'x'>;
+// TODO: wasm
+const ArgMin = 'ArgMin';
+typedef ArgMinInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 // export interface ArgMinAttrs {
 //   axis: number;
 // }
@@ -264,8 +265,8 @@ typedef CosInputs = UnaryInputs;
 const Cosh = 'Cosh';
 typedef CoshInputs = UnaryInputs;
 
-// export const Cumsum = 'Cumsum';
-// export type CumsumInputs = Pick<NamedTensorInfoMap, 'x'>;
+const Cumsum = 'Cumsum';
+typedef CumsumInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 // export interface CumsumAttrs {
 //   axis: number;
 //   exclusive: boolean;
@@ -585,8 +586,8 @@ typedef MaximumInputs = BinaryInputs;
 //   includeBatchInIndex: boolean;
 // }
 
-// export const Mean = 'Mean';
-// export type MeanInputs = Pick<NamedTensorInfoMap, 'x'>;
+const Mean = 'Mean';
+typedef MeanInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 // export interface MeanAttrs {
 //   axis: number|number[];
 //   keepDims: boolean;
@@ -609,9 +610,9 @@ typedef MinimumInputs = BinaryInputs;
 //   mode: 'reflect'|'symmetric';
 // }
 
-// TODO:
-// const Mod = 'Mod';
-// typedef ModInputs = BinaryInputs;
+// TODO: wasm backend
+const Mod = 'Mod';
+typedef ModInputs = BinaryInputs;
 
 // export const Multinomial = 'Multinomial';
 // export type MultinomialInputs = Pick<NamedTensorInfoMap, 'logits'>;
@@ -771,8 +772,8 @@ typedef RsqrtInputs = UnaryInputs;
 // export const Select = 'Select';
 // export type SelectInputs = Pick<NamedTensorInfoMap, 'condition'|'t'|'e'>;
 
-// export const Selu = 'Selu';
-// export type SeluInputs = Pick<NamedTensorInfoMap, 'x'>;
+const Selu = 'Selu';
+typedef SeluInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 
 const Slice = 'Slice';
 typedef SliceInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;

@@ -1,3 +1,5 @@
+import '_prelude.dart';
+
 /**
  * Computes exponential linear element-wise: `x > 0 ? x : (e ^ x) - 1`.
  *
@@ -10,14 +12,9 @@
  *
  * @doc {heading: 'Operations', subheading: 'Basic math'}
  */
-function elu_<T extends Tensor>(x: T|TensorLike): T {
-  const $x = convertToTensor(x, 'x', 'elu', 'float32');
-
-  const inputs: EluInputs = {x: $x};
-
-  return ENGINE.runKernel(Elu, inputs as {} as NamedTensorMap);
+T elu<T extends Tensor>(T x) {
+  return execOpUnary('elu', Elu, x, parseAsDtype: 'float32');
 }
-
 
 /**
  * Computes rectified linear element-wise: `max(x, 0)`.
@@ -32,14 +29,9 @@ function elu_<T extends Tensor>(x: T|TensorLike): T {
  *
  * @doc {heading: 'Operations', subheading: 'Basic math'}
  */
-function relu_<T extends Tensor>(x: T|TensorLike): T {
-  const $x = convertToTensor(x, 'x', 'relu');
-
-  const inputs: ReluInputs = {x: $x};
-
-  return ENGINE.runKernel(Relu, inputs as {} as NamedTensorMap);
+T relu<T extends Tensor>(T x) {
+  return execOpUnary('relu', Relu, x);
 }
-
 
 /**
  * Computes scaled exponential linear element-wise.
@@ -55,14 +47,9 @@ function relu_<T extends Tensor>(x: T|TensorLike): T {
  *
  * @doc {heading: 'Operations', subheading: 'Basic math'}
  */
-function selu_<T extends Tensor>(x: T|TensorLike): T {
-  const $x = convertToTensor(x, 'x', 'selu');
-
-  const inputs: SeluInputs = {x: $x};
-
-  return ENGINE.runKernel(Selu, inputs as {} as NamedTensorMap);
+T selu<T extends Tensor>(T x) {
+  return execOpUnary('selu', Selu, x);
 }
-
 
 /**
  * Computes sigmoid element-wise, `1 / (1 + exp(-x))`
@@ -76,14 +63,9 @@ function selu_<T extends Tensor>(x: T|TensorLike): T {
  *
  * @doc {heading: 'Operations', subheading: 'Basic math'}
  */
-function sigmoid_<T extends Tensor>(x: T|TensorLike): T {
-  const $x = convertToTensor(x, 'x', 'sigmoid', 'float32');
-
-  const inputs: SigmoidInputs = {x: $x};
-
-  return ENGINE.runKernel(Sigmoid, inputs as {} as NamedTensorMap);
+T sigmoid<T extends Tensor>(T x) {
+  return execOpUnary('sigmoid', Sigmoid, x, parseAsDtype: 'float32');
 }
-
 
 /**
  * Computes softplus of the input `tf.Tensor` element-wise: `log(exp(x) + 1)`
@@ -97,13 +79,9 @@ function sigmoid_<T extends Tensor>(x: T|TensorLike): T {
  *
  * @doc {heading: 'Operations', subheading: 'Basic math'}
  */
-function softplus_<T extends Tensor>(x: T|TensorLike): T {
-  const $x = convertToTensor(x, 'x', 'softplus');
-
-  const inputs: SoftplusInputs = {x: $x};
-  return ENGINE.runKernel(Softplus, inputs as {} as NamedTensorMap);
+T softplus<T extends Tensor>(T x) {
+  return execOpUnary('softplus', Softplus, x);
 }
-
 
 /**
  * Computes rectified linear 6 element-wise: `min(max(x, 0), 6)`.
@@ -118,14 +96,9 @@ function softplus_<T extends Tensor>(x: T|TensorLike): T {
  *
  * @doc {heading: 'Operations', subheading: 'Basic math'}
  */
-function relu6_<T extends Tensor>(x: T|TensorLike): T {
-  const $x = convertToTensor(x, 'x', 'relu6');
-
-  const inputs: Relu6Inputs = {x: $x};
-
-  return ENGINE.runKernel(Relu6, inputs as {} as NamedTensorMap);
+T relu6<T extends Tensor>(T x) {
+  return execOpUnary('relu6', Relu6, x);
 }
-
 
 /**
  * Computes leaky rectified linear element-wise.
@@ -144,16 +117,16 @@ function relu6_<T extends Tensor>(x: T|TensorLike): T {
  *
  * @doc {heading: 'Operations', subheading: 'Basic math'}
  */
-function leakyRelu_<T extends Tensor>(x: T|TensorLike, alpha = 0.2): T {
-  const $x = convertToTensor(x, 'x', 'leakyRelu');
+T leakyRelu<T extends Tensor>(T x, [double alpha = 0.2]) {
+  return execOp('leakyRelu', () {
+    final $x = convertToTensor(x, 'x', 'leakyRelu');
 
-  const inputs: LeakyReluInputs = {x: $x};
-  const attrs: LeakyReluAttrs = {alpha};
+    final inputs = {'x': $x}; //: LeakyReluInputs
+    final attrs = {'alpha': alpha}; //: LeakyReluAttrs
 
-  return ENGINE.runKernel(
-      LeakyRelu, inputs as {} as NamedTensorMap, attrs as {} as NamedAttrMap);
+    return ENGINE.runKernel(LeakyRelu, inputs, attrs) as T;
+  });
 }
-
 
 /**
  * Computes leaky rectified linear element-wise with parametric alphas.
@@ -171,10 +144,12 @@ function leakyRelu_<T extends Tensor>(x: T|TensorLike, alpha = 0.2): T {
  *
  * @doc {heading: 'Operations', subheading: 'Basic math'}
  */
-function prelu_<T extends Tensor>(x: T|TensorLike, alpha: T|TensorLike): T {
-  const $x = convertToTensor(x, 'x', 'prelu');
-  const $alpha = convertToTensor(alpha, 'alpha', 'prelu');
+T prelu<T extends Tensor>(T x, T alpha) {
+  return execOp('leakyRelu', () {
+    final $x = convertToTensor(x, 'x', 'prelu');
+    final $alpha = convertToTensor(alpha, 'alpha', 'prelu');
 
-  const inputs: PreluInputs = {x: $x, alpha: $alpha};
-  return ENGINE.runKernel(Prelu, inputs as {} as NamedTensorMap);
+    final inputs = {'x': $x, 'alpha': $alpha}; // : PreluInputs
+    return ENGINE.runKernel(Prelu, inputs) as T;
+  });
 }

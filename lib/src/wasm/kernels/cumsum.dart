@@ -15,69 +15,92 @@
  * =============================================================================
  */
 
-import {backend_util, KernelConfig, KernelFunc, Cumsum, CumsumAttrs, CumsumInputs, TensorInfo, util} from '@tensorflow/tfjs-core';
+import '_prelude.dart';
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
+import 'package:tensorflow_wasm/backend_util.dart' as backend_util;
+import 'transpose.dart';
 
-import {BackendWasm} from '../backend_wasm';
+// import {backend_util, KernelConfig, KernelFunc, Cumsum, CumsumAttrs, CumsumInputs, TensorInfo, util} from '@tensorflow/tfjs-core';
 
-import {CppDType} from './types';
+// import {BackendWasm} from '../backend_wasm';
 
-import {transpose} from './Transpose';
+// import {CppDType} from './types';
 
-let wasmCumsum: (xId: number, exclusive: number, reverse: number,
-                 finalDim: number, outId: number, dtype: CppDType) => void;
+// import {transpose} from './Transpose';
 
-function setup(backend: BackendWasm) {
-  wasmCumsum = backend.wasm.cwrap(Cumsum, null /* void */, [
+late final Function(List) _wasmCumsum;
+// : (xId: number, exclusive: number, reverse: number,
+//  finalDim: number, outId: number, dtype: CppDType) => void;
+
+void _setup(BackendWasm backend) {
+  _wasmCumsum = backend.wasm.cwrap(Cumsum, null /* void */, [
     'number', // x_id
     'number', // exclusive
     'number', // reverse
     'number', // final_dim
     'number', // out_id
-    'number'  // dtype
+    'number' // dtype
   ]);
 }
 
-export function cumsum(
-  args: {inputs: CumsumInputs, backend: BackendWasm, attrs: CumsumAttrs}):
-TensorInfo {
-  const {inputs, backend, attrs} = args;
-  const {x} = inputs;
-  const {axis, exclusive, reverse} = attrs;
-  const xRank = x.shape.length;
+ListOrVal<TensorInfo> cumsum({
+  required NamedTensorInfoMap inputs,
+  required BackendWasm backend,
+  NamedAttrMap? attrs,
+}) {
+  final x = inputs['x']!;
+  final axis = attrs!['axis'] as int;
+  final exclusive = attrs['exclusive'] as bool;
+  final reverse = attrs['reverse'] as bool;
 
-  util.assert(x.dtype === 'float32' || x.dtype === 'int32',
-    () => `cumsum does not support ${x.dtype} tensors in the WASM backend`);
+  final xRank = x.shape.length;
+
+  util.assert_(x.dtype == 'float32' || x.dtype == 'int32',
+      () => 'cumsum does not support ${x.dtype} tensors in the WASM backend');
   // permute required axis to inner most axis
-  const permutation = backend_util.getAxesPermutation([axis], xRank);
-  let permutedX = x;
-  if (permutation !== null) {
-    permutedX = transpose({inputs: {x}, attrs: {perm: permutation}, backend});
+  final permutation = backend_util.getAxesPermutation([axis], xRank);
+  var permutedX = x;
+  if (permutation != null) {
+    permutedX = transpose(
+      inputs: {'x': x},
+      attrs: {'perm': permutation},
+      backend: backend,
+    ).asVal!;
   }
-  const permutedAxis = backend_util.getInnerMostAxes(1, xRank)[0];
+  final permutedAxis = backend_util.getInnerMostAxes(1, xRank)[0];
   backend_util.assertAxesAreInnerMostDims('cumsum', [permutedAxis], xRank);
 
-  const permutedOut = backend.makeOutput(permutedX.shape, permutedX.dtype);
-  const finalDim = permutedX.shape[permutedAxis];
-  const permutedXId = backend.dataIdMap.get(permutedX.dataId).id;
-  const permutedOutId = backend.dataIdMap.get(permutedOut.dataId).id;
-  wasmCumsum(permutedXId, exclusive ? 1 : 0, reverse ? 1 : 0, finalDim,
-             permutedOutId, CppDType[x.dtype]);
+  final permutedOut = backend.makeOutput(permutedX.shape, permutedX.dtype);
+  final finalDim = permutedX.shape[permutedAxis];
+  final permutedXId = backend.dataIdMap.get(permutedX.dataId)!.id;
+  final permutedOutId = backend.dataIdMap.get(permutedOut.dataId)!.id;
+  _wasmCumsum([
+    permutedXId,
+    exclusive ? 1 : 0,
+    reverse ? 1 : 0,
+    finalDim,
+    permutedOutId,
+    CppDType.values.byName(x.dtype).index,
+  ]);
 
   // transpose data back if permuted
-  let out = permutedOut;
-  if (permutation !== null) {
-    const undoPermutation = backend_util.getUndoAxesPermutation(permutation);
+  var out = ListOrVal.val(permutedOut);
+  if (permutation != null) {
+    final undoPermutation = backend_util.getUndoAxesPermutation(permutation);
     out = transpose(
-      {inputs: {x: permutedOut}, attrs: {perm: undoPermutation}, backend});
+      inputs: {'x': permutedOut},
+      attrs: {'perm': undoPermutation},
+      backend: backend,
+    );
     backend.disposeData(permutedX.dataId);
     backend.disposeData(permutedOut.dataId);
   }
   return out;
 }
 
-export const cumsumConfig: KernelConfig = {
+final cumsumConfig = KernelConfigG(
   kernelName: Cumsum,
   backendName: 'wasm',
-  setupFunc: setup,
-  kernelFunc: cumsum as {} as KernelFunc
-};
+  setupFunc: _setup,
+  kernelFunc: cumsum,
+);
