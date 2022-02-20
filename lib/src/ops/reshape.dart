@@ -82,7 +82,9 @@ Tensor<R> reshape<R extends Rank>(
  *
  * @doc {heading: 'Tensors', subheading: 'Transformations'}
  */
-function squeeze_<T extends Tensor>(x: Tensor|TensorLike, axis?: number[]): T {
-  const $x = convertToTensor(x, 'x', 'squeeze');
-  return reshape($x, squeezeShape($x.shape, axis).newShape) as T;
+T squeeze<T extends Tensor>(Tensor x, [List<int>? axis]) {
+  return execOp('squeeze', () {
+    final $x = convertToTensor(x, 'x', 'squeeze');
+    return reshape($x, squeezeShape($x.shape, axis).newShape) as T;
+  });
 }

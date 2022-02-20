@@ -1,3 +1,5 @@
+import '_prelude.dart';
+
 /**
  * Gather slices from tensor `x`'s axis `axis` according to `indices`.
  *
@@ -24,16 +26,21 @@
  *
  * @doc {heading: 'Tensors', subheading: 'Slicing and Joining'}
  */
-function gather_<T extends Tensor>(
-    x: T|TensorLike, indices: Tensor|TensorLike, axis = 0, batchDims = 0): T {
-  const $x = convertToTensor(x, 'x', 'gather');
-  const $indices = convertToTensor(indices, 'indices', 'gather', 'int32');
+T gather<T extends Tensor>(
+  T x,
+  Tensor indices, {
+  int axis = 0,
+  int batchDims = 0,
+}) {
+  return execOp('gather', () {
+    final $x = convertToTensor(x, 'x', 'gather');
+    final $indices = convertToTensor(indices, 'indices', 'gather', 'int32');
 
-  const inputs: GatherV2Inputs = {x: $x, indices: $indices};
-  const attrs: GatherV2Attrs = {axis, batchDims};
+    final inputs = {'x': $x, 'indices': $indices}; //  GatherV2Inputs
+    final attrs = {'axis': axis, 'batchDims': batchDims}; // : GatherV2Attrs
 
-  return ENGINE.runKernel(
-      GatherV2, inputs as {} as NamedTensorMap, attrs as {} as NamedAttrMap);
+    return ENGINE.runKernel(GatherV2, inputs, attrs) as T;
+  });
 }
 
 /**
@@ -74,13 +81,15 @@ function gather_<T extends Tensor>(
  *
  * @doc {heading: 'Operations', subheading: 'Slicing and Joining'}
  */
-function gatherND_(x: Tensor|TensorLike, indices: Tensor|TensorLike): Tensor {
-  const $indices = convertToTensor(indices, 'indices', 'gatherND', 'int32');
-  const $x = convertToTensor(x, 'x', 'gatherND', 'string_or_numeric');
+Tensor gatherND(Tensor x, Tensor indices) {
+  return execOp('gatherND', () {
+    final $indices = convertToTensor(indices, 'indices', 'gatherND', 'int32');
+    final $x = convertToTensor(x, 'x', 'gatherND', 'string_or_numeric');
 
-  const inputs: GatherNdInputs = {params: $x, indices: $indices};
+    final inputs = {'params': $x, 'indices': $indices}; //  GatherNdInputs
 
-  return ENGINE.runKernel(GatherNd, inputs as {} as NamedTensorMap);
+    return ENGINE.runKernel(GatherNd, inputs) as Tensor;
+  });
 }
 
 /**
@@ -102,18 +111,24 @@ function gatherND_(x: Tensor|TensorLike, indices: Tensor|TensorLike): Tensor {
  *
  * @doc {heading: 'Operations', subheading: 'Slicing and Joining'}
  */
-function scatterND_<R extends Rank>(
-    indices: Tensor|TensorLike, updates: Tensor|TensorLike,
-    shape: ShapeMap[R]): Tensor<R> {
-  const $indices = convertToTensor(indices, 'indices', 'scatterND', 'int32');
-  const $updates = convertToTensor(updates, 'updates', 'scatterND');
-  scatter_nd_util.validateInput($updates, $indices, shape);
+Tensor<R> scatterND<R extends Rank>(
+  Tensor indices,
+  Tensor updates,
+  // : ShapeMap[R]
+  Shape shape,
+) {
+  return execOp('scatterND', () {
+    final $indices = convertToTensor(indices, 'indices', 'scatterND', 'int32');
+    final $updates = convertToTensor(updates, 'updates', 'scatterND');
+    scatter_nd_util.validateInput($updates, $indices, shape);
 
-  const inputs: ScatterNdInputs = {indices: $indices, updates: $updates};
-  const attrs: ScatterNdAttrs = {shape};
+    final inputs = {
+      'indices': $indices,
+      'updates': $updates
+    }; //  ScatterNdInputs
+    final attrs = {'shape': shape}; //: ScatterNdAttrs
 
-  // tslint:disable-next-line: no-unnecessary-type-assertion
-  return ENGINE.runKernel(
-             ScatterNd, inputs as {} as NamedTensorMap,
-             attrs as {} as NamedAttrMap) as Tensor<R>;
+    // tslint:disable-next-line: no-unnecessary-type-assertion
+    return ENGINE.runKernel(ScatterNd, inputs, attrs) as Tensor<R>;
+  });
 }

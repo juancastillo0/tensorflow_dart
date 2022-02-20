@@ -1,3 +1,7 @@
+import 'package:tensorflow_wasm/tensorflow_wasm.dart';
+
+import '_prelude.dart';
+import '../util_base.dart' as util;
 
 /**
  * Computes the softmax normalized vector given the logits.
@@ -20,23 +24,24 @@
  *
  * @doc {heading: 'Operations', subheading: 'Normalization'}
  */
-function softmax_<T extends Tensor>(logits: T|TensorLike, dim = -1): T {
-  const $logits = convertToTensor(logits, 'logits', 'softmax', 'float32');
+T softmax<T extends Tensor>(T logits, [int dim = -1]) {
+  return execOp('softmax', () {
+    final $logits = convertToTensor(logits, 'logits', 'softmax', 'float32');
 
-  if (dim === -1) {
-    dim = $logits.rank - 1;
-  }
-  if (dim !== $logits.rank - 1) {
-    throw Error(
-        'Softmax along a non-last dimension is not yet supported. ' +
-        `Logits was rank ${$logits.rank} and dim was ${dim}`);
-  }
+    if (dim == -1) {
+      dim = $logits.rank - 1;
+    }
+    if (dim != $logits.rank - 1) {
+      throw Exception(
+          'Softmax along a non-last dimension is not yet supported. ' +
+              'Logits was rank ${$logits.rank} and dim was ${dim}');
+    }
 
-  const inputs: SoftmaxInputs = {logits: $logits};
-  const attrs: SoftmaxAttrs = {dim};
+    final inputs = {'logits': $logits}; // : SoftmaxInputs
+    final attrs = {'dim': dim}; // : SoftmaxAttrs
 
-  return ENGINE.runKernel(
-      Softmax, inputs as {} as NamedTensorMap, attrs as {} as NamedAttrMap);
+    return ENGINE.runKernel(Softmax, inputs, attrs) as T;
+  });
 }
 
 /**
@@ -60,57 +65,59 @@ function softmax_<T extends Tensor>(logits: T|TensorLike, dim = -1): T {
  *
  * @doc {heading: 'Operations', subheading: 'Normalization'}
  */
-function logSoftmax_<T extends Tensor>(logits: T|TensorLike, axis = -1): T {
-  const $logits = convertToTensor(logits, 'logits', 'logSoftmax');
+T logSoftmax<T extends Tensor>(T logits, [int axis = -1]) {
+  return execOp('logSoftmax', () {
+    final $logits = convertToTensor(logits, 'logits', 'logSoftmax');
 
-  if (axis === -1) {
-    axis = $logits.rank - 1;
-  }
-  if (axis !== $logits.rank - 1) {
-    throw Error(
-        'Log Softmax along a non-last dimension is not yet supported. ' +
-        `Logits was rank ${$logits.rank} and axis was ${axis}`);
-  }
+    if (axis == -1) {
+      axis = $logits.rank - 1;
+    }
+    if (axis != $logits.rank - 1) {
+      throw Exception(
+          'Log Softmax along a non-last dimension is not yet supported. ' +
+              'Logits was rank ${$logits.rank} and axis was ${axis}');
+    }
 
-  // const forward: ForwardFunc<Tensor> = (backend, save) => {
-  //   const keepDims = true;
-  //   const xMax = max(logits, axis, true);
-  //   const shifted = sub(logits, xMax);
-  //   const value =
-  //       sub(cast(shifted, 'float32'), log(sum(exp(shifted), axis,
-  //       keepDims)));
-  //   save([value]);
-  //   return value;
-  // };
+    // const forward: ForwardFunc<Tensor> = (backend, save) => {
+    //   const keepDims = true;
+    //   const xMax = max(logits, axis, true);
+    //   const shifted = sub(logits, xMax);
+    //   const value =
+    //       sub(cast(shifted, 'float32'), log(sum(exp(shifted), axis,
+    //       keepDims)));
+    //   save([value]);
+    //   return value;
+    // };
 
-  // Use a custom gradient for numerical stability.
-  const customOp = customGrad((logits: Tensor, save: GradSaveFunc) => {
-    const keepDims = true;
-    const xMax = max(logits, axis, true);
-    const shifted = sub(logits, xMax);
-    const value =
-        sub(cast(shifted, 'float32'), log(sum(exp(shifted), axis, keepDims)));
-    save([value]);
+    // Use a custom gradient for numerical stability.
+    final customOp = customGrad((Tensor logits, GradSaveFunc save) {
+      final keepDims = true;
+      final xMax = max(logits, axis, true);
+      final shifted = sub(logits, xMax);
+      final value =
+          sub(cast(shifted, 'float32'), log(sum(exp(shifted), axis, keepDims)));
+      save([value]);
 
-    const gradFunc = (dy: Tensor, saved: Tensor[]) => {
-      const [value] = saved;
-      const keepDims = true;
-      const softmax = exp(value);
-      return sub(dy, mul(sum(dy, axis, keepDims), softmax));
-    };
-    return {value, gradFunc};
+      gradFunc(Tensor dy, List<Tensor> saved) {
+        final value = saved.first;
+        final keepDims = true;
+        final softmax = exp(value);
+        return sub(dy, mul(sum(dy, axis, keepDims), softmax));
+      }
+
+      return {value, gradFunc};
+    });
+
+    return customOp($logits) as T;
+
+    // TODO Use Engine.runKernel when CPU/WebGL/WASM backends implement this.
+    // const inputs: LogSoftmaxInputs = {logits: $logits};
+    // const attrs: LogSoftmaxAttrs = {axis};
+    // return ENGINE.runKernel(
+    //            LogSoftmax, inputs as {} as NamedTensorMap,
+    //            attrs as {} as NamedAttrMap);
   });
-
-  return customOp($logits) as T;
-
-  // TODO Use Engine.runKernel when CPU/WebGL/WASM backends implement this.
-  // const inputs: LogSoftmaxInputs = {logits: $logits};
-  // const attrs: LogSoftmaxAttrs = {axis};
-  // return ENGINE.runKernel(
-  //            LogSoftmax, inputs as {} as NamedTensorMap,
-  //            attrs as {} as NamedAttrMap);
 }
-
 
 /**
  * Normalizes the activation of a local neighborhood across or within
@@ -127,41 +134,54 @@ function logSoftmax_<T extends Tensor>(logits: T|TensorLike, axis = -1): T {
  *
  * @doc {heading: 'Operations', subheading: 'Normalization'}
  */
-function localResponseNormalization_<T extends Tensor3D|Tensor4D>(
-    x: T|TensorLike, depthRadius = 5, bias = 1, alpha = 1, beta = 0.5): T {
-  const $x = convertToTensor(x, 'x', 'localResponseNormalization');
-  util.assert(
-      $x.rank === 4 || $x.rank === 3,
-      () => `Error in localResponseNormalization: x must be rank 3 or 4 but got
-               rank ${$x.rank}.`);
-  util.assert(
-      util.isInt(depthRadius),
-      () => `Error in localResponseNormalization: depthRadius must be an ` +
-          `integer but got depthRadius ${depthRadius}.`);
+T localResponseNormalization<
+    T extends Tensor
+// Tensor3D|Tensor4D
+    >(
+  T x, {
+  int depthRadius = 5,
+  double bias = 1,
+  double alpha = 1,
+  double beta = 0.5,
+}) {
+  return execOp('localResponseNormalization', () {
+    final $x = convertToTensor(x, 'x', 'localResponseNormalization');
+    util.assert_(
+        $x.rank == 4 || $x.rank == 3,
+        () =>
+            'Error in localResponseNormalization: x must be rank 3 or 4 but got rank ${$x.rank}.');
+    util.assert_(
+        depthRadius is int,
+        () =>
+            'Error in localResponseNormalization: depthRadius must be an ' +
+            'integer but got depthRadius ${depthRadius}.');
 
-  let x4D = $x as Tensor4D;
-  let reshapedTo4D = false;
-  if ($x.rank === 3) {
-    reshapedTo4D = true;
-    x4D = reshape($x, [1, $x.shape[0], $x.shape[1], $x.shape[2]]);
-  }
+    Tensor x4D = $x; // as Tensor4D;
+    var reshapedTo4D = false;
+    if ($x.rank == 3) {
+      reshapedTo4D = true;
+      x4D = reshape($x, [1, $x.shape[0], $x.shape[1], $x.shape[2]]);
+    }
 
-  const inputs: LRNInputs = {x: x4D};
+    final inputs = {'x': x4D}; // : LRNInputs
 
-  const attrs: LRNAttrs = {depthRadius, bias, alpha, beta};
+    final attrs = {
+      'depthRadius': depthRadius,
+      'bias': bias,
+      'alpha': alpha,
+      'beta': beta,
+    }; // : LRNAttrs
 
-  // tslint:disable-next-line: no-unnecessary-type-assertion
-  const res = ENGINE.runKernel(
-                  LRN, inputs as {} as NamedTensorMap,
-                  attrs as {} as NamedAttrMap) as T;
+    // tslint:disable-next-line: no-unnecessary-type-assertion
+    final res = ENGINE.runKernel(LRN, inputs, attrs) as T;
 
-  if (reshapedTo4D) {
-    return reshape(res, [res.shape[1], res.shape[2], res.shape[3]]) as T;
-  } else {
-    return res;
-  }
+    if (reshapedTo4D) {
+      return reshape(res, [res.shape[1], res.shape[2], res.shape[3]]) as T;
+    } else {
+      return res;
+    }
+  });
 }
-
 
 /**
  * Batch normalization.
@@ -189,56 +209,60 @@ function localResponseNormalization_<T extends Tensor3D|Tensor4D>(
  *
  * @doc {heading: 'Operations', subheading: 'Normalization'}
  */
-function batchNorm_<R extends Rank>(
-    x: Tensor<R>|TensorLike, mean: Tensor<R>|Tensor1D|TensorLike,
-    variance: Tensor<R>|Tensor1D|TensorLike,
-    offset?: Tensor<R>|Tensor1D|TensorLike,
-    scale?: Tensor<R>|Tensor1D|TensorLike,
-    varianceEpsilon?: number): Tensor<R> {
-  if (varianceEpsilon == null) {
-    varianceEpsilon = 0.001;
-  }
-  const $x = convertToTensor(x, 'x', 'batchNorm');
-  const $mean = convertToTensor(mean, 'mean', 'batchNorm');
-  const $variance = convertToTensor(variance, 'variance', 'batchNorm');
-  let $scale: Tensor<R>|Tensor1D;
-  if (scale != null) {
-    $scale = convertToTensor(scale, 'scale', 'batchNorm');
-  }
-  let $offset: Tensor<R>|Tensor1D;
-  if (offset != null) {
-    $offset = convertToTensor(offset, 'offset', 'batchNorm');
-  }
+Tensor<R> batchNorm<R extends Rank>(
+  Tensor<R> x,
+  // : Tensor<R>|Tensor1D|TensorLike
+  Tensor<R> mean,
+  Tensor<R> variance, {
+  Tensor<R>? offset,
+  Tensor<R>? scale,
+  double varianceEpsilon = 0.001,
+}) {
+  return execOp('batchNorm', () {
+    final $x = convertToTensor(x, 'x', 'batchNorm');
+    final $mean = convertToTensor(mean, 'mean', 'batchNorm');
+    final $variance = convertToTensor(variance, 'variance', 'batchNorm');
+    Tensor<R>? $scale; //: Tensor<R>|Tensor1D;
+    if (scale != null) {
+      $scale = convertToTensor(scale, 'scale', 'batchNorm');
+    }
+    Tensor<R>? $offset; //: Tensor<R>|Tensor1D;
+    if (offset != null) {
+      $offset = convertToTensor(offset, 'offset', 'batchNorm');
+    }
 
-  util.assert(
-      $mean.rank === $variance.rank,
-      () => 'Batch normalization gradient requires mean and variance to have ' +
-          'equal ranks.');
-  util.assert(
-      $offset == null || $mean.rank === $offset.rank,
-      () => 'Batch normalization gradient requires mean and offset to have ' +
-          'equal ranks.');
-  util.assert(
-      $scale == null || $mean.rank === $scale.rank,
-      () => 'Batch normalization gradient requires mean and scale to have ' +
-          'equal ranks.');
+    util.assert_(
+        $mean.rank == $variance.rank,
+        () =>
+            'Batch normalization gradient requires mean and variance to have ' +
+            'equal ranks.');
+    util.assert_(
+        $offset == null || $mean.rank == $offset.rank,
+        () =>
+            'Batch normalization gradient requires mean and offset to have ' +
+            'equal ranks.');
+    util.assert_(
+        $scale == null || $mean.rank == $scale.rank,
+        () =>
+            'Batch normalization gradient requires mean and scale to have ' +
+            'equal ranks.');
 
-  const x4D: Tensor4D = xAs4D($x);
+    final x4D = xAs4D($x);
 
-  const inputs: FusedBatchNormInputs = {
-    x: x4D,
-    scale: $scale,
-    offset: $offset,
-    mean: $mean,
-    variance: $variance
-  };
+    final inputs = {
+      //  FusedBatchNormInputs
+      'x': x4D,
+      'scale': $scale,
+      'offset': $offset,
+      'mean': $mean,
+      'variance': $variance
+    };
 
-  const attrs: FusedBatchNormAttrs = {varianceEpsilon};
+    final attrs = {'varianceEpsilon': varianceEpsilon}; // : FusedBatchNormAttrs
 
-  // tslint:disable-next-line: no-unnecessary-type-assertion
-  const res = ENGINE.runKernel(
-                  FusedBatchNorm, inputs as {} as NamedTensorMap,
-                  attrs as {} as NamedAttrMap) as Tensor<R>;
+    // tslint:disable-next-line: no-unnecessary-type-assertion
+    final res = ENGINE.runKernel(FusedBatchNorm, inputs, attrs) as Tensor<R>;
 
-  return reshape(res, $x.shape);
+    return reshape(res, $x.shape);
+  });
 }

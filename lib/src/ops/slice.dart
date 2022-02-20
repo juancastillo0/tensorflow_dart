@@ -15,7 +15,6 @@
  * =============================================================================
  */
 
-import 'package:tensorflow_wasm/src/tensor.dart';
 import '_prelude.dart';
 
 // import {ENGINE} from '../engine';
@@ -120,27 +119,34 @@ T slice<R extends Rank, T extends Tensor<R>>(
  *
  * @doc {heading: 'Operations', subheading: 'Slicing and Joining'}
  */
-function stridedSlice_(
-    x: Tensor|TensorLike, begin: number[], end: number[], strides?: number[],
-    beginMask = 0, endMask = 0, ellipsisMask = 0, newAxisMask = 0,
-    shrinkAxisMask = 0): Tensor {
-  const $x = convertToTensor(x, 'x', 'stridedSlice', 'string_or_numeric');
+Tensor stridedSlice(
+  Tensor x,
+  List<int> begin,
+  List<int> end, {
+  List<int>? strides,
+  int beginMask = 0,
+  int endMask = 0,
+  int ellipsisMask = 0,
+  int newAxisMask = 0,
+  int shrinkAxisMask = 0,
+}) {
+  return execOp('stridedSlice', () {
+    final $x = convertToTensor(x, 'x', 'stridedSlice', 'string_or_numeric');
 
-  const inputs: StridedSliceInputs = {x: $x};
-  const attrs: StridedSliceAttrs = {
-    begin,
-    end,
-    strides,
-    beginMask,
-    endMask,
-    ellipsisMask,
-    newAxisMask,
-    shrinkAxisMask
-  };
+    final inputs = {'x': $x}; // StridedSliceInputs
+    final attrs = StridedSliceAttrs(
+      begin: begin,
+      end: end,
+      strides: strides,
+      beginMask: beginMask,
+      endMask: endMask,
+      ellipsisMask: ellipsisMask,
+      newAxisMask: newAxisMask,
+      shrinkAxisMask: shrinkAxisMask,
+    );
 
-  return ENGINE.runKernel(
-      StridedSlice, inputs as {} as NamedTensorMap,
-      attrs as {} as NamedAttrMap);
+    return ENGINE.runKernel(StridedSlice, inputs, attrs) as Tensor;
+  });
 }
 
 /**
@@ -178,14 +184,21 @@ function stridedSlice_(
  *
  * @doc {heading: 'Tensors', subheading: 'Slicing and Joining'}
  */
-function split_<T extends Tensor>(
-    x: Tensor|TensorLike, numOrSizeSplits: number[]|number, axis = 0): T[] {
-  const $x = convertToTensor(x, 'x', 'split');
+TensorList split<T extends Tensor>(
+  Tensor x,
+  // : number[]|number
+  List<int> numOrSizeSplits, {
+  int axis = 0,
+}) {
+  return execOp('split', () {
+    final $x = convertToTensor(x, 'x', 'split');
 
-  const inputs: SplitVInputs = {x: $x};
-  const attr: SplitVAttrs = {numOrSizeSplits, axis};
+    final inputs = {'x': $x}; // : SplitVInputs
+    final attr = {
+      'numOrSizeSplits': numOrSizeSplits,
+      'axis': axis
+    }; // : SplitVAttrs
 
-  return ENGINE.runKernel(
-             SplitV, inputs as {} as NamedTensorMap,
-             attr as {} as NamedAttrMap) as {} as T[];
+    return ENGINE.runKernel(SplitV, inputs, attr) as TensorList;
+  });
 }

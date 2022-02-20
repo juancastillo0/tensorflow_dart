@@ -24,6 +24,7 @@ export 'unstack.dart';
 export 'broadcast_to.dart';
 export 'tile.dart';
 export 'transpose.dart';
+export 'reverse.dart';
 //
 export 'maximum.dart';
 export 'minimum.dart';
@@ -33,3 +34,5 @@ export 'where.dart';
 //
 export 'round_ops.dart';
 export 'mul_ops.dart';
+export 'normalization_ops.dart';
+export 'gather_ops.dart';

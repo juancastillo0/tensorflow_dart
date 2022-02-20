@@ -15,15 +15,17 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../engine';
-import {Reverse, ReverseAttrs, ReverseInputs} from '../kernel_names';
-import {NamedAttrMap} from '../kernel_registry';
-import {Tensor} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
+// import {ENGINE} from '../engine';
+// import {Reverse, ReverseAttrs, ReverseInputs} from '../kernel_names';
+// import {NamedAttrMap} from '../kernel_registry';
+// import {Tensor} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
 
-import {op} from './operation';
+// import {op} from './operation';
+
+import '_prelude.dart';
 
 /**
  * Reverses a `tf.Tensor` along a specified axis.
@@ -56,13 +58,13 @@ import {op} from './operation';
  *
  * @doc {heading: 'Tensors', subheading: 'Slicing and Joining'}
  */
-function reverse_<T extends Tensor>(
-    x: T|TensorLike, axis?: number|number[]): T {
-  const $x = convertToTensor(x, 'x', 'reverse');
+T reverse<T extends Tensor>(T x, [List<int>? axis]) {
+  return execOp('reverse', () {
+    final $x = convertToTensor(x, 'x', 'reverse');
 
-  const inputs: ReverseInputs = {x: $x};
-  const attrs: ReverseAttrs = {dims: axis};
+    final inputs = {'x': $x}; // : ReverseInputs
+    final attrs = {'dims': axis}; // : ReverseAttrs
 
-  return ENGINE.runKernel(
-      Reverse, inputs as {} as NamedTensorMap, attrs as {} as NamedAttrMap);
+    return ENGINE.runKernel(Reverse, inputs, attrs) as T;
+  });
 }
