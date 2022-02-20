@@ -86,3 +86,106 @@ T slice<R extends Rank, T extends Tensor<R>>(
     ) as T;
   });
 }
+
+/**
+ * Extracts a strided slice of a tensor.
+ *
+ * Roughly speaking, this op extracts a slice of size (end-begin)/stride from
+ * the given input tensor (x). Starting at the location specified by begin the
+ * slice continues by adding stride to the index until all dimensions are not
+ * less than end. Note that a stride can be negative, which causes a reverse
+ * slice.
+ *
+ * ```js
+ * const t = tf.tensor3d([1, 1, 1 ,2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6],
+ *    [3, 2, 3]);
+ * t.stridedSlice([1, 0, 0], [2, 1, 3], [1, 1, 1]).print()  // [[[3, 3, 3]]]
+ * t.stridedSlice([1, 0, 0], [2, 2, 3], [1, 1, 1]).print()  // [[[3, 3, 3],
+ *                                                     // [4, 4, 4]]]
+ * t.stridedSlice([1, -1, 0], [2, -3, 3], [1, -1, 1]).print() // [[[4, 4, 4],
+ *                                                     // [3, 3, 3]]]
+ * ```
+ *
+ * @param x The tensor to stride slice.
+ * @param begin The coordinates to start the slice from.
+ * @param end: The coordinates to end the slice at.
+ * @param strides: The size of the slice.
+ * @param beginMask: If the ith bit of beginMask is set, begin[i] is ignored
+ *      and the fullest possible range in that dimension is used instead.
+ * @param endMask: If the ith bit of endMask is set, end[i] is ignored
+ *      and the fullest possible range in that dimension is used instead.
+ * @param shrinkAxisMask: a bitmask where bit i implies that
+ * the ith specification should shrink the dimensionality. begin and end must
+ * imply a slice of size 1 in the dimension.
+ *
+ * @doc {heading: 'Operations', subheading: 'Slicing and Joining'}
+ */
+function stridedSlice_(
+    x: Tensor|TensorLike, begin: number[], end: number[], strides?: number[],
+    beginMask = 0, endMask = 0, ellipsisMask = 0, newAxisMask = 0,
+    shrinkAxisMask = 0): Tensor {
+  const $x = convertToTensor(x, 'x', 'stridedSlice', 'string_or_numeric');
+
+  const inputs: StridedSliceInputs = {x: $x};
+  const attrs: StridedSliceAttrs = {
+    begin,
+    end,
+    strides,
+    beginMask,
+    endMask,
+    ellipsisMask,
+    newAxisMask,
+    shrinkAxisMask
+  };
+
+  return ENGINE.runKernel(
+      StridedSlice, inputs as {} as NamedTensorMap,
+      attrs as {} as NamedAttrMap);
+}
+
+/**
+ * Splits a `tf.Tensor` into sub tensors.
+ *
+ * If `numOrSizeSplits` is a number, splits `x` along dimension `axis`
+ * into `numOrSizeSplits` smaller tensors.
+ * Requires that `numOrSizeSplits` evenly divides `x.shape[axis]`.
+ *
+ * If `numOrSizeSplits` is a number array, splits `x` into
+ * `numOrSizeSplits.length` pieces. The shape of the `i`-th piece has the
+ * same size as `x` except along dimension `axis` where the size is
+ * `numOrSizeSplits[i]`.
+ *
+ * ```js
+ * const x = tf.tensor2d([1, 2, 3, 4, 5, 6, 7, 8], [2, 4]);
+ * const [a, b] = tf.split(x, 2, 1);
+ * a.print();
+ * b.print();
+ *
+ * const [c, d, e] = tf.split(x, [1, 2, 1], 1);
+ * c.print();
+ * d.print();
+ * e.print();
+ * ```
+ *
+ * @param x The input tensor to split.
+ * @param numOrSizeSplits Either an integer indicating the number of
+ * splits along the axis or an array of integers containing the sizes of
+ * each output tensor along the axis. If a number then it must evenly divide
+ * `x.shape[axis]`; otherwise the sum of sizes must match `x.shape[axis]`.
+ * Can contain one -1 indicating that dimension is to be inferred.
+ * @param axis The dimension along which to split. Defaults to 0 (the first
+ * dim).
+ *
+ * @doc {heading: 'Tensors', subheading: 'Slicing and Joining'}
+ */
+function split_<T extends Tensor>(
+    x: Tensor|TensorLike, numOrSizeSplits: number[]|number, axis = 0): T[] {
+  const $x = convertToTensor(x, 'x', 'split');
+
+  const inputs: SplitVInputs = {x: $x};
+  const attr: SplitVAttrs = {numOrSizeSplits, axis};
+
+  return ENGINE.runKernel(
+             SplitV, inputs as {} as NamedTensorMap,
+             attr as {} as NamedAttrMap) as {} as T[];
+}

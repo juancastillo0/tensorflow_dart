@@ -25,8 +25,6 @@
 
 // import {op} from './operation';
 
-import 'package:tensorflow_wasm/src/tensor.dart';
-
 import '_prelude.dart';
 
 /**
@@ -67,4 +65,24 @@ Tensor<R> reshape<R extends Rank>(
     final attrs = {'shape': shape}; // ReshapeAttrs
     return ENGINE.runKernel(Reshape, inputs, attrs) as Tensor<R>;
   });
+}
+
+/**
+ * Removes dimensions of size 1 from the shape of a `tf.Tensor`.
+ *
+ * ```js
+ * const x = tf.tensor([1, 2, 3, 4], [1, 1, 4]);
+ * x.squeeze().print();
+ * ```
+ *
+ * @param x The input tensor to be squeezed.
+ * @param axis An optional list of numbers. If specified, only
+ *     squeezes the dimensions listed. The dimension index starts at 0. It
+ * is an error to squeeze a dimension that is not 1.
+ *
+ * @doc {heading: 'Tensors', subheading: 'Transformations'}
+ */
+function squeeze_<T extends Tensor>(x: Tensor|TensorLike, axis?: number[]): T {
+  const $x = convertToTensor(x, 'x', 'squeeze');
+  return reshape($x, squeezeShape($x.shape, axis).newShape) as T;
 }
