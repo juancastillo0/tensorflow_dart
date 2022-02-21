@@ -15,14 +15,16 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../engine';
-import {IsNan, IsNanInputs} from '../kernel_names';
-import {Tensor} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
+// import {ENGINE} from '../engine';
+// import {IsNan, IsNanInputs} from '../kernel_names';
+// import {Tensor} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
 
-import {op} from './operation';
+// import {op} from './operation';
+
+import '_prelude.dart';
 
 /**
  * RReturns which elements of x are NaN.
@@ -36,10 +38,11 @@ import {op} from './operation';
  *
  * @doc {heading: 'Operations', subheading: 'Basic math'}
  */
-function isNaN_<T extends Tensor>(x: T|TensorLike): T {
-  const $x = convertToTensor(x, 'x', 'isNaN');
-  const inputs: IsNanInputs = {x: $x};
+T isNaN<T extends Tensor>(T x) {
+  return execOp('isNan', () {
+    final $x = convertToTensor(x, 'x', 'isNaN');
+    final inputs = {'x': $x}; // : IsNanInputs
 
-  return ENGINE.runKernel(IsNan, inputs as {} as NamedTensorMap);
+    return ENGINE.runKernel(IsNan, inputs) as T;
+  });
 }
-export const isNaN = op({isNaN_});

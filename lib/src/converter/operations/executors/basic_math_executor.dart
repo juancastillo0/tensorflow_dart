@@ -181,8 +181,10 @@ List<Tensor> executeOp(
       return [
         tfOps.clipByValue(
             getParamValue('x', node, tensorMap, context) as Tensor,
-            getParamValue('clipValueMin', node, tensorMap, context) as num,
-            getParamValue('clipValueMax', node, tensorMap, context) as num)
+            (getParamValue('clipValueMin', node, tensorMap, context) as num)
+                .toDouble(),
+            (getParamValue('clipValueMax', node, tensorMap, context) as num)
+                .toDouble())
       ];
     case 'Relu6':
       return [
@@ -208,7 +210,7 @@ List<Tensor> executeOp(
             getParamValue('alpha', node, tensorMap, context) as Tensor)
       ];
     case 'IsNan':
-      return [tfOps.isNaN(getTensor(node.inputNames[0], tensorMap, context))];
+      return [tfOps.isNaN(getTensor(node.inputNames[0], tensorMap, context)!)];
     default:
       throw StateError('Node type ${node.op} is not implemented');
   }

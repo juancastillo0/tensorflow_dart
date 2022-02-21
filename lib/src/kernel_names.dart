@@ -183,8 +183,8 @@ class CastAttrs {
 const Ceil = 'Ceil';
 typedef CeilInputs = UnaryInputs;
 
-// export const ClipByValue = 'ClipByValue';
-// export type ClipByValueInputs = UnaryInputs;
+const ClipByValue = 'ClipByValue';
+typedef ClipByValueInputs = UnaryInputs;
 // export interface ClipByValueAttrs {
 //   clipValueMin: number;
 //   clipValueMax: number;
@@ -468,8 +468,9 @@ class UnaryInputs {
 // export const IsInf = 'IsInf';
 // export type IsInfInputs = UnaryInputs;
 
-// export const IsNan = 'IsNan';
-// export type IsNanInputs = UnaryInputs;
+// TODO: wasm
+const IsNan = 'IsNan';
+typedef IsNanInputs = UnaryInputs;
 
 const LeakyRelu = 'LeakyRelu';
 typedef LeakyReluInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
@@ -1001,7 +1002,7 @@ typedef UnpackInputs
 //   center: number|[number, number];
 // }
 
-// export const _FusedMatMul = '_FusedMatMul';
+const FusedMatMul_ = '_FusedMatMul';
 // // tslint:disable-next-line: class-name
 // export interface _FusedMatMulInputs extends NamedTensorInfoMap {
 //   a: TensorInfo;

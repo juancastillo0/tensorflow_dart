@@ -14,16 +14,19 @@
  * limitations under the License.
  * =============================================================================
  */
-import {ENGINE} from '../engine';
-import {ClipByValue, ClipByValueAttrs, ClipByValueInputs} from '../kernel_names';
-import {NamedAttrMap} from '../kernel_registry';
-import {Tensor} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
-import * as util from '../util';
+// import {ENGINE} from '../engine';
+// import {ClipByValue, ClipByValueAttrs, ClipByValueInputs} from '../kernel_names';
+// import {NamedAttrMap} from '../kernel_registry';
+// import {Tensor} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
+// import * as util from '../util';
 
-import {op} from './operation';
+// import {op} from './operation';
+import '_prelude.dart';
+
+import '../util_base.dart' as util;
 
 /**
  * Clips values element-wise. `max(min(x, clipValueMax), clipValueMin)`
@@ -39,19 +42,21 @@ import {op} from './operation';
  *
  * @doc {heading: 'Operations', subheading: 'Basic math'}
  */
-function clipByValue_<T extends Tensor>(
-    x: T|TensorLike, clipValueMin: number, clipValueMax: number): T {
-  const $x = convertToTensor(x, 'x', 'clipByValue');
-  util.assert(
-      (clipValueMin <= clipValueMax),
-      () => `Error in clip: min (${clipValueMin}) must be ` +
-          `less than or equal to max (${clipValueMax}).`);
+T clipByValue<T extends Tensor>(T x, double clipValueMin, double clipValueMax) {
+  return execOp('clipByValue', () {
+    final $x = convertToTensor(x, 'x', 'clipByValue');
+    util.assert_(
+        (clipValueMin <= clipValueMax),
+        () =>
+            'Error in clip: min (${clipValueMin}) must be ' +
+            'less than or equal to max (${clipValueMax}).');
 
-  const inputs: ClipByValueInputs = {x: $x};
-  const attrs: ClipByValueAttrs = {clipValueMin, clipValueMax};
+    final inputs = {'x': $x}; // : ClipByValueInputs
+    final attrs = {
+      'clipValueMin': clipValueMin,
+      'clipValueMax': clipValueMax
+    }; // : ClipByValueAttrs
 
-  return ENGINE.runKernel(
-      ClipByValue, inputs as {} as NamedTensorMap, attrs as {} as NamedAttrMap);
+    return ENGINE.runKernel(ClipByValue, inputs, attrs) as T;
+  });
 }
-
-export const clipByValue = op({clipByValue_});

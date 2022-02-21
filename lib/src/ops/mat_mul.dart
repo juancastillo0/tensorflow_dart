@@ -14,16 +14,18 @@
  * limitations under the License.
  * =============================================================================
  */
-import {ENGINE} from '../engine';
-import {BatchMatMul, BatchMatMulAttrs, BatchMatMulInputs} from '../kernel_names';
-import {NamedAttrMap} from '../kernel_registry';
-import {Tensor} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {makeTypesMatch} from '../tensor_util';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
+// import {ENGINE} from '../engine';
+// import {BatchMatMul, BatchMatMulAttrs, BatchMatMulInputs} from '../kernel_names';
+// import {NamedAttrMap} from '../kernel_registry';
+// import {Tensor} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {makeTypesMatch} from '../tensor_util';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
 
-import {op} from './operation';
+// import {op} from './operation';
+
+import '_prelude.dart';
 
 /**
  * Computes the dot product of two matrices, A * B. These must be matrices.
@@ -41,18 +43,25 @@ import {op} from './operation';
  *
  * @doc {heading: 'Operations', subheading: 'Matrices'}
  */
-function matMul_<T extends Tensor>(
-    a: Tensor|TensorLike, b: Tensor|TensorLike, transposeA = false,
-    transposeB = false): T {
-  let $a = convertToTensor(a, 'a', 'matMul');
-  let $b = convertToTensor(b, 'b', 'matMul');
-  [$a, $b] = makeTypesMatch($a, $b);
+T matMul<T extends Tensor>(
+  Tensor a,
+  Tensor b, {
+  bool transposeA = false,
+  bool transposeB = false,
+}) {
+  return execOp('matMul', () {
+    var $a = convertToTensor(a, 'a', 'matMul');
+    var $b = convertToTensor(b, 'b', 'matMul');
+    final _t = makeTypesMatch($a, $b);
+    $a = _t.first;
+    $b = _t.second;
 
-  const inputs: BatchMatMulInputs = {a: $a, b: $b};
-  const attrs: BatchMatMulAttrs = {transposeA, transposeB};
+    final inputs = {'a': $a, 'b': $b}; // : BatchMatMulInputs
+    final attrs = {
+      'transposeA': transposeA,
+      'transposeB': transposeB
+    }; // : BatchMatMulAttrs
 
-  return ENGINE.runKernel(
-      BatchMatMul, inputs as {} as NamedTensorMap, attrs as {} as NamedAttrMap);
+    return ENGINE.runKernel(BatchMatMul, inputs, attrs) as T;
+  });
 }
-
-export const matMul = op({matMul_});
