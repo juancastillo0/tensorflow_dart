@@ -16,10 +16,11 @@
 //  */
 
 import 'dart:convert' show utf8;
-import 'dart:typed_data';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:logging/logging.dart';
+
 import 'package:tensorflow_wasm/src/environment.dart';
 import 'package:tensorflow_wasm/src/tensor.dart';
 import 'package:tensorflow_wasm/src/tensor_util_env.dart';
@@ -417,37 +418,46 @@ List<int> parseAxisParam(List<int> axis, List<int> shape) {
   return axis.map((a) => a < 0 ? rank + a : a).toList();
 }
 
-// /** Reduces the shape by removing all dimensions of shape 1. */
-// export function squeezeShape(shape: number[], axis?: number[]):
-//     {newShape: number[], keptDims: number[]} {
-//   const newShape: number[] = [];
-//   const keptDims: number[] = [];
-//   const isEmptyArray = axis != null && Array.isArray(axis) && axis.length === 0;
-//   const axes = (axis == null || isEmptyArray) ?
-//       null :
-//       parseAxisParam(axis, shape).sort();
-//   let j = 0;
-//   for (let i = 0; i < shape.length; ++i) {
-//     if (axes != null) {
-//       if (axes[j] === i && shape[i] !== 1) {
-//         throw new Error(
-//             `Can't squeeze axis ${i} since its dim '${shape[i]}' is not 1`);
-//       }
-//       if ((axes[j] == null || axes[j] > i) && shape[i] === 1) {
-//         newShape.push(shape[i]);
-//         keptDims.push(i);
-//       }
-//       if (axes[j] <= i) {
-//         j++;
-//       }
-//     }
-//     if (shape[i] !== 1) {
-//       newShape.push(shape[i]);
-//       keptDims.push(i);
-//     }
-//   }
-//   return {newShape, keptDims};
-// }
+class SqueezedShape {
+  final Shape newShape;
+  final List<int> keptDims;
+
+  SqueezedShape({
+    required this.newShape,
+    required this.keptDims,
+  });
+}
+
+/** Reduces the shape by removing all dimensions of shape 1. */
+SqueezedShape squeezeShape(Shape shape, List<int>? axis) {
+  final List<int> newShape = [];
+  final List<int> keptDims = [];
+  final isEmptyArray = axis != null && axis is List && axis.length == 0;
+  final axes = (axis == null || isEmptyArray)
+      ? null
+      : (parseAxisParam(axis, shape)..sort());
+  int j = 0;
+  for (int i = 0; i < shape.length; ++i) {
+    if (axes != null) {
+      if (axes[j] == i && shape[i] != 1) {
+        throw Exception(
+            "Can't squeeze axis ${i} since its dim '${shape[i]}' is not 1");
+      }
+      if ((axes[j] == null || axes[j] > i) && shape[i] == 1) {
+        newShape.add(shape[i]);
+        keptDims.add(i);
+      }
+      if (axes[j] <= i) {
+        j++;
+      }
+    }
+    if (shape[i] != 1) {
+      newShape.add(shape[i]);
+      keptDims.add(i);
+    }
+  }
+  return SqueezedShape(newShape: newShape, keptDims: keptDims);
+}
 
 List getTypedArrayFromDType<D extends DataType>(D dtype, int size) {
   //DataTypeMap[D]

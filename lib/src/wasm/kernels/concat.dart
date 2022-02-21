@@ -70,7 +70,7 @@ TensorInfo concat({
       final innerSize = util.sizeFromShape(t.shape.slice(axis));
       final shape = [-1, innerSize];
       return reshape(
-          inputs: {'x': t}, backend: backend, attrs: {'shape': shape}).asVal!;
+          inputs: {'x': t}, backend: backend, attrs: {'shape': shape});
     }).toList();
 
     final inputsValShapes = inputs2D.map((t) {

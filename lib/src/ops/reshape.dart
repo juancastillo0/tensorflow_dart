@@ -25,6 +25,8 @@
 
 // import {op} from './operation';
 
+import 'package:tensorflow_wasm/src/util_base.dart' show squeezeShape;
+
 import '_prelude.dart';
 
 /**

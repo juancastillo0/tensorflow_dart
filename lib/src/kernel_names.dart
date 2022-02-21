@@ -132,8 +132,8 @@ typedef Atan2Inputs = BinaryInputs;
 //   dimRoundingMode?: 'floor'|'round'|'ceil';
 // }
 
-// export const BatchMatMul = 'BatchMatMul';
-// export type BatchMatMulInputs = Pick<NamedTensorInfoMap, 'a'|'b'>;
+const BatchMatMul = 'BatchMatMul';
+typedef BatchMatMulInputs = BinaryInputs; // Pick<NamedTensorInfoMap, 'a'|'b'>;
 // export interface BatchMatMulAttrs {
 //   transposeA: boolean;
 //   transposeB: boolean;
