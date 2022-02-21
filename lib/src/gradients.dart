@@ -27,6 +27,13 @@ import 'package:tensorflow_wasm/src/tensor_util_env.dart';
 import 'package:tensorflow_wasm/tensorflow_wasm.dart';
 import 'util_base.dart' as util;
 
+export 'package:tensorflow_wasm/src/engine.dart'
+    show
+        Gradient,
+        CustomGradKernelInvocation,
+        WithGradients,
+        CustomGradientFunc;
+
 /**
  * Provided `f(x)`, returns another function `g(x, dy?)`, which gives the
  * gradient of `f(x)` with respect to `x`.

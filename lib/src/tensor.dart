@@ -667,19 +667,19 @@ class Tensor<R extends Rank>
 // }
 
 // /** @doclink Tensor */
-// typedef Scalar = Tensor<Rank.R0>;
+typedef Scalar = Tensor; // <Rank.R0>
 // /** @doclink Tensor */
-// export type Tensor1D = Tensor<Rank.R1>;
+typedef Tensor1D = Tensor; // <Rank.R1>
 // /** @doclink Tensor */
-// export type Tensor2D = Tensor<Rank.R2>;
+typedef Tensor2D = Tensor; // <Rank.R2>
 // /** @doclink Tensor */
-// export type Tensor3D = Tensor<Rank.R3>;
+typedef Tensor3D = Tensor; // <Rank.R3>
 // /** @doclink Tensor */
-// export type Tensor4D = Tensor<Rank.R4>;
+typedef Tensor4D = Tensor; // <Rank.R4>
 // /** @doclink Tensor */
-// export type Tensor5D = Tensor<Rank.R5>;
+typedef Tensor5D = Tensor; // <Rank.R5>
 // /** @doclink Tensor */
-// export type Tensor6D = Tensor<Rank.R6>;
+typedef Tensor6D = Tensor; // <Rank.R6>
 
 /**
  * A mutable `tf.Tensor`, useful for persisting state, e.g. for training.

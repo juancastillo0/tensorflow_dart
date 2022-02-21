@@ -1,3 +1,5 @@
+import 'package:tensorflow_wasm/tensorflow_wasm.dart';
+
 /**
  * @license
  * Copyright 2019 Google LLC. All Rights Reserved.
@@ -15,39 +17,40 @@
  * =============================================================================
  */
 
-import {Tensor} from '../tensor';
+// import {Tensor} from '../tensor';
 
-import * as broadcast_util from './broadcast_util';
-import {elu} from './elu';
-import {Activation} from './fused_types';
-import {leakyRelu} from './leaky_relu';
-import {mul} from './mul';
-import {prelu} from './prelu';
-import {relu} from './relu';
-import {relu6} from './relu6';
-import {reshape} from './reshape';
-import {sigmoid} from './sigmoid';
-import {step} from './step';
-import {sum} from './sum';
+// import * as broadcast_util from './broadcast_util';
+// import {elu} from './elu';
+// import {Activation} from './fused_types';
+// import {leakyRelu} from './leaky_relu';
+// import {mul} from './mul';
+// import {prelu} from './prelu';
+// import {relu} from './relu';
+// import {relu6} from './relu6';
+// import {reshape} from './reshape';
+// import {sigmoid} from './sigmoid';
+// import {step} from './step';
+// import {sum} from './sum';
+
+import 'broadcast_util.dart' as broadcast_util;
+import 'fused_types.dart';
 
 // Returns gradient for fused activation.
-export function getFusedDyActivation(
-    dy: Tensor, y: Tensor, activation: Activation): Tensor {
-  if (activation == null || activation === 'linear') {
+Tensor getFusedDyActivation(Tensor dy, Tensor y, Activation activation) {
+  if (activation == null || activation == 'linear') {
     return dy;
   }
-  if (activation === 'relu') {
+  if (activation == 'relu') {
     return mul(dy, step(y));
   }
-  throw new Error(
-      `Cannot compute gradient for fused activation ${activation}.`);
+  throw Exception(
+      'Cannot compute gradient for fused activation ${activation}.');
 }
 
 // Returns gradient for fused bias.
-export function getFusedBiasGradient(
-    bias: Tensor, dyActivation: Tensor): Tensor {
-  let res = dyActivation;
-  const reduceAxes =
+Tensor getFusedBiasGradient(Tensor bias, Tensor dyActivation) {
+  var res = dyActivation;
+  final reduceAxes =
       broadcast_util.getReductionAxes(bias.shape, dyActivation.shape);
   if (reduceAxes.length > 0) {
     res = sum(res, reduceAxes);
@@ -55,29 +58,32 @@ export function getFusedBiasGradient(
   return reshape(res, bias.shape);
 }
 
-export function applyActivation(
-    x: Tensor, activation: Activation, preluActivationWeights?: Tensor,
-    leakyreluAlpha?: number): Tensor {
-  if (activation === 'linear') {
+Tensor applyActivation(
+  Tensor x,
+  Activation activation, {
+  Tensor? preluActivationWeights,
+  double? leakyreluAlpha,
+}) {
+  if (activation == 'linear') {
     return x;
-  } else if (activation === 'relu') {
+  } else if (activation == 'relu') {
     return relu(x);
-  } else if (activation === 'elu') {
+  } else if (activation == 'elu') {
     return elu(x);
-  } else if (activation === 'relu6') {
+  } else if (activation == 'relu6') {
     return relu6(x);
-  } else if (activation === 'prelu') {
-    return prelu(x, preluActivationWeights);
-  } else if (activation === 'leakyrelu') {
-    return leakyRelu(x, leakyreluAlpha);
-  } else if (activation === 'sigmoid') {
+  } else if (activation == 'prelu') {
+    return prelu(x, preluActivationWeights!);
+  } else if (activation == 'leakyrelu') {
+    return leakyRelu(x, leakyreluAlpha!);
+  } else if (activation == 'sigmoid') {
     return sigmoid(x);
   }
-  throw new Error(`Unknown fused activation ${activation}.`);
+  throw Exception('Unknown fused activation ${activation}.');
 }
 
 // Whether we should call fused ops.
-export const shouldFuse = (gradientDepth: number, activation: Activation) => {
-  const gradientMode = gradientDepth > 0;
-  return !gradientMode || activation === 'linear';
-};
+bool shouldFuse(int gradientDepth, Activation activation) {
+  final gradientMode = gradientDepth > 0;
+  return !gradientMode || activation == 'linear';
+}
