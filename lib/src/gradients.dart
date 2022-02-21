@@ -15,12 +15,17 @@
  * =============================================================================
  */
 
-import {CustomGradientFunc, ENGINE} from './engine';
-import {Scalar, Tensor, Variable} from './tensor';
-import {NamedTensorMap} from './tensor_types';
-import {convertToTensor, convertToTensorArray} from './tensor_util_env';
-import {TensorLike} from './types';
-import * as util from './util';
+// import {CustomGradientFunc, ENGINE} from './engine';
+// import {Scalar, Tensor, Variable} from './tensor';
+// import {NamedTensorMap} from './tensor_types';
+// import {convertToTensor, convertToTensorArray} from './tensor_util_env';
+// import {TensorLike} from './types';
+// import * as util from './util';
+
+import 'package:tensorflow_wasm/src/engine.dart';
+import 'package:tensorflow_wasm/src/tensor_util_env.dart';
+import 'package:tensorflow_wasm/tensorflow_wasm.dart';
+import 'util_base.dart' as util;
 
 /**
  * Provided `f(x)`, returns another function `g(x, dy?)`, which gives the
@@ -56,24 +61,26 @@ import * as util from './util';
  *
  * @doc {heading: 'Training', subheading: 'Gradients'}
  */
-function grad(f: (x: Tensor) => Tensor): (
-    x: TensorLike|Tensor, dy?: TensorLike|Tensor) => Tensor {
-  util.assert(
-      util.isFunction(f), () => 'The f passed in grad(f) must be a function');
-  return (x: TensorLike|Tensor, dy?: TensorLike|Tensor): Tensor => {
+Tensor Function(Tensor x, Tensor? dy) grad(Tensor Function(Tensor x) f) {
+  util.assert_(
+      f is Function, () => 'The f passed in grad(f) must be a function');
+  return (x, dy) {
     // x can be of any dtype, thus null as the last argument.
-    const $x = convertToTensor(x, 'x', 'tf.grad', 'string_or_numeric');
-    const $dy: Tensor =
+    final $x = convertToTensor(x, 'x', 'tf.grad', 'string_or_numeric');
+    final Tensor? $dy =
         (dy != null) ? convertToTensor(dy, 'dy', 'tf.grad') : null;
-    return ENGINE.tidy(() => {
-      const {value, grads} = ENGINE.gradients(() => f($x), [$x], $dy);
+    return ENGINE.tidy(() {
+      final _gradients = ENGINE.gradients(() => f($x), [$x], dy: $dy);
+      final grads = _gradients.grads;
+      final value = _gradients.value;
       if ($dy != null) {
         util.assertShapesMatch(
-            value.shape, $dy.shape,
+            value.shape,
+            $dy.shape,
             'The shape of dy passed in grad(f)(x, dy) must match the shape ' +
                 'returned by f(x)');
       }
-      checkGrads(grads);
+      _checkGrads(grads);
       return grads[0];
     });
   };
@@ -108,30 +115,33 @@ function grad(f: (x: Tensor) => Tensor): (
  *
  * @doc {heading: 'Training', subheading: 'Gradients'}
  */
-function grads(f: (...args: Tensor[]) => Tensor): (
-    args: Array<Tensor|TensorLike>, dy?: Tensor|TensorLike) => Tensor[] {
-  util.assert(
-      util.isFunction(f), () => 'The f passed in grads(f) must be a function');
-  return (args: Array<Tensor|TensorLike>, dy?: Tensor|TensorLike): Tensor[] => {
-    util.assert(
-        Array.isArray(args),
-        () => 'The args passed in grads(f)(args) must be an array ' +
+List<Tensor> Function(List<Tensor> args, Tensor? dy) grads(
+  Tensor Function(List<Tensor>) f,
+) {
+  util.assert_(
+      f is Function, () => 'The f passed in grads(f) must be a function');
+  return (args, dy) {
+    util.assert_(
+        args is List,
+        () =>
+            'The args passed in grads(f)(args) must be an array ' +
             'of `Tensor`s or `TensorLike`s');
     // args can be of any dtype, thus null as the last argument.
-    const $args =
+    final $args =
         convertToTensorArray(args, 'args', 'tf.grads', 'string_or_numeric');
-    const $dy: Tensor =
+    final Tensor? $dy =
         (dy != null) ? convertToTensor(dy, 'dy', 'tf.grads') : null;
-    return ENGINE.tidy(() => {
-      const {value, grads} = ENGINE.gradients(() => f(...$args), $args, $dy);
+    return ENGINE.tidy(() {
+      final _g = ENGINE.gradients(() => f($args), $args, dy: $dy);
       if ($dy != null) {
         util.assertShapesMatch(
-            value.shape, $dy.shape,
+            _g.value.shape,
+            $dy.shape,
             'The shape of dy passed in grads(f)([x1,...], dy) must ' +
                 'match the shape returned by f([x1,...])');
       }
-      checkGrads(grads);
-      return grads;
+      _checkGrads(_g.grads);
+      return _g.grads;
     });
   };
 }
@@ -161,26 +171,26 @@ function grads(f: (...args: Tensor[]) => Tensor): (
  *
  * @doc {heading: 'Training', subheading: 'Gradients'}
  */
-function valueAndGrad<I extends Tensor, O extends Tensor>(f: (x: I) => O): (
-    x: I, dy?: O) => {
-  value: O;
-  grad: I;
-} {
-  util.assert(
-      util.isFunction(f),
-      () => 'The f passed in valueAndGrad(f) must be a function');
-  return (x: I, dy?: O) => {
-    util.assert(
-        x instanceof Tensor,
-        () => 'The x passed in valueAndGrad(f)(x) must be a tensor');
-    util.assert(
-        dy == null || dy instanceof Tensor,
-        () => 'The dy passed in valueAndGrad(f)(x, dy) must be a tensor');
-    const {grads, value} = ENGINE.gradients(() => f(x), [x], dy);
-    checkGrads(grads);
-    return {grad: grads[0] as I, value};
-  };
-}
+// function valueAndGrad<I extends Tensor, O extends Tensor>(f: (x: I) => O): (
+//     x: I, dy?: O) => {
+//   value: O;
+//   grad: I;
+// } {
+//   util.assert_(
+//       util.isFunction(f),
+//       () => 'The f passed in valueAndGrad(f) must be a function');
+//   return (x: I, dy?: O) => {
+//     util.assert_(
+//         x instanceof Tensor,
+//         () => 'The x passed in valueAndGrad(f)(x) must be a tensor');
+//     util.assert_(
+//         dy == null || dy instanceof Tensor,
+//         () => 'The dy passed in valueAndGrad(f)(x, dy) must be a tensor');
+//     const {grads, value} = ENGINE.gradients(() => f(x), [x], dy);
+//     checkGrads(grads);
+//     return {grad: grads[0] as I, value};
+//   };
+// }
 
 /**
  * Like `tf.grads`, but returns also the value of `f()`. Useful when `f()`
@@ -213,32 +223,39 @@ function valueAndGrad<I extends Tensor, O extends Tensor>(f: (x: I) => O): (
  *
  * @doc {heading: 'Training', subheading: 'Gradients'}
  */
-function valueAndGrads<O extends Tensor>(f: (...args: Tensor[]) => O): (
-    args: Tensor[], dy?: O) => {
-  grads: Tensor[];
-  value: O;
-} {
-  util.assert(
-      util.isFunction(f),
+WithGradients<O> Function(List<Tensor> args, O? dy)
+    valueAndGrads<O extends Tensor>(O Function(List<Tensor>) f) {
+  util.assert_(f is Function,
       () => 'The f passed in valueAndGrads(f) must be a function');
-  return (args: Tensor[], dy?: O) => {
-    util.assert(
-        Array.isArray(args) && args.every(arg => arg instanceof Tensor),
-        () => 'The args passed in valueAndGrads(f)(args) must be array of ' +
+  return (args, dy) {
+    util.assert_(
+        args is List && args.every((arg) => arg is Tensor),
+        () =>
+            'The args passed in valueAndGrads(f)(args) must be array of ' +
             'tensors');
-    util.assert(
-        dy == null || dy instanceof Tensor,
+    util.assert_(dy == null || dy is Tensor,
         () => 'The dy passed in valueAndGrads(f)(args, dy) must be a tensor');
-    const res = ENGINE.gradients(() => f(...args), args, dy);
+    final res = ENGINE.gradients(() => f(args), args, dy: dy);
     if (dy != null) {
       util.assertShapesMatch(
-          res.value.shape, dy.shape,
+          res.value.shape,
+          dy.shape,
           'The shape of dy passed in valueAndGrads(f)([x1,...], dy) must ' +
               'match the shape returned by f([x1,...])');
     }
-    checkGrads(res.grads);
+    _checkGrads(res.grads);
     return res;
   };
+}
+
+class ValueGrad<V, G> {
+  final V value;
+  final G grads;
+
+  ValueGrad({
+    required this.value,
+    required this.grads,
+  });
 }
 
 /**
@@ -271,64 +288,69 @@ function valueAndGrads<O extends Tensor>(f: (...args: Tensor[]) => O): (
  *
  * @doc {heading: 'Training', subheading: 'Gradients'}
  */
-function variableGrads(f: () => Scalar, varList?: Variable[]):
-    {value: Scalar, grads: NamedTensorMap} {
-  util.assert(
-      util.isFunction(f),
+ValueGrad<Tensor, Map<String, Tensor?>> variableGrads(
+  // TODO: Scalar
+  Tensor Function() f,
+  List<Variable>? varList,
+) {
+  util.assert_(f is Function,
       () => 'The f passed in variableGrads(f) must be a function');
-  util.assert(
-      varList == null ||
-          Array.isArray(varList) && varList.every(v => v instanceof Variable),
+  util.assert_(
+      varList == null || varList is List && varList.every((v) => v is Variable),
       () =>
           'The varList passed in variableGrads(f, varList) must be an array ' +
           'of variables');
 
-  const specifiedVarList = varList != null;
+  final specifiedVarList = varList != null;
   if (!specifiedVarList) {
     // Get all of the trainable variables.
-    varList = [];
-    for (const varName in ENGINE.registeredVariables) {
-      varList.push(ENGINE.registeredVariables[varName]);
-    }
+    varList = [...ENGINE.registeredVariables.values];
   }
 
-  const specifiedNonTrainable: Variable[] =
-      specifiedVarList ? varList.filter(variable => !variable.trainable) : null;
+  final specifiedNonTrainable = specifiedVarList
+      ? varList.where((variable) => !variable.trainable)
+      : null;
 
   // Prune non-trainable variables.
-  const originalVarCount = varList.length;
-  varList = varList.filter(variable => variable.trainable);
-  util.assert(
+  final originalVarCount = varList.length;
+  varList = varList.where((variable) => variable.trainable).toList();
+  util.assert_(
       varList.length > 0,
-      () => `variableGrads() expects at least one of the input variables to ` +
-          `be trainable, but none of the ${originalVarCount} variables is ` +
-          `trainable.`);
+      () =>
+          'variableGrads() expects at least one of the input variables to ' +
+          'be trainable, but none of the ${originalVarCount} variables is ' +
+          'trainable.');
 
-  const allowNoGradients = true;
-  const {value, grads} = ENGINE.gradients(f, varList, null, allowNoGradients);
+  final allowNoGradients = true;
+  final _g = ENGINE.gradients<Tensor>(f, varList,
+      dy: null, allowNoGradients: allowNoGradients);
+  final grads = _g.grads;
 
-  util.assert(
-      grads.some(g => g != null),
-      () => 'Cannot find a connection between any variable and the result of ' +
+  util.assert_(
+      grads.any((g) => g != null),
+      () =>
+          'Cannot find a connection between any variable and the result of ' +
           'the loss function y=f(x). Please make sure the operations that ' +
           'use variables are inside the function f passed to minimize().');
-  util.assert(
-      value.rank === 0,
-      () => `The f passed in variableGrads(f) must return a scalar, but it ` +
-          `returned a rank-${value.rank} tensor`);
+  util.assert_(
+      _g.value.rank == 0,
+      () =>
+          'The f passed in variableGrads(f) must return a scalar, but it ' +
+          'returned a rank-${_g.value.rank} tensor');
 
-  const namedGrads: NamedTensorMap = {};
-  varList.forEach((v, i) => {
-    if (grads[i] != null) {
-      namedGrads[v.name] = grads[i];
+  final Map<String, Tensor?> namedGrads = {};
+  int __i = 0;
+  varList.forEach((v) {
+    if (grads[__i++] != null) {
+      namedGrads[v.name] = grads[__i];
     }
   });
   if (specifiedNonTrainable != null) {
     // If varList is explicitly provided and contains non-trainable values,
     // add them to the returned gradients with `null` values.
-    specifiedNonTrainable.forEach(v => namedGrads[v.name] = null);
+    specifiedNonTrainable.forEach((v) => namedGrads[v.name] = null);
   }
-  return {value, grads: namedGrads};
+  return ValueGrad(value: _g.value, grads: namedGrads);
 }
 
 /**
@@ -371,25 +393,15 @@ function variableGrads(f: () => Scalar, varList?: Variable[]):
  *
  * @doc {heading: 'Training', subheading: 'Gradients'}
  */
-function customGrad<T extends Tensor>(f: CustomGradientFunc<T>):
-    (...args: Tensor[]) => T {
+T Function(List<Tensor>) customGrad<T extends Tensor>(CustomGradientFunc<T> f) {
   return ENGINE.customGrad(f);
 }
 
-function checkGrads(grads: Tensor[]) {
-  const numNullGradients = grads.filter(g => g == null).length;
+void _checkGrads(List<Tensor> grads) {
+  final numNullGradients = grads.where((g) => g == null).length;
   if (numNullGradients > 0) {
-    throw new Error(
-        `Cannot compute gradient of y=f(x) with respect to x. Make sure that
-    the f you passed encloses all operations that lead from x to y.`);
+    throw Exception(
+        'Cannot compute gradient of y=f(x) with respect to x. Make sure that '
+        'the f you passed encloses all operations that lead from x to y.');
   }
 }
-
-export {
-  customGrad,
-  variableGrads,
-  valueAndGrad,
-  valueAndGrads,
-  grad,
-  grads,
-};
