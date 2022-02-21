@@ -133,8 +133,7 @@ TensorInfo batchMatMul({
   backend.disposeData(a3d.dataId);
   backend.disposeData(b3d.dataId);
 
-  out.shape = outShape;
-  return out;
+  return copyTensorInfo(out, shape: outShape);
 }
 
 final batchMatMulConfig = KernelConfigG(

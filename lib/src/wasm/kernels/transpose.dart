@@ -67,8 +67,7 @@ TensorInfo transpose({
 
   if (permIsNoOp) {
     final cloned = identity(inputs: inputs, backend: backend);
-    cloned.shape = outShape;
-    return cloned;
+    return copyTensorInfo(cloned, shape: outShape);
   }
 
   final out = backend.makeOutput(outShape, x.dtype);

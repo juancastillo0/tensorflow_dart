@@ -140,7 +140,7 @@ TensorInfo _reduction({
   if (keepDims) {
     // reshape
     final newShape = backend_util.expandShapeToKeepDim(out.shape, originalAxes);
-    out.shape = newShape;
+    return copyTensorInfo(out, shape: newShape);
   }
 
   return out;
