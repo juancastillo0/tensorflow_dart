@@ -56,7 +56,7 @@ import 'dart:math' as math;
  * A function that computes an output. The save function is for saving tensors
  * computed in the forward pass, that we need in the backward pass.
  */
-typedef ForwardFunc<T> = T Function(KernelBackend backend, GradSaveFunc? save);
+typedef ForwardFunc<T> = T Function(KernelBackend backend, GradSaveFunc save);
 
 /**
  * @docalias (a: Tensor, b: Tensor,..., save?: Function) => {
@@ -65,10 +65,11 @@ typedef ForwardFunc<T> = T Function(KernelBackend backend, GradSaveFunc? save);
  * }
  */
 typedef CustomGradientFunc<T extends Tensor> = Gradient<T> Function(
-  List<Object> inputs,
+  List<Tensor> inputs,
+  GradSaveFunc save,
 ); // inputs: Tensor|GradSaveFunc
 
-class Gradient<T> {
+class Gradient<T extends Tensor> {
   final T value;
 
   final Tensors Function(T dy, List<Tensor> saved) gradFunc;
@@ -1286,7 +1287,7 @@ class Engine implements TensorTracker, DataMover {
    * was not a function of that `x`. It also takes optional dy to multiply the
    * gradient, which defaults to `1`.
    */
-  WithGradients gradients<T extends Tensor>(
+  WithGradients<T> gradients<T extends Tensor>(
     T Function() f,
     List<Tensor> xs, {
     T? dy,
@@ -1357,7 +1358,7 @@ class Engine implements TensorTracker, DataMover {
               'The args passed in customGrad(f)(x1, x2,...) must all be ' +
               'tensors');
 
-      late Gradient res;
+      late Gradient<T> res;
       final NamedTensorMap inputMap = {};
       inputs.forEachIndexed((i, input) {
         inputMap[i.toString()] = input; // TODO: wasn't i.toString()
@@ -1365,7 +1366,7 @@ class Engine implements TensorTracker, DataMover {
 
       // ignore: prefer_function_declarations_over_variables
       final ForwardFunc<T> forwardFunc = (_, save) {
-        res = f([...inputs, save!]);
+        res = f(inputs, save);
         util.assert_(
             res.value is Tensor,
             () =>

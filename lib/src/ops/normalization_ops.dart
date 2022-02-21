@@ -1,3 +1,5 @@
+import 'package:tensorflow_wasm/src/engine.dart';
+import 'package:tensorflow_wasm/src/gradients.dart';
 import 'package:tensorflow_wasm/tensorflow_wasm.dart';
 
 import '_prelude.dart';
@@ -90,25 +92,28 @@ T logSoftmax<T extends Tensor>(T logits, [int axis = -1]) {
     // };
 
     // Use a custom gradient for numerical stability.
-    final customOp = customGrad((Tensor logits, GradSaveFunc save) {
+    final customOp = customGrad((List<Tensor> inputs, GradSaveFunc save) {
+      final logits = inputs.first;
       final keepDims = true;
-      final xMax = max(logits, axis, true);
+      final xMax = max(logits, [axis], true);
       final shifted = sub(logits, xMax);
-      final value =
-          sub(cast(shifted, 'float32'), log(sum(exp(shifted), axis, keepDims)));
+      final value = sub(
+        cast(shifted, 'float32'),
+        log(sum(exp(shifted), [axis], keepDims)),
+      );
       save([value]);
 
       gradFunc(Tensor dy, List<Tensor> saved) {
         final value = saved.first;
         final keepDims = true;
         final softmax = exp(value);
-        return sub(dy, mul(sum(dy, axis, keepDims), softmax));
+        return sub(dy, mul(sum(dy, [axis], keepDims), softmax));
       }
 
-      return {value, gradFunc};
+      return Gradient(value, gradFunc);
     });
 
-    return customOp($logits) as T;
+    return customOp([$logits]) as T;
 
     // TODO Use Engine.runKernel when CPU/WebGL/WASM backends implement this.
     // const inputs: LogSoftmaxInputs = {logits: $logits};
