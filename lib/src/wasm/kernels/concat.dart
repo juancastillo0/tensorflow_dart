@@ -127,7 +127,7 @@ TensorInfo concat({
   return out;
 }
 
-final concatConfig = KernelConfigG<BackendWasm, DepthwiseConv2dNativeAttrs>(
+final concatConfig = KernelConfigG<BackendWasm, NamedAttrMap>(
   kernelName: Concat,
   backendName: 'wasm',
   kernelFunc: ({required inputs, required backend, attrs}) => concat(

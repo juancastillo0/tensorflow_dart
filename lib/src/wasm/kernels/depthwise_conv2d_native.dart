@@ -1,4 +1,5 @@
 import 'package:tensorflow_wasm/src/backend_wasm.dart';
+import 'package:tensorflow_wasm/backend_util.dart' as backend_util;
 import 'package:tensorflow_wasm/src/kernel_names.dart';
 import 'package:tensorflow_wasm/src/tensor.dart';
 
@@ -82,9 +83,9 @@ TensorInfo _depthwiseConv2d({
       strides,
       ($dilations // as number | [number, number]
       ),
-      pad,
-      dimRoundingMode,
-      true /* depthwise */);
+      pad: pad,
+      roundingMode: dimRoundingMode,
+      depthwise: true /* depthwise */);
 
   final filterHeight = convInfo.filterHeight;
   final filterWidth = convInfo.filterWidth;
@@ -98,7 +99,7 @@ TensorInfo _depthwiseConv2d({
   final strideWidth = convInfo.strideWidth;
   final inputChannels = convInfo.inChannels;
   final outputChannels = convInfo.outChannels;
-  final isSamePad = convInfo.padInfo.type == 'SAME' ? 1 : 0;
+  final isSamePad = convInfo.padInfo.type == backend_util.PadType.SAME ? 1 : 0;
 
   if (convInfo.dataFormat != 'channelsLast') {
     throw Exception(

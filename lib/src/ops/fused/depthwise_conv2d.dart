@@ -15,26 +15,36 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../../engine';
-import {customGrad} from '../../gradients';
-import {FusedDepthwiseConv2D, FusedDepthwiseConv2DAttrs, FusedDepthwiseConv2DInputs} from '../../kernel_names';
-import {NamedAttrMap} from '../../kernel_registry';
-import {Tensor, Tensor3D, Tensor4D} from '../../tensor';
-import {GradSaveFunc, NamedTensorMap} from '../../tensor_types';
-import {makeTypesMatch} from '../../tensor_util';
-import {convertToTensor} from '../../tensor_util_env';
-import {TensorLike} from '../../types';
-import * as util from '../../util';
-import {add} from '../add';
-import * as broadcast_util from '../broadcast_util';
-import * as conv_util from '../conv_util';
-import {depthwiseConv2d as unfusedDepthwiseConv2d} from '../depthwise_conv2d';
-import {depthwiseConv2dNativeBackpropFilter} from '../depthwise_conv2d_native_backprop_filter';
-import {depthwiseConv2dNativeBackpropInput} from '../depthwise_conv2d_native_backprop_input';
-import {Activation} from '../fused_types';
-import {applyActivation, getFusedBiasGradient, getFusedDyActivation, shouldFuse} from '../fused_util';
-import {op} from '../operation';
-import {reshape} from '../reshape';
+// import {ENGINE} from '../../engine';
+// import {customGrad} from '../../gradients';
+// import {FusedDepthwiseConv2D, FusedDepthwiseConv2DAttrs, FusedDepthwiseConv2DInputs} from '../../kernel_names';
+// import {NamedAttrMap} from '../../kernel_registry';
+// import {Tensor, Tensor3D, Tensor4D} from '../../tensor';
+// import {GradSaveFunc, NamedTensorMap} from '../../tensor_types';
+// import {makeTypesMatch} from '../../tensor_util';
+// import {convertToTensor} from '../../tensor_util_env';
+// import {TensorLike} from '../../types';
+// import * as util from '../../util';
+// import {add} from '../add';
+// import * as broadcast_util from '../broadcast_util';
+// import * as conv_util from '../conv_util';
+// import {depthwiseConv2d as unfusedDepthwiseConv2d} from '../depthwise_conv2d';
+// import {depthwiseConv2dNativeBackpropFilter} from '../depthwise_conv2d_native_backprop_filter';
+// import {depthwiseConv2dNativeBackpropInput} from '../depthwise_conv2d_native_backprop_input';
+// import {Activation} from '../fused_types';
+// import {applyActivation, getFusedBiasGradient, getFusedDyActivation, shouldFuse} from '../fused_util';
+// import {op} from '../operation';
+// import {reshape} from '../reshape';
+
+import 'package:tensorflow_wasm/src/gradients.dart';
+import 'package:tensorflow_wasm/tensorflow_wasm.dart';
+
+import '../_prelude.dart';
+import '../broadcast_util.dart' as broadcast_util;
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
+import '../fused_types.dart';
+import '../fused_util.dart';
+import '../conv_util.dart' as conv_util;
 
 /**
  * Computes depthwise 2D convolution, optionally fused with adding a
@@ -87,174 +97,187 @@ import {reshape} from '../reshape';
  * @param leakyreluAlpha Optional. Alpha to be applied as part of a `leakyrelu`
  *     activation.
  */
-function fusedDepthwiseConv2d_<T extends Tensor3D|Tensor4D>({
-  x,
-  filter,
-  strides,
-  pad,
-  dataFormat = 'NHWC',
-  dilations = [1, 1],
-  dimRoundingMode,
-  bias,
-  activation = 'linear',
-  preluActivationWeights,
-  leakyreluAlpha
-}: {
-  x: T|TensorLike,
-  filter: Tensor4D|TensorLike,
-  strides: [number, number]|number,
-  pad: 'valid'|'same'|number,
-  dataFormat?: 'NHWC'|'NCHW',
-  dilations?: [number, number]|number,
-  dimRoundingMode?: 'floor'|'round'|'ceil',
-  bias?: Tensor|TensorLike,
-  activation?: Activation,
-  preluActivationWeights?: Tensor,
-  leakyreluAlpha?: number
-}): T {
-  if (shouldFuse(ENGINE.state.gradientDepth, activation) === false) {
-    let result = unfusedDepthwiseConv2d(
+T fusedDepthwiseConv2d<
+    T extends Tensor3D
+// |Tensor4D
+    >({
+  required T x,
+  required Tensor4D filter,
+  required List<int>
+      // [number, number]|number
+      strides,
+  required Object // 'valid'|'same'|number
+      pad,
+  // 'NHWC'|'NCHW'
+  String dataFormat = 'NHWC',
+  //  [number, number]|number?
+  List<int> dilations = const [1, 1],
+  // 'floor'|'round'|'ceil'?
+  String? dimRoundingMode,
+  Tensor? bias,
+  Activation activation = Activation.linear,
+  Tensor? preluActivationWeights,
+  double? leakyreluAlpha,
+}) {
+  if (shouldFuse(ENGINE.state.gradientDepth, activation) == false) {
+    var result = unfusedDepthwiseConv2d(
         x, filter, strides, pad, dataFormat, dilations, dimRoundingMode);
     if (bias != null) {
       result = add(result, bias);
     }
 
-    return applyActivation(
-               result, activation, preluActivationWeights, leakyreluAlpha) as T;
+    return applyActivation(result, activation,
+        preluActivationWeights: preluActivationWeights,
+        leakyreluAlpha: leakyreluAlpha) as T;
   }
 
-  const $x = convertToTensor(x, 'x', 'depthwiseConv2d', 'float32');
-  const $filter =
+  final $x = convertToTensor(x, 'x', 'depthwiseConv2d', 'float32');
+  final $filter =
       convertToTensor(filter, 'filter', 'depthwiseConv2d', 'float32');
 
-  let x4D = $x as Tensor4D;
-  let reshapedTo4D = false;
-  if ($x.rank === 3) {
+  var x4D = $x as Tensor4D;
+  var reshapedTo4D = false;
+  if ($x.rank == 3) {
     reshapedTo4D = true;
     x4D = reshape($x, [1, $x.shape[0], $x.shape[1], $x.shape[2]]);
   }
-  util.assert(
-      x4D.rank === 4,
-      () => `Error in fused depthwiseConv2d: input must be rank 4, but got ` +
-          `rank ${x4D.rank}.`);
-  util.assert(
-      $filter.rank === 4,
-      () => `Error in fused depthwiseConv2d: filter must be rank 4, ` +
-          `but got rank ${$filter.rank}.`);
-  util.assert(
-      x4D.shape[3] === $filter.shape[2],
-      () => `Error in fused depthwiseConv2d: number of input channels ` +
-          `(${x4D.shape[3]}) must match the inChannels dimension in ` +
-          `filter ${$filter.shape[2]}.`);
-  if (dilations == null) {
-    dilations = [1, 1];
-  }
-  util.assert(
+  util.assert_(
+      x4D.rank == 4,
+      () =>
+          "Error in fused depthwiseConv2d: input must be rank 4, but got " +
+          "rank ${x4D.rank}.");
+  util.assert_(
+      $filter.rank == 4,
+      () =>
+          "Error in fused depthwiseConv2d: filter must be rank 4, " +
+          "but got rank ${$filter.rank}.");
+  util.assert_(
+      x4D.shape[3] == $filter.shape[2],
+      () =>
+          "Error in fused depthwiseConv2d: number of input channels " +
+          "(${x4D.shape[3]}) must match the inChannels dimension in " +
+          "filter ${$filter.shape[2]}.");
+  // if (dilations == null) {
+  //   dilations = [1, 1];
+  // }
+  util.assert_(
       conv_util.eitherStridesOrDilationsAreOne(strides, dilations),
       () =>
           'Error in fused depthwiseConv2d: Either strides or dilations must ' +
-          `be 1. Got strides ${strides} and dilations '${dilations}'`);
+          "be 1. Got strides ${strides} and dilations '${dilations}'");
   conv_util.checkPadOnDimRoundingMode(
       'fused depthwiseConv2d', pad, dimRoundingMode);
-  const convInfo = conv_util.computeConv2DInfo(
-      x4D.shape, $filter.shape, strides, dilations, pad, dimRoundingMode,
-      true /* depthwise */);
+  final convInfo = conv_util.computeConv2DInfo(
+      x4D.shape, $filter.shape, strides, dilations,
+      pad: pad, roundingMode: dimRoundingMode, depthwise: true /* depthwise */);
 
-  let $bias: Tensor;
+  Tensor? $bias;
   if (bias != null) {
     $bias = convertToTensor(bias, 'bias', 'fused conv2d');
-    [$bias] = makeTypesMatch($bias, $x);
+    $bias = makeTypesMatch($bias, $x).first;
 
     broadcast_util.assertAndGetBroadcastShape(convInfo.outShape, $bias.shape);
   }
 
-  let $preluActivationWeights: Tensor;
+  Tensor? $preluActivationWeights;
   if (preluActivationWeights != null) {
     $preluActivationWeights = convertToTensor(
         preluActivationWeights, 'prelu weights', 'fused depthwiseConv2d');
   }
 
-  const grad = (dy: Tensor4D, saved: Tensor[]) => {
-    util.assert(
+  TensorList grad(Tensor4D dy, List<Tensor> saved) {
+    util.assert_(
         conv_util.tupleValuesAreOne(dilations),
-        () => 'Error in gradient of fused depthwiseConv2d: dilation rates ' +
-            `greater than 1 are not yet supported. Got dilations ` +
-            `'${dilations}'`);
-    const [$filter, x4D, y, bias] = saved;
+        () =>
+            'Error in gradient of fused depthwiseConv2d: dilation rates ' +
+            "greater than 1 are not yet supported. Got dilations " +
+            "'${dilations}'");
+    final $filter = saved[0];
+    final x4D = saved[1];
+    final y = saved[2];
+    final bias = saved[3];
 
-    const dyActivation = getFusedDyActivation(dy, y, activation) as Tensor4D;
+    final dyActivation = getFusedDyActivation(dy, y, activation) as Tensor4D;
 
-    const xDer = depthwiseConv2dNativeBackpropInput(
-        (x4D as Tensor4D).shape, dyActivation, $filter as Tensor4D, strides,
-        pad, dilations, dimRoundingMode);
-    const filterDer = depthwiseConv2dNativeBackpropFilter(
-        x4D as Tensor4D, dyActivation, ($filter as Tensor4D).shape, strides,
-        pad, dilations, dimRoundingMode);
+    final xDer = depthwiseConv2dNativeBackpropInput(
+        (x4D as Tensor4D).shape,
+        dyActivation,
+        $filter as Tensor4D,
+        strides,
+        pad,
+        dilations,
+        dimRoundingMode);
+    final filterDer = depthwiseConv2dNativeBackpropFilter(
+        x4D as Tensor4D,
+        dyActivation,
+        ($filter as Tensor4D).shape,
+        strides,
+        pad,
+        dilations,
+        dimRoundingMode);
 
     if (bias != null) {
-      const biasDer = getFusedBiasGradient($bias, dyActivation);
-      return [xDer, filterDer, biasDer];
+      final biasDer = getFusedBiasGradient($bias!, dyActivation);
+      return TensorList([xDer, filterDer, biasDer]);
     }
-    return [xDer, filterDer];
-  };
+    return TensorList([xDer, filterDer]);
+  }
 
-  const inputs: FusedDepthwiseConv2DInputs = {
-    x: x4D,
-    filter: $filter,
-    bias: $bias,
-    preluActivationWeights: $preluActivationWeights
+  final inputs = {
+    // : FusedDepthwiseConv2DInputs
+    'x': x4D,
+    'filter': $filter,
+    if ($bias != null) 'bias': $bias,
+    if ($preluActivationWeights != null)
+      'preluActivationWeights': $preluActivationWeights,
   };
-  const attrs: FusedDepthwiseConv2DAttrs = {
-    strides,
-    pad,
-    dataFormat,
-    dilations,
-    dimRoundingMode,
-    activation,
-    leakyreluAlpha
+  final attrs = {
+    // : FusedDepthwiseConv2DAttrs
+    'strides': strides,
+    'pad': pad,
+    'dataFormat': dataFormat,
+    'dilations': dilations,
+    'dimRoundingMode': dimRoundingMode,
+    'activation': activation,
+    'leakyreluAlpha': leakyreluAlpha,
   };
 
   // Depending on the the params passed in we will have different number of
   // inputs and thus a a different number of elements in the gradient.
-  if (bias == null) {
-    const customOp =
-        customGrad((x4D: Tensor4D, filter: Tensor4D, save: GradSaveFunc) => {
-          // tslint:disable-next-line: no-unnecessary-type-assertion
-          let res: Tensor4D|Tensor3D = ENGINE.runKernel(
-              FusedDepthwiseConv2D, inputs as {} as NamedTensorMap,
-              attrs as {} as NamedAttrMap);
+  if ($bias == null) {
+    final customOp = customGrad((tensorList, save) {
+      // tslint:disable-next-line: no-unnecessary-type-assertion
+      var res = ENGINE.runKernel(FusedDepthwiseConv2D, inputs, attrs)
+          as Tensor3D; // Tensor4D|Tensor3D
 
-          save([filter, x4D, res]);
+      save([...tensorList, res]);
 
-          if (reshapedTo4D) {
-            // tslint:disable-next-line: no-unnecessary-type-assertion
-            res = reshape(res, [res.shape[1], res.shape[2], res.shape[3]]) as
-                Tensor3D;
-          }
+      if (reshapedTo4D) {
+        // tslint:disable-next-line: no-unnecessary-type-assertion
+        res = reshape(res, [res.shape[1], res.shape[2], res.shape[3]])
+            as Tensor3D;
+      }
 
-          return {value: res, gradFunc: grad};
-        });
-    return customOp(x4D, $filter) as T;
+      return Gradient(res, grad);
+    });
+    return customOp([x4D, $filter]) as T;
   } else {
-    const customOpWithBias = customGrad(
-        (x4D: Tensor4D, filter: Tensor4D, bias: Tensor, save: GradSaveFunc) => {
-          // tslint:disable-next-line: no-unnecessary-type-assertion
-          let res: Tensor4D|Tensor3D = ENGINE.runKernel(
-              FusedDepthwiseConv2D, inputs as {} as NamedTensorMap,
-              attrs as {} as NamedAttrMap);
+    final customOpWithBias = customGrad((tensorList, save) {
+      // tslint:disable-next-line: no-unnecessary-type-assertion
+      var res = ENGINE.runKernel(FusedDepthwiseConv2D, inputs, attrs)
+          as Tensor3D; // Tensor4D|Tensor3D
 
-          save([filter, x4D, res, bias]);
+      save([...tensorList, res]);
 
-          if (reshapedTo4D) {
-            // tslint:disable-next-line: no-unnecessary-type-assertion
-            res = reshape(res, [res.shape[1], res.shape[2], res.shape[3]]) as
-                Tensor3D;
-          }
+      if (reshapedTo4D) {
+        // tslint:disable-next-line: no-unnecessary-type-assertion
+        res = reshape(res, [res.shape[1], res.shape[2], res.shape[3]])
+            as Tensor3D;
+      }
 
-          return {value: res, gradFunc: grad};
-        });
+      return Gradient(res, grad);
+    });
 
-    return customOpWithBias(x4D, $filter, $bias) as T;
+    return customOpWithBias([x4D, $filter, $bias]) as T;
   }
 }
-export const depthwiseConv2d = op({fusedDepthwiseConv2d_});

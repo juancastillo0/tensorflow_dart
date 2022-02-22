@@ -1018,7 +1018,7 @@ const FusedMatMul_ = '_FusedMatMul';
 //   leakyreluAlpha?: number;
 // }
 
-// export const FusedConv2D = 'FusedConv2D';
+const FusedConv2D = 'FusedConv2D';
 // export interface FusedConv2DInputs extends NamedTensorInfoMap {
 //   x: TensorInfo;
 //   filter: TensorInfo;
@@ -1035,7 +1035,7 @@ const FusedMatMul_ = '_FusedMatMul';
 //   leakyreluAlpha?: number;
 // }
 
-// export const FusedDepthwiseConv2D = 'FusedDepthwiseConv2D';
+const FusedDepthwiseConv2D = 'FusedDepthwiseConv2D';
 // export interface FusedDepthwiseConv2DInputs extends NamedTensorInfoMap {
 //   x: TensorInfo;
 //   filter: TensorInfo;
