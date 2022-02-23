@@ -15,141 +15,187 @@
  * =============================================================================
  */
 
-import {TensorInfo} from '../kernel_registry';
-import * as util from '../util';
+// import {TensorInfo} from '../kernel_registry';
+// import * as util from '../util';
+
+import 'dart:math' as math;
+import 'package:collection/collection.dart';
+import 'package:tensorflow_wasm/src/tensor.dart';
+
+import '../util_base.dart' as util;
 
 const NEW_AXIS = -2;
 const SHRINK_AXIS = -1;
+const MAX_SAFE_INTEGER = 9007199254740991;
+const MIN_SAFE_INTEGER = -9007199254740991;
 
 // Sparse slicing specification
 // if one does foo[3:5, ..., -3], the begin, end and strides will have length
 // of 3.
-interface StridedSliceSparseSpec {
-  dims: number;
-  numAddAxisAfterEllipsis: number;
-  begin: number[];
-  end: number[];
-  strides: number[];
-  beginMask: number;
-  endMask: number;
-  ellipsisMask: number;
-  newAxisMask: number;
-  shrinkAxisMask: number;
+class _StridedSliceSparseSpec {
+  int dims;
+  int numAddAxisAfterEllipsis;
+  final List<int> begin;
+  final List<int> end;
+  final List<int> strides;
+  final int beginMask;
+  final int endMask;
+  int ellipsisMask;
+  final int newAxisMask;
+  final int shrinkAxisMask;
+
+  _StridedSliceSparseSpec({
+    required this.dims,
+    required this.numAddAxisAfterEllipsis,
+    required this.begin,
+    required this.end,
+    required this.strides,
+    required this.beginMask,
+    required this.endMask,
+    required this.ellipsisMask,
+    required this.newAxisMask,
+    required this.shrinkAxisMask,
+  });
 }
 
 // Dense slicing specification
 // all ellipses and newaxis are expanded out. So if foo[3:5, ..., -3] where foo
 // is 10 dimensional, each array of begin, end, strides will have 10 entries
 // where as the sparse can have length less than the rank of foo.
-interface StridedSliceDenseSpec {
-  dims: number;
-  beginMask?: number;
-  endMask?: number;
-  beginValid: boolean;
-  endValid: boolean;
-  begin?: number[];
-  end?: number[];
-  strides?: number[];
+class _StridedSliceDenseSpec {
+  final int dims;
+  int beginMask = 0;
+  int endMask = 0;
+  bool beginValid;
+  bool endValid;
+  late final List<int> begin = List.filled(dims, 0);
+  late final List<int> end = List.filled(dims, 0);
+  late final List<int> strides = List.filled(dims, 0);
   // This array helps construct the final shape of the slice.
   // The final tensor is reduced in rank whenever a single index e.g. foo[3]
   // is called for. The final tensor increases in rank with newAxis entries.
   // If an index in this array is positive, the size of the dimension is
   // obtained from canonical end-begin.  Otherwise, if it is a NEW_AXIS, it will
   // be 1. A shrunk dimension is skipped.
-  finalShapeGatherIndices?: number[];
+  final List<int> finalShapeGatherIndices = [];
   // This array has the same size as finalShapeGatherIndices, but it remembers
   // the sparse index that a dimension comes from, instead of dense index.
   // A -1 in this vector means the index is not from the sparse input.
-  finalShapeGatherIndicesSparse?: number[];
-  inputShapeGatherIndicesSparse?: number[];
+  final List<int> finalShapeGatherIndicesSparse = [];
+  late final List<int> inputShapeGatherIndicesSparse = List.filled(dims, 0);
   // The dense indexed shrink mask is which processing dimensions should be
   // shrunk. For example, if foo.shape = [10, 10, 10, 10], foo[3, ..., 5] has
   // sparseShrinkAxisMask of 5 (0101) and denseShrinkAxisMask of 9 (1001),
   // yielding a final shape [10, 10].
-  shrinkAxisMask?: number;
+  int shrinkAxisMask = 0;
+
+  // dense.begin = new Array(dense.dims);
+  // dense.end = new Array(dense.dims);
+  // dense.strides = new Array(dense.dims);
+  // dense.finalShapeGatherIndices = [];
+  // dense.finalShapeGatherIndicesSparse = [];
+  // dense.inputShapeGatherIndicesSparse = new Array(dense.dims);
+
+  _StridedSliceDenseSpec({
+    required this.dims,
+    required this.beginValid,
+    required this.endValid,
+  });
 }
 
-export type SliceInfo = {
-  finalShapeSparse: number[],
-  finalShape: number[],
-  isIdentity: boolean,
-  sliceDim0: boolean,
-  isSimpleSlice: boolean,
-  begin: number[],
-  end: number[],
-  strides: number[]
-};
+class SliceInfo {
+  final List<int> finalShapeSparse;
+  final List<int> finalShape;
+  final bool isIdentity;
+  final bool sliceDim0;
+  final bool isSimpleSlice;
+  final List<int> begin;
+  final List<int> end;
+  final List<int> strides;
 
-export function assertParamsValid(
-    input: TensorInfo, begin: number[], size: number[]): void {
-  const inputRank = input.shape.length;
-  util.assert(
-      inputRank === begin.length,
-      () => `Error in slice${inputRank}D: Length of begin ${begin} must ` +
-          `match the rank of the array (${inputRank}).`);
-  util.assert(
-      inputRank === size.length,
-      () => `Error in slice${inputRank}D: Length of size ${size} must ` +
-          `match the rank of the array (${inputRank}).`);
+  SliceInfo({
+    required this.finalShapeSparse,
+    required this.finalShape,
+    required this.isIdentity,
+    required this.sliceDim0,
+    required this.isSimpleSlice,
+    required this.begin,
+    required this.end,
+    required this.strides,
+  });
+}
 
-  for (let i = 0; i < inputRank; ++i) {
-    util.assert(
+void assertParamsValid(TensorInfo input, List<int> begin, List<int> size) {
+  final inputRank = input.shape.length;
+  util.assert_(
+      inputRank == begin.length,
+      () =>
+          "Error in slice${inputRank}D: Length of begin ${begin} must " +
+          "match the rank of the array (${inputRank}).");
+  util.assert_(
+      inputRank == size.length,
+      () =>
+          "Error in slice${inputRank}D: Length of size ${size} must " +
+          "match the rank of the array (${inputRank}).");
+
+  for (int i = 0; i < inputRank; ++i) {
+    util.assert_(
         begin[i] + size[i] <= input.shape[i],
-        () => `Error in slice${inputRank}D: begin[${i}] + size[${i}] ` +
-            `(${begin[i] + size[i]}) would overflow input.shape[${i}] (${
-                  input.shape[i]})`);
+        () =>
+            "Error in slice${inputRank}D: begin[${i}] + size[${i}] " +
+            "(${begin[i] + size[i]}) would overflow input.shape[${i}] (${input.shape[i]})");
   }
 }
 
 /** Converts a binary mask to an array of axes. Used in stridedSlice(). */
-export function maskToAxes(mask: number): number[] {
-  const axes = [];
-  let axis = 0;
+List<int> maskToAxes(int mask) {
+  final axes = <int>[];
+  int axis = 0;
   while (mask > 0) {
-    if (mask & 1) {
-      axes.push(axis);
+    if (mask & 1 != 0) {
+      axes.add(axis);
     }
-    mask /= 2;
+    mask ~/= 2;
     axis++;
   }
   return axes;
 }
 
+bool _intBool(int value) => value != 0;
+
 /** Computes the output shape given the strided slice params. */
-export function computeOutShape(
-    begin: number[], end: number[], strides: number[]): number[] {
-  const size = [];
-  for (let axis = 0; axis < begin.length; axis++) {
-    size[axis] = Math.ceil((end[axis] - begin[axis]) / strides[axis]);
+List<int> computeOutShape(List<int> begin, List<int> end, List<int> strides) {
+  final size = <int>[];
+  for (int axis = 0; axis < begin.length; axis++) {
+    size[axis] = ((end[axis] - begin[axis]) / strides[axis]).ceil();
   }
   return size;
 }
 
 // Creates full selection at the elided dimensions. If the dimension matches
 // the ellipsis mask, override the current stride value. Otherwise, insert.
-export function stridesWithElidedDims(
-    strides: number[], ellipsisInsertionIndex: number, numElidedAxes: number,
-    inputShape: number[]): number[] {
-  const newStrides = [...strides];
-  for (let i = newStrides.length; i < inputShape.length; i++) {
-    newStrides.push(1);
+List<int> stridesWithElidedDims(List<int> strides, int ellipsisInsertionIndex,
+    int numElidedAxes, List<int> inputShape) {
+  final newStrides = [...strides];
+  for (int i = newStrides.length; i < inputShape.length; i++) {
+    newStrides.add(1);
   }
-  for (let i = 0; i < numElidedAxes; i++) {
-    if (i === 0) {
+  for (int i = 0; i < numElidedAxes; i++) {
+    if (i == 0) {
       newStrides[ellipsisInsertionIndex] = 1;
     } else {
-      newStrides.splice(
-          ellipsisInsertionIndex, 0 /* num elements to delete */,
-          1 /* element to add */);
-      newStrides.pop();
+      newStrides.insert(
+        ellipsisInsertionIndex,
+        1 /* element to add */,
+      );
+      newStrides.removeLast();
     }
   }
   return newStrides;
 }
 
-function unnormalizeAxis(
-    ellipsisInsertionIndex: number, numElidedAxes: number,
-    normalizedAxis: number): number {
+int _unnormalizeAxis(
+    int ellipsisInsertionIndex, int numElidedAxes, int normalizedAxis) {
   if (normalizedAxis <= ellipsisInsertionIndex) {
     return normalizedAxis;
   }
@@ -157,30 +203,47 @@ function unnormalizeAxis(
   return normalizedAxis - (numElidedAxes - 1);
 }
 
-function getElidedAxes(numElidedAxes: number, ellipsisInsertionIndex: number) {
-  const elidedAxes = [];
-  for (let i = 0; i < numElidedAxes; i++) {
-    elidedAxes.push(ellipsisInsertionIndex + i);
+List<int> _getElidedAxes(int numElidedAxes, int ellipsisInsertionIndex) {
+  final elidedAxes = <int>[];
+  for (int i = 0; i < numElidedAxes; i++) {
+    elidedAxes.add(ellipsisInsertionIndex + i);
   }
   return elidedAxes;
 }
 
+class NormalizedAxes {
+  final List<int> begin;
+  final List<int> end;
+  final List<int> strides;
+
+  NormalizedAxes({
+    required this.begin,
+    required this.end,
+    required this.strides,
+  });
+}
+
 // Normalize the start, end and strides.
-export function getNormalizedAxes(
-    inputShape: number[], ellipsisAxes: number[], numInterpolatedAxes: number,
-    begin: number[], end: number[], strides: number[], beginMask: number,
-    endMask: number,
-    ellipsisMask: number): {begin: number[], end: number[], strides: number[]} {
-  const inputRank = inputShape.length;
-  let normalizedBegin = new Array(inputRank),
-      normalizedEnd = new Array(inputRank),
-      normalizedStrides = new Array(inputRank);
-  if (ellipsisAxes.length && numInterpolatedAxes > 0) {
-    const fullIndex = ellipsisAxes[0];
+NormalizedAxes getNormalizedAxes(
+    List<int> inputShape,
+    List<int> ellipsisAxes,
+    int numInterpolatedAxes,
+    List<int> begin,
+    List<int> end,
+    List<int> strides,
+    int beginMask,
+    int endMask,
+    int ellipsisMask) {
+  final inputRank = inputShape.length;
+  var normalizedBegin = List.filled(inputRank, 0),
+      normalizedEnd = List.filled(inputRank, 0),
+      normalizedStrides = List.filled(inputRank, 0);
+  if (ellipsisAxes.isNotEmpty && numInterpolatedAxes > 0) {
+    final fullIndex = ellipsisAxes[0];
 
     // The ellipsis applies to the masked index as well as any dimensions
     // that are interpolated.
-    const numElidedAxes = numInterpolatedAxes + 1;
+    final numElidedAxes = numInterpolatedAxes + 1;
     normalizedBegin = startIndicesWithElidedDims(
         beginMask, fullIndex, numElidedAxes, begin, inputShape);
     normalizedEnd = stopIndicesWithElidedDims(
@@ -188,7 +251,7 @@ export function getNormalizedAxes(
     normalizedStrides =
         stridesWithElidedDims(strides, fullIndex, numElidedAxes, inputShape);
   } else {
-    for (let axis = 0; axis < inputRank; axis++) {
+    for (int axis = 0; axis < inputRank; axis++) {
       normalizedBegin[axis] = startForAxis(
           beginMask, begin, strides, inputShape, axis, ellipsisMask);
       normalizedEnd[axis] =
@@ -197,29 +260,25 @@ export function getNormalizedAxes(
     }
   }
 
-  return {
-    begin: normalizedBegin,
-    end: normalizedEnd,
-    strides: normalizedStrides
-  };
+  return NormalizedAxes(
+      begin: normalizedBegin, end: normalizedEnd, strides: normalizedStrides);
 }
 
 // Creates full selection at the elided dimensions. If the dimension matches
 // the ellipsis mask, override the current start value. Otherwise, insert.
-export function startIndicesWithElidedDims(
-    beginMask: number, ellipsisInsertionIndex: number, numElidedAxes: number,
-    originalBegin: number[], inputShape: number[]): number[] {
-  const newIndices = [...inputShape];
-  const elidedAxes = getElidedAxes(numElidedAxes, ellipsisInsertionIndex);
+List<int> startIndicesWithElidedDims(int beginMask, int ellipsisInsertionIndex,
+    int numElidedAxes, List<int> originalBegin, List<int> inputShape) {
+  final newIndices = [...inputShape];
+  final elidedAxes = _getElidedAxes(numElidedAxes, ellipsisInsertionIndex);
 
-  for (let axis = 0; axis < newIndices.length; axis++) {
+  for (int axis = 0; axis < newIndices.length; axis++) {
     if (elidedAxes.indexOf(axis) > -1) {
       newIndices[axis] = 0;
     } else {
-      const originalAxis =
-          unnormalizeAxis(ellipsisInsertionIndex, numElidedAxes, axis);
-      let originalValue = originalBegin[originalAxis];
-      if (beginMask & 1 << originalAxis) {
+      final originalAxis =
+          _unnormalizeAxis(ellipsisInsertionIndex, numElidedAxes, axis);
+      int originalValue = originalBegin[originalAxis];
+      if (_intBool(beginMask & 1 << originalAxis)) {
         originalValue = 0;
       }
 
@@ -231,29 +290,28 @@ export function startIndicesWithElidedDims(
 
 // Creates full selection at the elided dimensions. If the dimension matches
 // the ellipsis mask, override the current stop value. Otherwise, insert.
-export function stopIndicesWithElidedDims(
-    endMask: number, ellipsisInsertionIndex: number, numElidedAxes: number,
-    originalEnd: number[], inputShape: number[]): number[] {
-  const newIndices = [...inputShape];
-  const elidedAxes = getElidedAxes(numElidedAxes, ellipsisInsertionIndex);
+List<int> stopIndicesWithElidedDims(int endMask, int ellipsisInsertionIndex,
+    int numElidedAxes, List<int> originalEnd, List<int> inputShape) {
+  final newIndices = [...inputShape];
+  final elidedAxes = _getElidedAxes(numElidedAxes, ellipsisInsertionIndex);
 
-  for (let axis = 0; axis < newIndices.length; axis++) {
+  for (int axis = 0; axis < newIndices.length; axis++) {
     if (elidedAxes.indexOf(axis) > -1) {
-      newIndices[axis] = Number.MAX_SAFE_INTEGER;
+      newIndices[axis] = MAX_SAFE_INTEGER;
     } else {
-      const originalAxis =
-          unnormalizeAxis(ellipsisInsertionIndex, numElidedAxes, axis);
-      let originalValue = originalEnd[originalAxis];
-      if (endMask & 1 << originalAxis) {
-        originalValue = Number.MAX_SAFE_INTEGER;
+      final originalAxis =
+          _unnormalizeAxis(ellipsisInsertionIndex, numElidedAxes, axis);
+      int originalValue = originalEnd[originalAxis];
+      if (_intBool(endMask & 1 << originalAxis)) {
+        originalValue = MAX_SAFE_INTEGER;
       }
       newIndices[axis] = originalValue;
     }
   }
 
-  for (let i = 0; i < newIndices.length; i++) {
+  for (int i = 0; i < newIndices.length; i++) {
     // Handle negative indices
-    const axisSize = inputShape[i];
+    final axisSize = inputShape[i];
     if (newIndices[i] < 0) {
       newIndices[i] += axisSize;
     }
@@ -262,39 +320,39 @@ export function stopIndicesWithElidedDims(
   return newIndices;
 }
 
-export function stridesForAxis(
-    strides: number[], axis: number, ellipsisMask: number): number {
-  let stride = strides[axis];
-  if (ellipsisMask & (1 << axis) || stride == null) {
+int stridesForAxis(List<int> strides, int axis, int ellipsisMask) {
+  int stride = strides[axis];
+  if (_intBool(ellipsisMask & (1 << axis)) || stride == null) {
     stride = 1;
   }
 
   return stride;
 }
 
-export function startForAxis(
-    beginMask: number, startIndices: number[], strides: number[],
-    inputShape: number[], axis: number, ellipsisMask: number): number {
+int startForAxis(int beginMask, List<int> startIndices, List<int> strides,
+    List<int> inputShape, int axis, int ellipsisMask) {
   // Begin with the specified index
-  let start = startIndices[axis];
-  const stride = strides[axis] || 1;
+  int start = startIndices[axis];
+  final stride = axis < strides.length ? strides[axis] : 1;
 
   // Check the axis bit from right of masked axes, or the begin index is not set
   // for the axis.
-  if (beginMask & 1 << axis || ellipsisMask & 1 << axis || start == null) {
+  if (_intBool(beginMask & 1 << axis) ||
+      _intBool(ellipsisMask & 1 << axis) ||
+      start == null) {
     if (stride > 0) {
       // Forward iteration - use the first element. These values will get
       // clamped below (Note: We could have set them to 0 and axis_size-1, but
       // use lowest() and max() to maintain symmetry with StopForAxis())
-      start = Number.MIN_SAFE_INTEGER;
+      start = MIN_SAFE_INTEGER;
     } else {
       // Backward iteration - use the last element.
-      start = Number.MAX_SAFE_INTEGER;
+      start = MAX_SAFE_INTEGER;
     }
   }
 
   // Handle negative indices
-  const axisSize = inputShape[axis];
+  final axisSize = inputShape[axis];
   if (start < 0) {
     start += axisSize;
   }
@@ -305,29 +363,30 @@ export function startForAxis(
   return start;
 }
 
-export function stopForAxis(
-    endMask: number, stopIndices: number[], strides: number[],
-    inputShape: number[], axis: number, ellipsisMask: number): number {
+int stopForAxis(int endMask, List<int> stopIndices, List<int> strides,
+    List<int> inputShape, int axis, int ellipsisMask) {
   // Begin with the specified index
-  let stop = stopIndices[axis];
-  const stride = strides[axis] || 1;
+  int? stop = axis < stopIndices.length ? stopIndices[axis] : null;
+  final stride = axis < strides.length ? strides[axis] : 1;
 
   // Check the axis bit from right of masked axes, or if the stop index is not
   // set for this axis.
-  if (endMask & (1 << axis) || ellipsisMask & (1 << axis) || stop == null) {
+  if (_intBool(endMask & (1 << axis)) ||
+      _intBool(ellipsisMask & (1 << axis)) ||
+      stop == null) {
     if (stride > 0) {
       // Forward iteration - use the last element. These values will get
       // clamped below
-      stop = Number.MAX_SAFE_INTEGER;
+      stop = MAX_SAFE_INTEGER;
     } else {
       // Backward iteration - use the first element.
-      stop = Number.MIN_SAFE_INTEGER;
+      stop = MIN_SAFE_INTEGER;
     }
   }
 
   // Handle negative indices
-  const axisSize = inputShape[axis];
-  if (stop < 0) {
+  final axisSize = inputShape[axis];
+  if (stop! < 0) {
     stop += axisSize;
   }
 
@@ -349,83 +408,88 @@ export function stopForAxis(
  * Returns true if the slice occupies a continous set of elements in the
  * 'flat' space.
  */
-export function isSliceContinous(
-    shape: number[], begin: number[], size: number[]) {
+bool isSliceContinous(List<int> shape, List<int> begin, List<int> size) {
   // Index of the first axis that has size > 1.
-  let firstNonOneAxis = size.length;
-  for (let i = 0; i < size.length; i++) {
+  int firstNonOneAxis = size.length;
+  for (int i = 0; i < size.length; i++) {
     if (size[i] > 1) {
       firstNonOneAxis = i;
       break;
     }
   }
 
-  for (let i = firstNonOneAxis + 1; i < size.length; i++) {
-    if (begin[i] > 0 || size[i] !== shape[i]) {
+  for (int i = firstNonOneAxis + 1; i < size.length; i++) {
+    if (begin[i] > 0 || size[i] != shape[i]) {
       return false;
     }
   }
   return true;
 }
 
-export function computeFlatOffset(begin: number[], strides: number[]): number {
-  let flatOffset = begin.length > 0 ? begin[begin.length - 1] : 1;
-  for (let i = 0; i < begin.length - 1; i++) {
+int computeFlatOffset(List<int> begin, List<int> strides) {
+  int flatOffset = begin.length > 0 ? begin[begin.length - 1] : 1;
+  for (int i = 0; i < begin.length - 1; i++) {
     flatOffset += begin[i] * strides[i];
   }
   return flatOffset;
 }
 
-export function parseSliceParams(
-    x: TensorInfo, begin: number|number[], size?: number|number[]) {
+List<List<int>> parseSliceParams(
+    TensorInfo x, List<int> begin, List<int>? size) {
   // The following logic allows for more ergonomic calls.
-  let begin_: number[];
-  const xRank = x.shape.length;
-  if (typeof begin === 'number') {
-    begin_ = [begin, ...new Array(xRank - 1).fill(0)];
+  List<int> begin_;
+  final xRank = x.shape.length;
+  if (begin is int) {
+    begin_ = [begin as int, ...List.filled(xRank - 1, 0)];
   } else if (begin.length < xRank) {
-    begin_ = begin.concat(new Array(xRank - begin.length).fill(0));
+    begin_ = [...begin, ...Iterable.generate(xRank - begin.length, (_) => 0)];
   } else {
-    begin_ = begin.slice();
+    begin_ = [...begin];
   }
-  begin_.forEach(d => {
-    util.assert(
-        d !== -1, () => 'slice() does not support negative begin indexing.');
+  begin_.forEach((d) {
+    util.assert_(
+        d != -1, () => 'slice() does not support negative begin indexing.');
   });
-  let size_: number[];
+  List<int> size_;
   if (size == null) {
-    size_ = new Array(xRank).fill(-1);
-  } else if (typeof size === 'number') {
-    size_ = [size, ...new Array(xRank - 1).fill(-1)];
+    size_ = List.filled(xRank, -1);
+  } else if (size is int) {
+    size_ = [size as int, ...Iterable.generate(xRank - 1, (_) => -1)];
   } else if (size.length < xRank) {
-    size_ = size.concat(new Array(xRank - size.length).fill(-1));
+    size_ = [...size, ...Iterable.generate(xRank - size.length, (_) => -1)];
   } else {
     size_ = size;
   }
-  size_ = size_.map((d, i) => {
+  size_ = size_.mapIndexed((i, d) {
     if (d >= 0) {
       return d;
     } else {
-      util.assert(
-          d === -1,
-          () => `Negative size values should be exactly -1 but got ` +
-              `${d} for the slice() size at index ${i}.`);
+      util.assert_(
+          d == -1,
+          () =>
+              "Negative size values should be exactly -1 but got " +
+              "${d} for the slice() size at index ${i}.");
       return x.shape[i] - begin_[i];
     }
-  });
+  }).toList();
   return [begin_, size_];
 }
 
 // Convert the slicing specification from a sparse representation to a dense
 // representation. This means that all ellipses and newaxis are expanded out.
-export function sliceInfo(
-    xShape: number[], begin: number[], end: number[], strides: number[],
-    beginMask: number, endMask: number, ellipsisMask: number,
-    newAxisMask: number, shrinkAxisMask: number): SliceInfo {
-  let stridesNonNull;
+SliceInfo sliceInfo(
+    List<int> xShape,
+    List<int> begin,
+    List<int> end,
+    List<int> strides,
+    int beginMask,
+    int endMask,
+    int ellipsisMask,
+    int newAxisMask,
+    int shrinkAxisMask) {
+  final List<int> stridesNonNull;
   if (strides == null) {
-    stridesNonNull = new Array(begin.length);
-    stridesNonNull.fill(1);
+    stridesNonNull = List.filled(begin.length, 1);
   } else {
     stridesNonNull = strides;
   }
@@ -435,39 +499,38 @@ export function sliceInfo(
   // of 2. When i is a power of 2, i & (i - 1) is always 0.
   // Also ref:
   // https://stackoverflow.com/questions/600293/how-to-check-if-a-number-is-a-power-of-2
-  if (ellipsisMask != null && (ellipsisMask & (ellipsisMask - 1)) !== 0) {
-    throw new Error('Multiple ellipses in slice is not allowed.');
+  if (ellipsisMask != null && (ellipsisMask & (ellipsisMask - 1)) != 0) {
+    throw Exception('Multiple ellipses in slice is not allowed.');
   }
 
   // Step 1: Account for ellipsis and new axis.
   // Check for ellipsis and count how many non-newaxis there are after.
-  let ellipsisSeen = false;
+  bool ellipsisSeen = false;
 
-  const sparseSpec: StridedSliceSparseSpec = {
-    dims: stridesNonNull.length,
-    numAddAxisAfterEllipsis: 0,
-    begin: begin.slice(),
-    end: end.slice(),
-    strides: stridesNonNull.slice(),
-    beginMask,
-    endMask,
-    ellipsisMask,
-    newAxisMask,
-    shrinkAxisMask
-  };
+  final sparseSpec = _StridedSliceSparseSpec(
+      dims: stridesNonNull.length,
+      numAddAxisAfterEllipsis: 0,
+      begin: [...begin],
+      end: [...end],
+      strides: [...stridesNonNull],
+      beginMask: beginMask,
+      endMask: endMask,
+      ellipsisMask: ellipsisMask,
+      newAxisMask: newAxisMask,
+      shrinkAxisMask: shrinkAxisMask);
 
-  for (let i = 0; i < sparseSpec.dims; i++) {
-    if (ellipsisSeen && ((1 << i) & newAxisMask) !== 0) {
+  for (int i = 0; i < sparseSpec.dims; i++) {
+    if (ellipsisSeen && ((1 << i) & newAxisMask) != 0) {
       sparseSpec.numAddAxisAfterEllipsis++;
     }
-    if ((1 << i) & ellipsisMask) {
+    if (_intBool((1 << i) & ellipsisMask)) {
       ellipsisSeen = true;
     }
   }
   // If no ellipsis insert one at the end.
   if (!ellipsisSeen) {
     sparseSpec.ellipsisMask |= (1 << sparseSpec.dims);
-    sparseSpec.dims++;  // this effects loop iteration below
+    sparseSpec.dims++; // this effects loop iteration below
   }
 
   // Step 2: Make a sparse spec into a full index spec.
@@ -479,50 +542,50 @@ export function sliceInfo(
   // produce the missing beginMask for the first two dimensions i.e. from
   // beginMaskSpec = 0, endMaskSpec = 2, we achieve beginMask = 6 (110),
   // endMask = 7 (111).
-  const denseSpec: StridedSliceDenseSpec = {
+  final denseSpec = _StridedSliceDenseSpec(
     dims: xShape.length,
-    beginMask: 0,
-    endMask: 0,
     beginValid: false,
-    endValid: false
-  };
+    endValid: false,
+  );
 
-  buildDenseSpec(sparseSpec, denseSpec);
+  _buildDenseSpec(sparseSpec, denseSpec);
 
   // Step 3: Make implicit ranges (non-zero beginMasks and endMasks) explicit
   // and bounds check.
-  let isIdentity = true;
-  let sliceDim0 = true;
-  let isSimpleSlice = true;
-  const processingShape = [];
-  const finalShape = [];
+  bool isIdentity = true;
+  bool sliceDim0 = true;
+  bool isSimpleSlice = true;
+  final processingShape = <int>[];
+  final finalShape = <int>[];
 
-  for (let i = 0; i < xShape.length; ++i) {
-    if (denseSpec.strides[i] === 0) {
-      throw Error(`strides[${i}] must be non-zero`);
+  for (int i = 0; i < xShape.length; ++i) {
+    if (denseSpec.strides[i] == 0) {
+      throw Exception("strides[${i}] must be non-zero");
     }
-    const shrinkI = !!(denseSpec.shrinkAxisMask & (1 << i));
-    const dimI = xShape[i];
-    if (dimI === -1) {
-      processingShape.push(shrinkI ? 1 : -1);
+    final shrinkI = !!_intBool(denseSpec.shrinkAxisMask & (1 << i));
+    final dimI = xShape[i];
+    if (dimI == -1) {
+      processingShape.add(shrinkI ? 1 : -1);
       continue;
     }
 
-    const masks =
-        [denseSpec.beginMask & (1 << i), denseSpec.endMask & (1 << i)];
-    const validRange = [
+    final masks = [
+      denseSpec.beginMask & (1 << i),
+      denseSpec.endMask & (1 << i)
+    ];
+    final validRange = [
       denseSpec.strides[i] > 0 ? 0 : -1,
       denseSpec.strides[i] > 0 ? dimI : dimI - 1
     ];
 
     if (shrinkI && denseSpec.strides[i] <= 0) {
-      throw Error('only stride 1 allowed on non-range indexing.');
+      throw Exception('only stride 1 allowed on non-range indexing.');
     }
 
-    isSimpleSlice = isSimpleSlice && (denseSpec.strides[i] === 1);
+    isSimpleSlice = isSimpleSlice && (denseSpec.strides[i] == 1);
 
-    const beginAndEndMasked =
-        !!((denseSpec.beginMask & (1 << i)) && (denseSpec.endMask & (1 << i)));
+    final beginAndEndMasked = !!(_intBool(denseSpec.beginMask & (1 << i)) &&
+        _intBool(denseSpec.endMask & (1 << i)));
 
     if (denseSpec.beginValid && denseSpec.endValid) {
       if (shrinkI) {
@@ -530,44 +593,42 @@ export function sliceInfo(
         // particular foo[-1] produces sparseBegin = -1, sparseEnd = 0.
         // and canonical puts these to n-1 and 0, which implies a degenerate
         // interval. Fortunately, it is now safe to re-create end as begin + 1.
-        const xFwd = denseSpec.begin[i] < 0 ? dimI + denseSpec.begin[i] :
-                                              denseSpec.begin[i];
+        final xFwd = denseSpec.begin[i] < 0
+            ? dimI + denseSpec.begin[i]
+            : denseSpec.begin[i];
         denseSpec.begin[i] = xFwd;
         denseSpec.end[i] = denseSpec.begin[i] + 1;
         if (xFwd < 0 || xFwd >= dimI) {
-          throw Error(`slice index ${denseSpec.begin[i]} of dimension ${
-              i} out of bounds.`);
+          throw Exception(
+              "slice index ${denseSpec.begin[i]} of dimension ${i} out of bounds.");
         }
       } else {
-        denseSpec.begin[i] = canonical(
-            denseSpec.begin[i], 0, denseSpec.strides[i], dimI, masks,
-            validRange);
-        denseSpec.end[i] = canonical(
+        denseSpec.begin[i] = _canonical(denseSpec.begin[i], 0,
+            denseSpec.strides[i], dimI, masks, validRange);
+        denseSpec.end[i] = _canonical(
             denseSpec.end[i], 1, denseSpec.strides[i], dimI, masks, validRange);
       }
       // Update optimization values
-      const takeAllInDimension = denseSpec.strides[i] === 1 &&
-          denseSpec.begin[i] === 0 && denseSpec.end[i] === dimI;
+      final takeAllInDimension = denseSpec.strides[i] == 1 &&
+          denseSpec.begin[i] == 0 &&
+          denseSpec.end[i] == dimI;
       isIdentity = isIdentity && takeAllInDimension;
       sliceDim0 = sliceDim0 &&
-          ((i === 0 && denseSpec.strides[i] === 1) || takeAllInDimension);
+          ((i == 0 && denseSpec.strides[i] == 1) || takeAllInDimension);
     } else {
       isIdentity =
-          isIdentity && ((denseSpec.strides[i] === 1) && beginAndEndMasked);
+          isIdentity && ((denseSpec.strides[i] == 1) && beginAndEndMasked);
       sliceDim0 = sliceDim0 &&
-          ((i === 0 && denseSpec.strides[i] === 1) || beginAndEndMasked);
+          ((i == 0 && denseSpec.strides[i] == 1) || beginAndEndMasked);
     }
     // Compute the processing shape (the intermediate Eigen will produce)
-    let intervalLength;
-    let knownInterval = false;
+    int? intervalLength;
     if (denseSpec.beginValid && denseSpec.endValid) {
       intervalLength = denseSpec.end[i] - denseSpec.begin[i];
-      knownInterval = true;
     } else if (shrinkI) {
       // The dimension is still known as 1 for the processingShape, but will be
       // discarded for the final shape.
       intervalLength = 1;
-      knownInterval = true;
     } else if (beginAndEndMasked) {
       // Even if we don't have values for begin or end, we do know that this
       // dimension covers the whole interval. If we have shape information for
@@ -578,23 +639,22 @@ export function sliceInfo(
         } else {
           intervalLength = dimI;
         }
-        knownInterval = true;
       }
     }
-    if (knownInterval) {
-      let sizeI;
+    if (intervalLength != null) {
+      final int sizeI;
       // Hold zero if the interval is degenerate, otherwise account for
       // remainder
-      if (intervalLength === 0 ||
-          ((intervalLength < 0) !== (denseSpec.strides[i] < 0))) {
+      if (intervalLength == 0 ||
+          ((intervalLength < 0) != (denseSpec.strides[i] < 0))) {
         sizeI = 0;
       } else {
-        sizeI = Math.trunc(intervalLength / denseSpec.strides[i]) +
-            (intervalLength % denseSpec.strides[i] !== 0 ? 1 : 0);
+        sizeI = (intervalLength / denseSpec.strides[i]).truncate() +
+            (intervalLength % denseSpec.strides[i] != 0 ? 1 : 0);
       }
-      processingShape.push(sizeI);
+      processingShape.add(sizeI);
     } else {
-      processingShape.push(-1);
+      processingShape.add(-1);
     }
   }
 
@@ -603,54 +663,57 @@ export function sliceInfo(
   // newAxis will increase dimension by 1 (with a one-size dimension)
   // slices like foo[3, ...] will reduce dimension by 1.
   // This cannot be done earlier, because it depends on Step 3.
-  for (let denseDim = 0; denseDim < denseSpec.finalShapeGatherIndices.length;
-       ++denseDim) {
-    const gatherIndex = denseSpec.finalShapeGatherIndices[denseDim];
+  for (int denseDim = 0;
+      denseDim < denseSpec.finalShapeGatherIndices.length;
+      ++denseDim) {
+    final gatherIndex = denseSpec.finalShapeGatherIndices[denseDim];
     if (gatherIndex >= 0) {
-      finalShape.push(processingShape[gatherIndex]);
-    } else if (gatherIndex === NEW_AXIS) {
-      finalShape.push(1);
+      finalShape.add(processingShape[gatherIndex]);
+    } else if (gatherIndex == NEW_AXIS) {
+      finalShape.add(1);
     }
   }
 
-  const finalShapeSparse = finalShape.filter(
-      (dim, i) => denseSpec.finalShapeGatherIndices[i] !== NEW_AXIS);
+  final finalShapeSparse = finalShape
+      .whereIndexed(
+          (i, dim) => denseSpec.finalShapeGatherIndices[i] != NEW_AXIS)
+      .toList();
 
-  return {
-    finalShapeSparse,
-    finalShape,
-    isIdentity,
-    sliceDim0,
-    isSimpleSlice,
+  return SliceInfo(
+    finalShapeSparse: finalShapeSparse,
+    finalShape: finalShape,
+    isIdentity: isIdentity,
+    sliceDim0: sliceDim0,
+    isSimpleSlice: isSimpleSlice,
     begin: denseSpec.begin,
     end: denseSpec.end,
-    strides: denseSpec.strides
-  };
+    strides: denseSpec.strides,
+  );
 }
 
-function buildDenseSpec(
-    sparse: StridedSliceSparseSpec, dense: StridedSliceDenseSpec) {
-  dense.beginMask = 0;
-  dense.endMask = 0;
-  dense.shrinkAxisMask = 0;
+void _buildDenseSpec(
+    _StridedSliceSparseSpec sparse, _StridedSliceDenseSpec dense) {
+  // dense.beginMask = 0;
+  // dense.endMask = 0;
+  // dense.shrinkAxisMask = 0;
 
-  let fullIndex = 0;
+  int fullIndex = 0;
   dense.beginValid = sparse.begin != null;
   dense.endValid = sparse.end != null;
 
-  dense.begin = new Array(dense.dims);
-  dense.end = new Array(dense.dims);
-  dense.strides = new Array(dense.dims);
-  dense.finalShapeGatherIndices = [];
-  dense.finalShapeGatherIndicesSparse = [];
-  dense.inputShapeGatherIndicesSparse = new Array(dense.dims);
+  // dense.begin = new Array(dense.dims);
+  // dense.end = new Array(dense.dims);
+  // dense.strides = new Array(dense.dims);
+  // dense.finalShapeGatherIndices = [];
+  // dense.finalShapeGatherIndicesSparse = [];
+  // dense.inputShapeGatherIndicesSparse = new Array(dense.dims);
 
-  for (let i = 0; i < sparse.dims; i++) {
-    if ((1 << i) & sparse.ellipsisMask) {
+  for (int i = 0; i < sparse.dims; i++) {
+    if (_intBool((1 << i) & sparse.ellipsisMask)) {
       // Only the bit that has ellipsis will fall in this condition.
       // Expand the ellipsis into the appropriate indices
       // Note: this only works because we guaranteed one ellipsis.
-      const nextIndex = Math.min(
+      final nextIndex = math.min(
           dense.dims - (sparse.dims - i) + 1 + sparse.numAddAxisAfterEllipsis,
           dense.dims);
       for (; fullIndex < nextIndex; fullIndex++) {
@@ -660,19 +723,19 @@ function buildDenseSpec(
         dense.strides[fullIndex] = 1;
         dense.beginMask |= (1 << fullIndex);
         dense.endMask |= (1 << fullIndex);
-        dense.finalShapeGatherIndices.push(fullIndex);
-        dense.finalShapeGatherIndicesSparse.push(-1);
+        dense.finalShapeGatherIndices.add(fullIndex);
+        dense.finalShapeGatherIndicesSparse.add(-1);
         dense.inputShapeGatherIndicesSparse[fullIndex] = i;
       }
-    } else if ((1 << i) & sparse.newAxisMask) {
+    } else if (_intBool((1 << i) & sparse.newAxisMask)) {
       // Only the bit that has newAxis will fall in this condition.
-      dense.finalShapeGatherIndices.push(NEW_AXIS);
-      dense.finalShapeGatherIndicesSparse.push(-1);
+      dense.finalShapeGatherIndices.add(NEW_AXIS);
+      dense.finalShapeGatherIndicesSparse.add(-1);
     } else {
-      if (fullIndex === dense.begin.length) {
-        throw Error(
-            `Index out of range using input dim ${fullIndex}; input ` +
-            `has only ${dense.dims} dims, ${dense.begin.length}.`);
+      if (fullIndex == dense.begin.length) {
+        throw Exception(
+            "Index out of range using input dim ${fullIndex}; input " +
+                "has only ${dense.dims} dims, ${dense.begin.length}.");
       }
 
       // Gather slicing spec into appropriate index.
@@ -683,23 +746,23 @@ function buildDenseSpec(
         dense.end[fullIndex] = sparse.end[i];
       }
       dense.strides[fullIndex] = sparse.strides[i];
-      if (sparse.beginMask & (1 << i)) {
+      if (_intBool(sparse.beginMask & (1 << i))) {
         dense.beginMask |= (1 << fullIndex);
       }
-      if (sparse.endMask & (1 << i)) {
+      if (_intBool(sparse.endMask & (1 << i))) {
         dense.endMask |= (1 << fullIndex);
       }
       // If shrink, record where to get the dimensionality from (i.e. newAxis)
       // creates a fake 1 size dimension. Also remember shrink axis (now in
       // dense form) so we can ignore dense.end below.
-      if (sparse.shrinkAxisMask & (1 << i)) {
-        dense.finalShapeGatherIndices.push(SHRINK_AXIS);
-        dense.finalShapeGatherIndicesSparse.push(-1);
+      if (_intBool(sparse.shrinkAxisMask & (1 << i))) {
+        dense.finalShapeGatherIndices.add(SHRINK_AXIS);
+        dense.finalShapeGatherIndicesSparse.add(-1);
         dense.shrinkAxisMask |= (1 << fullIndex);
       } else {
-        dense.finalShapeGatherIndices.push(fullIndex);
+        dense.finalShapeGatherIndices.add(fullIndex);
         // Remember that where in the sparse shape the dense dim comes from.
-        dense.finalShapeGatherIndicesSparse.push(i);
+        dense.finalShapeGatherIndicesSparse.add(i);
       }
       dense.inputShapeGatherIndicesSparse[fullIndex] = i;
       fullIndex++;
@@ -707,14 +770,16 @@ function buildDenseSpec(
   }
 }
 
-function canonical(
-    x: number, c: number, strideI: number, dimI: number, masks: number[],
-    validRange: number[]) {
-  if (masks[c]) {
+int _canonical(int x, int c, int strideI, int dimI, List<int> masks,
+    List<int> validRange) {
+  if (masks[c] != 0) {
     return strideI > 0 ? validRange[c] : validRange[(c + 1) & 1];
   } else {
-    const xFwd = x < 0 ? dimI + x : x;  // make negative indices positive
-    return xFwd < validRange[0] ? validRange[0] :
-                                  xFwd > validRange[1] ? validRange[1] : xFwd;
+    final xFwd = x < 0 ? dimI + x : x; // make negative indices positive
+    return xFwd < validRange[0]
+        ? validRange[0]
+        : xFwd > validRange[1]
+            ? validRange[1]
+            : xFwd;
   }
 }

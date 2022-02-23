@@ -929,8 +929,8 @@ typedef TileInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 //   reps: number[];
 // }
 
-// export const TopK = 'TopK';
-// export type TopKInputs = Pick<NamedTensorInfoMap, 'x'>;
+const TopK = 'TopK';
+typedef TopKInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 // export interface TopKAttrs {
 //   k: number;
 //   sorted: boolean;
@@ -961,7 +961,7 @@ typedef TransposeInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 
 const Unpack = 'Unpack';
 typedef UnpackInputs
-    = Map<String, Tensor>; // Pick<NamedTensorInfoMap, 'value'>;
+    = Map<String, TensorInfo>; // Pick<NamedTensorInfoMap, 'value'>;
 // interface UnpackAttrs {
 //   axis: number;
 // }

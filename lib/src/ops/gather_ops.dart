@@ -1,3 +1,5 @@
+import 'package:tensorflow_wasm/src/ops/scatter_nd_util.dart';
+
 import '_prelude.dart';
 
 /**
@@ -120,7 +122,7 @@ Tensor<R> scatterND<R extends Rank>(
   return execOp('scatterND', () {
     final $indices = convertToTensor(indices, 'indices', 'scatterND', 'int32');
     final $updates = convertToTensor(updates, 'updates', 'scatterND');
-    scatter_nd_util.validateInput($updates, $indices, shape);
+    ScatterUtil.validateInput($updates, $indices, shape);
 
     final inputs = {
       'indices': $indices,
