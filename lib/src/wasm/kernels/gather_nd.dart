@@ -15,64 +15,80 @@
  * =============================================================================
  */
 
-import {gather_util, GatherNd, GatherNdInputs, KernelConfig, TensorInfo} from '@tensorflow/tfjs-core';
+// import {gather_util, GatherNd, GatherNdInputs, KernelConfig, TensorInfo} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-import {CppDType} from './types';
+// import {CppDType} from './types';
 
-let wasmGatherNd: (
-    xId: number, dtype: CppDType, indicesId: number, numSlices: number,
-    sliceRank: number, sliceSize: number, strides: Uint8Array, outId: number) =>
-    void;
+import 'dart:typed_data';
 
-function setup(backend: BackendWasm): void {
-  wasmGatherNd = backend.wasm.cwrap(GatherNd, null /*void*/, [
-    'number',  // xId
-    'number',  // dtype
-    'number',  // indicesId
-    'number',  // numSlices
-    'number',  // sliceRank
-    'number',  // sliceSize
-    'array',   // strides
-    'number'   // outId
+import 'package:tensorflow_wasm/src/ops/gather_nd_util.dart';
+import '_prelude.dart';
+
+late final Function(List) _wasmGatherNd;
+// : (
+//     xId: number, dtype: CppDType, indicesId: number, numSlices: number,
+//     sliceRank: number, sliceSize: number, strides: Uint8Array, outId: number) =>
+//     void;
+
+void _setup(BackendWasm backend) {
+  _wasmGatherNd = backend.wasm.cwrap(GatherNd, null /*void*/, [
+    'number', // xId
+    'number', // dtype
+    'number', // indicesId
+    'number', // numSlices
+    'number', // sliceRank
+    'number', // sliceSize
+    'array', // strides
+    'number' // outId
   ]);
 }
 
-function gatherNd(args: {backend: BackendWasm, inputs: GatherNdInputs}):
-    TensorInfo {
-  const {backend, inputs} = args;
-  const {params, indices} = inputs;
+TensorInfo gatherNd({
+  required BackendWasm backend,
+  required NamedTensorInfoMap inputs,
+  NamedAttrMap? attrs,
+}) {
+  final params = inputs['params']!;
+  final indices = inputs['indices']!;
 
-  const [resultShape, numSlices, sliceSize, strides] =
-      gather_util.prepareAndValidate(params, indices);
+  final _gatherInfo = GatherUtil.prepareAndValidate(params, indices);
 
-  const out = backend.makeOutput(resultShape, params.dtype);
-  if (numSlices === 0) {
+  final out = backend.makeOutput(_gatherInfo.resultShape, params.dtype);
+  if (_gatherInfo.numSlices == 0) {
     return out;
   }
 
-  const indicesShape = indices.shape;
-  const sliceRank = indicesShape[indicesShape.length - 1];
+  final indicesShape = indices.shape;
+  final sliceRank = indicesShape[indicesShape.length - 1];
 
-  const xData = backend.dataIdMap.get(params.dataId);
-  const xId = xData.id;
-  const indicesData = backend.dataIdMap.get(indices.dataId);
-  const indicesId = indicesData.id;
+  final xData = backend.dataIdMap.get(params.dataId)!;
+  final xId = xData.id;
+  final indicesData = backend.dataIdMap.get(indices.dataId)!;
+  final indicesId = indicesData.id;
 
-  const stridesBytes = new Uint8Array(new Int32Array(strides).buffer);
+  final stridesBytes =
+      Uint8List.view(Int32List.fromList(_gatherInfo.strides).buffer);
 
-  const outId = backend.dataIdMap.get(out.dataId).id;
-  wasmGatherNd(
-      xId, CppDType[params.dtype], indicesId, numSlices, sliceRank, sliceSize,
-      stridesBytes, outId);
+  final outId = backend.dataIdMap.get(out.dataId)!.id;
+  _wasmGatherNd([
+    xId,
+    CppDType.values.byName(params.dtype).index,
+    indicesId,
+    _gatherInfo.numSlices,
+    sliceRank,
+    _gatherInfo.sliceSize,
+    stridesBytes,
+    outId
+  ]);
 
   return out;
 }
 
-export const gatherNdConfig: KernelConfig = {
+final gatherNdConfig = KernelConfigG(
   kernelName: GatherNd,
   backendName: 'wasm',
-  setupFunc: setup,
-  kernelFunc: gatherNd
-};
+  setupFunc: _setup,
+  kernelFunc: gatherNd,
+);

@@ -15,122 +15,142 @@
  * =============================================================================
  */
 
-import {backend_util, KernelConfig, KernelFunc, Slice, slice_util, SliceAttrs, SliceInputs, TypedArray, util} from '@tensorflow/tfjs-core';
+// import {backend_util, KernelConfig, KernelFunc, Slice, slice_util, SliceAttrs, SliceInputs, TypedArray, util} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
-import {sliceImplCPU} from '../kernel_utils/shared';
+// import {BackendWasm} from '../backend_wasm';
+// import {sliceImplCPU} from '../kernel_utils/shared';
 
-export function slice(
-    args: {inputs: SliceInputs, attrs: SliceAttrs, backend: BackendWasm}) {
-  const {inputs: {x}, attrs: {begin, size}, backend} = args;
+import 'dart:typed_data';
 
-  const [begin_, size_] = slice_util.parseSliceParams(x, begin, size);
+import '_prelude.dart';
+import 'package:tensorflow_wasm/slice_util.dart' as slice_util;
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
 
-  const isContinous = slice_util.isSliceContinous(x.shape, begin_, size_);
-  const xVals = backend.readSync(x.dataId);
-  const out = backend.makeOutput(size_, x.dtype);
-  const xStrides = util.computeStrides(x.shape);
-  const outData = backend.dataIdMap.get(out.dataId);
+TensorInfo slice({
+  required NamedTensorInfoMap inputs,
+  NamedAttrMap? attrs,
+  required BackendWasm backend,
+}) {
+  final x = inputs['x']!;
+  final begin = parseAxis(attrs!['begin']!);
+  final size = parseAxis(attrs['size']!);
+
+  final _p = slice_util.parseSliceParams(x, begin, size);
+  final begin_ = _p[0];
+  final size_ = _p[1];
+
+  final isContinous = slice_util.isSliceContinous(x.shape, begin_, size_);
+  final xVals = backend.readSync(x.dataId);
+  final out = backend.makeOutput(size_, x.dtype);
+  final xStrides = util.computeStrides(x.shape);
+  final outData = backend.dataIdMap.get(out.dataId)!;
 
   if (isContinous) {
-    const flatOffset = slice_util.computeFlatOffset(begin_, xStrides);
+    final flatOffset = slice_util.computeFlatOffset(begin_, xStrides);
 
-    if (x.dtype === 'string') {
-      outData.stringBytes =
-          (xVals as Uint8Array[])
-              .slice(flatOffset, flatOffset + util.sizeFromShape(size_));
+    if (x.dtype == 'string') {
+      outData.stringBytes = (xVals as List<Uint8List>)
+          .slice(flatOffset, flatOffset + util.sizeFromShape(size_));
     } else {
-      const outVals = backend.typedArrayFromHeap(out);
-      outVals.set(
-          (xVals as TypedArray)
-              .subarray(flatOffset, flatOffset + util.sizeFromShape(size_)));
+      final outVals = backend.typedArrayFromHeap(out);
+      outVals.set((xVals as TypedArray)
+          .subarray(flatOffset, flatOffset + util.sizeFromShape(size_)));
     }
 
     return out;
   }
 
-  if (x.dtype === 'string') {
-    const res = sliceImplCPU(xVals, begin_, size_, x.shape, x.dtype);
-    outData.stringBytes = res as Uint8Array[];
+  if (x.dtype == 'string') {
+    final res = sliceImplCPU(xVals, begin_, size_, x.shape, x.dtype);
+    outData.stringBytes = res as List<Uint8List>;
     return out;
   }
 
-  const outVals = backend.typedArrayFromHeap(out);
-  const rank = x.shape.length;
-  if (rank === 2) {
-    slice2d(
-        xVals as TypedArray, xStrides[0], outVals, begin_ as [number, number],
-        size_ as [number, number]);
-  } else if (rank === 3) {
-    slice3d(
-        xVals as TypedArray, xStrides[0], xStrides[1], outVals,
-        begin_ as [number, number, number], size_ as [number, number, number]);
-  } else if (rank === 4) {
+  final outVals = backend.typedArrayFromHeap(out);
+  final rank = x.shape.length;
+  if (rank == 2) {
+    slice2d(xVals, xStrides[0], outVals, begin_, size_);
+  } else if (rank == 3) {
+    slice3d(xVals, xStrides[0], xStrides[1], outVals, begin_, size_);
+  } else if (rank == 4) {
     slice4d(
-        xVals as TypedArray, xStrides[0], xStrides[1], xStrides[2], outVals,
-        begin_ as [number, number, number, number],
-        size_ as [number, number, number, number]);
+        xVals, xStrides[0], xStrides[1], xStrides[2], outVals, begin_, size_);
   } else {
-    const res =
-        sliceImplCPU(xVals, begin_, size_, x.shape, x.dtype) as TypedArray;
+    final res = sliceImplCPU(xVals, begin_, size_, x.shape, x.dtype);
     outVals.set(res);
   }
 
   return out;
 }
 
-function slice2d(
-    xVals: backend_util.TypedArray, xStride: number,
-    outVals: backend_util.TypedArray, begin: [number, number],
-    size: [number, number]): void {
-  let outOffset = 0;
-  const beginI = begin[0];
-  const beginJ = begin[1];
-  const endI = beginI + size[0];
-  for (let i = beginI; i < endI; i++) {
-    const xOffset = i * xStride + beginJ;
+void slice2d(
+  List xVals,
+  int xStride,
+  List outVals,
+  // : [number, number]
+  List<int> begin,
+  // : [number, number]
+  List<int> size,
+) {
+  int outOffset = 0;
+  final beginI = begin[0];
+  final beginJ = begin[1];
+  final endI = beginI + size[0];
+  for (int i = beginI; i < endI; i++) {
+    final xOffset = i * xStride + beginJ;
     outVals.set(xVals.subarray(xOffset, xOffset + size[1]), outOffset);
     outOffset += size[1];
   }
 }
 
-function slice3d(
-    xVals: backend_util.TypedArray, xStride1: number, xStride2: number,
-    outVals: backend_util.TypedArray, begin: [number, number, number],
-    size: [number, number, number]): void {
-  let outOffset = 0;
-  const beginI = begin[0];
-  const beginJ = begin[1];
-  const beginK = begin[2];
-  const endI = beginI + size[0];
-  const endJ = beginJ + size[1];
-  for (let i = beginI; i < endI; i++) {
-    for (let j = beginJ; j < endJ; j++) {
-      const xOffset = i * xStride1 + j * xStride2 + beginK;
+void slice3d(
+  // : backend_util.TypedArray
+  List xVals,
+  int xStride1,
+  int xStride2,
+  List outVals,
+  List<int> begin,
+  List<int> size,
+) {
+  int outOffset = 0;
+  final beginI = begin[0];
+  final beginJ = begin[1];
+  final beginK = begin[2];
+  final endI = beginI + size[0];
+  final endJ = beginJ + size[1];
+  for (int i = beginI; i < endI; i++) {
+    for (int j = beginJ; j < endJ; j++) {
+      final xOffset = i * xStride1 + j * xStride2 + beginK;
       outVals.set(xVals.subarray(xOffset, xOffset + size[2]), outOffset);
       outOffset += size[2];
     }
   }
 }
 
-function slice4d(
-    xVals: backend_util.TypedArray, xStride1: number, xStride2: number,
-    xStride3: number, outVals: backend_util.TypedArray,
-    begin: [number, number, number, number],
-    size: [number, number, number, number]): void {
-  let outOffset = 0;
-  const beginI = begin[0];
-  const beginJ = begin[1];
-  const beginK = begin[2];
-  const endI = beginI + size[0];
-  const endJ = beginJ + size[1];
-  const endK = beginK + size[2];
-  const beginL = begin[3];
+void slice4d(
+  List xVals,
+  int xStride1,
+  int xStride2,
+  int xStride3,
+  List outVals,
+  //: [number, number, number, number]
+  List<int> begin,
+  //: [number, number, number, number]
+  List<int> size,
+) {
+  int outOffset = 0;
+  final beginI = begin[0];
+  final beginJ = begin[1];
+  final beginK = begin[2];
+  final endI = beginI + size[0];
+  final endJ = beginJ + size[1];
+  final endK = beginK + size[2];
+  final beginL = begin[3];
 
-  for (let i = beginI; i < endI; i++) {
-    for (let j = beginJ; j < endJ; j++) {
-      for (let k = beginK; k < endK; k++) {
-        const xOffset = i * xStride1 + j * xStride2 + k * xStride3 + beginL;
+  for (int i = beginI; i < endI; i++) {
+    for (int j = beginJ; j < endJ; j++) {
+      for (int k = beginK; k < endK; k++) {
+        final xOffset = i * xStride1 + j * xStride2 + k * xStride3 + beginL;
         outVals.set(xVals.subarray(xOffset, xOffset + size[3]), outOffset);
         outOffset += size[3];
       }
@@ -138,8 +158,8 @@ function slice4d(
   }
 }
 
-export const sliceConfig: KernelConfig = {
+final sliceConfig = KernelConfigG(
   kernelName: Slice,
   backendName: 'wasm',
-  kernelFunc: slice as {} as KernelFunc,
-};
+  kernelFunc: slice,
+);

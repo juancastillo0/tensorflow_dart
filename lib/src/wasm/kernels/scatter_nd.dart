@@ -15,66 +15,85 @@
  * =============================================================================
  */
 
-import {KernelConfig, KernelFunc, scatter_util, ScatterNd, ScatterNdAttrs, ScatterNdInputs, TensorInfo, util} from '@tensorflow/tfjs-core';
+// import {KernelConfig, KernelFunc, scatter_util, ScatterNd, ScatterNdAttrs, ScatterNdInputs, TensorInfo, util} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-import {CppDType} from './types';
+// import {CppDType} from './types';
 
-let wasmScatterNd: (
-    indicesId: number, updatesId: number, dtype: CppDType, sliceRank: number,
-    numUpdates: number, sliceSize: number, strides: Uint8Array,
-    outputSize: number, outId: number) => void;
+import 'dart:typed_data';
 
-function setup(backend: BackendWasm): void {
-  wasmScatterNd = backend.wasm.cwrap(ScatterNd, null /*void*/, [
-    'number',  // indicesId
-    'number',  // updatesId
-    'number',  // dtype
-    'number',  // sliceRank
-    'number',  // numUpdates
-    'number',  // sliceSize
-    'array',   // strides
-    'number',  // outputSize
-    'number'   // outId
+import '_prelude.dart';
+import 'package:tensorflow_wasm/src/ops/scatter_nd_util.dart';
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
+
+late final Function(List) _wasmScatterNd;
+// (    indicesId: number, updatesId: number, dtype: CppDType, sliceRank: number,
+//     numUpdates: number, sliceSize: number, strides: Uint8Array,
+//     outputSize: number, outId: number) => void;
+
+void _setup(BackendWasm backend) {
+  _wasmScatterNd = backend.wasm.cwrap(ScatterNd, null /*void*/, [
+    'number', // indicesId
+    'number', // updatesId
+    'number', // dtype
+    'number', // sliceRank
+    'number', // numUpdates
+    'number', // sliceSize
+    'array', // strides
+    'number', // outputSize
+    'number' // outId
   ]);
 }
 
-function scatterNd(
-    args:
-        {backend: BackendWasm, inputs: ScatterNdInputs, attrs: ScatterNdAttrs}):
-    TensorInfo {
-  const {backend, inputs, attrs} = args;
-  const {indices, updates} = inputs;
-  const {shape} = attrs;
+TensorInfo scatterNd({
+  required BackendWasm backend,
+  required NamedTensorInfoMap inputs,
+  NamedAttrMap? attrs,
+}) {
+  final indices = inputs['indices']!;
+  final updates = inputs['updates']!;
+  final shape = attrs!['shape'] as List<int>;
 
-  const out = backend.makeOutput(shape, updates.dtype);
-  if (util.sizeFromShape(shape) === 0) {
+  final out = backend.makeOutput(shape, updates.dtype);
+  if (util.sizeFromShape(shape) == 0) {
     return out;
   }
 
-  const {sliceRank, numUpdates, sliceSize, strides, outputSize} =
-      scatter_util.calculateShapes(updates, indices, shape);
+  final _shapes = ScatterUtil.calculateShapes(updates, indices, shape);
+  final sliceRank = _shapes.sliceRank;
+  final numUpdates = _shapes.numUpdates;
+  final sliceSize = _shapes.sliceSize;
+  final strides = _shapes.strides;
+  final outputSize = _shapes.outputSize;
 
-  const indicesData = backend.dataIdMap.get(indices.dataId);
-  const indicesId = indicesData.id;
+  final indicesData = backend.dataIdMap.get(indices.dataId)!;
+  final indicesId = indicesData.id;
 
-  const updatesData = backend.dataIdMap.get(updates.dataId);
-  const updatesId = updatesData.id;
+  final updatesData = backend.dataIdMap.get(updates.dataId)!;
+  final updatesId = updatesData.id;
 
-  const stridesBytes = new Uint8Array(new Int32Array(strides).buffer);
+  final stridesBytes = Uint8List.view(Int32List.fromList(strides).buffer);
 
-  const outId = backend.dataIdMap.get(out.dataId).id;
-  wasmScatterNd(
-      indicesId, updatesId, CppDType[updates.dtype], sliceRank, numUpdates,
-      sliceSize, stridesBytes, outputSize, outId);
+  final outId = backend.dataIdMap.get(out.dataId)!.id;
+  _wasmScatterNd([
+    indicesId,
+    updatesId,
+    CppDType.values.byName(updates.dtype).index,
+    sliceRank,
+    numUpdates,
+    sliceSize,
+    stridesBytes,
+    outputSize,
+    outId
+  ]);
 
   return out;
 }
 
-export const scatterNdConfig: KernelConfig = {
+final scatterNdConfig = KernelConfigG(
   kernelName: ScatterNd,
   backendName: 'wasm',
-  setupFunc: setup,
-  kernelFunc: scatterNd as {} as KernelFunc
-};
+  setupFunc: _setup,
+  kernelFunc: scatterNd,
+);

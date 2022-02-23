@@ -15,35 +15,43 @@
  * =============================================================================
  */
 
-import {KernelConfig, KernelFunc, Sigmoid, SigmoidInputs, TensorInfo, util} from '@tensorflow/tfjs-core';
+// import {KernelConfig, KernelFunc, Sigmoid, SigmoidInputs, TensorInfo, util} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-let wasmFunc: (xId: number, outId: number) => void;
+import '_prelude.dart';
 
-function setup(backend: BackendWasm): void {
-  wasmFunc = backend.wasm.cwrap(Sigmoid, null /* void */, ['number', 'number']);
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
+
+late final Function(List) _wasmFunc; //: (xId: number, outId: number) => void;
+
+void _setup(BackendWasm backend) {
+  _wasmFunc =
+      backend.wasm.cwrap(Sigmoid, null /* void */, ['number', 'number']);
 }
 
-function sigmoid(args: {backend: BackendWasm, inputs: SigmoidInputs}):
-    TensorInfo {
-  const {backend, inputs: {x}} = args;
-  const xId = backend.dataIdMap.get(x.dataId).id;
-  const out = backend.makeOutput(x.shape, x.dtype);
-  const outId = backend.dataIdMap.get(out.dataId).id;
+TensorInfo sigmoid({
+  required BackendWasm backend,
+  required NamedTensorInfoMap inputs,
+  NamedAttrMap? attrs,
+}) {
+  final x = inputs['x']!;
+  final xId = backend.dataIdMap.get(x.dataId)!.id;
+  final out = backend.makeOutput(x.shape, x.dtype);
+  final outId = backend.dataIdMap.get(out.dataId)!.id;
 
   // Short-circuit zero-sized tensors.
-  if (util.sizeFromShape(out.shape) === 0) {
+  if (util.sizeFromShape(out.shape) == 0) {
     return out;
   }
 
-  wasmFunc(xId, outId);
+  _wasmFunc([xId, outId]);
   return out;
 }
 
-export const sigmoidConfig: KernelConfig = {
+final sigmoidConfig = KernelConfigG(
   kernelName: 'Sigmoid',
   backendName: 'wasm',
-  setupFunc: setup,
-  kernelFunc: sigmoid as {} as KernelFunc
-};
+  setupFunc: _setup,
+  kernelFunc: sigmoid,
+);

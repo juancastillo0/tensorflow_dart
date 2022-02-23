@@ -15,108 +15,127 @@
  * =============================================================================
  */
 
-import {backend_util, GatherV2, GatherV2Attrs, GatherV2Inputs, KernelConfig, KernelFunc, Tensor, TensorInfo, TypedArray, util} from '@tensorflow/tfjs-core';
+// import {backend_util, GatherV2, GatherV2Attrs, GatherV2Inputs, KernelConfig, KernelFunc, Tensor, TensorInfo, TypedArray, util} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-import {reshape} from './Reshape';
-import {CppDType} from './types';
+// import {reshape} from './Reshape';
+// import {CppDType} from './types';
 
-let wasmGather: (
-    xId: number, dtype: CppDType, xStrides: Uint8Array, stridesSize: number,
-    indicesId: number, batchSize: number, outStrides: Uint8Array,
-    outId: number) => void;
+import 'dart:typed_data';
 
-function setup(backend: BackendWasm): void {
-  wasmGather = backend.wasm.cwrap('Gather', null /*void*/, [
-    'number',  // xId
-    'number',  // dtype
-    'array',   // xStrides
-    'number',  // stridesSize
-    'number',  // indicesId
-    'number',  // batchSize
-    'array',   // outStrides
-    'number'   // outId
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
+import 'package:tensorflow_wasm/backend_util.dart' as backend_util;
+import '_prelude.dart';
+import 'reshape.dart';
+
+late final Function(List) _wasmGather;
+// (
+//     xId: number, dtype: CppDType, xStrides: Uint8Array, stridesSize: number,
+//     indicesId: number, batchSize: number, outStrides: Uint8Array,
+//     outId: number) => void;
+
+void _setup(BackendWasm backend) {
+  _wasmGather = backend.wasm.cwrap('Gather', null /*void*/, [
+    'number', // xId
+    'number', // dtype
+    'array', // xStrides
+    'number', // stridesSize
+    'number', // indicesId
+    'number', // batchSize
+    'array', // outStrides
+    'number' // outId
   ]);
 }
 
-function gatherV2(
-    args: {backend: BackendWasm, inputs: GatherV2Inputs, attrs: GatherV2Attrs}):
-    TensorInfo {
-  const {backend, inputs, attrs} = args;
-  const {x, indices} = inputs;
-  const {axis, batchDims} = attrs;
+TensorInfo gatherV2({
+  required BackendWasm backend,
+  required NamedTensorInfoMap inputs,
+  NamedAttrMap? attrs,
+}) {
+  final x = inputs['x']!;
+  final indices = inputs['indices']!;
+  final axis = [attrs!['axis']! as int];
+  final batchDims = attrs['batchDims']! as int;
 
   // Throw error when any index is out of bound.
-  const parsedAxis = util.parseAxisParam(axis, x.shape)[0];
-  const indicesVals = backend.readSync(indices.dataId) as TypedArray;
-  const axisDim = x.shape[parsedAxis];
-  for (let i = 0; i < indicesVals.length; ++i) {
-    const index = indicesVals[i];
-    util.assert(
+  final parsedAxis = util.parseAxisParam(axis, x.shape)[0];
+  final indicesVals = backend.readSync(indices.dataId);
+  final axisDim = x.shape[parsedAxis];
+  for (int i = 0; i < indicesVals.length; ++i) {
+    final index = indicesVals[i];
+    util.assert_(
         index <= axisDim - 1 && index >= 0,
         () =>
-            `GatherV2: the index value ${index} is not in [0, ${axisDim - 1}]`);
+            'GatherV2: the index value ${index} is not in [0, ${axisDim - 1}]');
   }
 
-  const shapeInfo = backend_util.segment_util.collectGatherOpShapeInfo(
+  final shapeInfo = backend_util.segment_util.collectGatherOpShapeInfo(
       x as Tensor, indices as Tensor, parsedAxis, batchDims);
 
-  const flattenX = reshape({
-    inputs: {x},
-    attrs: {
-      shape: [
-        shapeInfo.batchSize, shapeInfo.outerSize, shapeInfo.dimSize,
-        shapeInfo.sliceSize
-      ]
-    },
-    backend
-  });
-  const indicesSize = util.sizeFromShape(indices.shape);
-  const flattenIndex = reshape({
-    inputs: {x: indices},
-    attrs: {shape: [shapeInfo.batchSize, indicesSize / shapeInfo.batchSize]},
-    backend
-  });
-  const flattenOutputShape = [
-    shapeInfo.batchSize, shapeInfo.outerSize, indicesSize / shapeInfo.batchSize,
+  final flattenX = reshape(inputs: {
+    'x': x
+  }, attrs: {
+    'shape': [
+      shapeInfo.batchSize,
+      shapeInfo.outerSize,
+      shapeInfo.dimSize,
+      shapeInfo.sliceSize
+    ]
+  }, backend: backend);
+  final indicesSize = util.sizeFromShape(indices.shape);
+  final flattenIndex = reshape(inputs: {
+    'x': indices
+  }, attrs: {
+    'shape': [shapeInfo.batchSize, indicesSize / shapeInfo.batchSize]
+  }, backend: backend);
+  final flattenOutputShape = [
+    shapeInfo.batchSize,
+    shapeInfo.outerSize,
+    indicesSize / shapeInfo.batchSize,
     shapeInfo.sliceSize
   ];
 
-  const out = backend.makeOutput(flattenOutputShape, x.dtype);
-  if (util.sizeFromShape(x.shape) === 0) {
+  final out = backend.makeOutput(flattenOutputShape, x.dtype);
+  if (util.sizeFromShape(x.shape) == 0) {
     return out;
   }
-  const stridesSize = flattenX.shape.length - 1;
+  final stridesSize = flattenX.shape.length - 1;
 
-  const xData = backend.dataIdMap.get(flattenX.dataId);
-  const xId = xData.id;
+  final xData = backend.dataIdMap.get(flattenX.dataId)!;
+  final xId = xData.id;
 
-  const indicesData = backend.dataIdMap.get(flattenIndex.dataId);
-  const indicesId = indicesData.id;
+  final indicesData = backend.dataIdMap.get(flattenIndex.dataId)!;
+  final indicesId = indicesData.id;
 
-  const outId = backend.dataIdMap.get(out.dataId).id;
+  final outId = backend.dataIdMap.get(out.dataId)!.id;
 
-  const xStridesBytes = new Uint8Array(
-      new Int32Array(util.computeStrides(flattenX.shape)).buffer);
-  const outStridesBytes = new Uint8Array(
-      new Int32Array(util.computeStrides(flattenOutputShape)).buffer);
+  final xStridesBytes = Uint8List.view(
+      Int32List.fromList(util.computeStrides(flattenX.shape)).buffer);
+  final outStridesBytes = Uint8List.view(
+      Int32List.fromList(util.computeStrides(flattenOutputShape)).buffer);
 
-  wasmGather(
-      xId, CppDType[x.dtype], xStridesBytes, stridesSize, indicesId,
-      shapeInfo.batchSize, outStridesBytes, outId);
+  _wasmGather([
+    xId,
+    CppDType.values.byName(x.dtype).index,
+    xStridesBytes,
+    stridesSize,
+    indicesId,
+    shapeInfo.batchSize,
+    outStridesBytes,
+    outId
+  ]);
 
   backend.disposeData(flattenX.dataId);
   backend.disposeData(flattenIndex.dataId);
 
   // reshape
-  out.shape = shapeInfo.outputShape;
-  return out;
+  return copyTensorInfo(out, shape: shapeInfo.outputShape);
 }
 
-export const gatherV2Config: KernelConfig = {
+final gatherV2Config = KernelConfigG(
   kernelName: GatherV2,
   backendName: 'wasm',
-  setupFunc: setup,
-  kernelFunc: gatherV2 as {} as KernelFunc
-};
+  setupFunc: _setup,
+  kernelFunc: gatherV2,
+);

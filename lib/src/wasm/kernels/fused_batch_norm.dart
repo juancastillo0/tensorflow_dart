@@ -15,50 +15,57 @@
  * =============================================================================
  */
 
-import {FusedBatchNorm, FusedBatchNormAttrs, FusedBatchNormInputs, KernelConfig, KernelFunc, TensorInfo, util} from '@tensorflow/tfjs-core';
+// import {FusedBatchNorm, FusedBatchNormAttrs, FusedBatchNormInputs, KernelConfig, KernelFunc, TensorInfo, util} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-let wasmBatchNorm: (
-    xId: number, meanId: number, varianceId: number, offsetId: number,
-    scaleId: number, varianceEpsilon: number, outId: number) => void;
+import '_prelude.dart';
 
-function setup(backend: BackendWasm): void {
-  wasmBatchNorm = backend.wasm.cwrap(
-      FusedBatchNorm, null /* void */,
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
+
+late final Function(List) _wasmBatchNorm;
+// : (    xId: number, meanId: number, varianceId: number, offsetId: number,
+//     scaleId: number, varianceEpsilon: number, outId: number) => void;
+
+void _setup(BackendWasm backend) {
+  _wasmBatchNorm = backend.wasm.cwrap(FusedBatchNorm, null /* void */,
       ['number', 'number', 'number', 'number', 'number', 'number', 'number']);
 }
 
-function fusedBatchNorm(args: {
-  backend: BackendWasm,
-  inputs: FusedBatchNormInputs,
-  attrs: FusedBatchNormAttrs
-}): TensorInfo {
-  const {backend, inputs, attrs} = args;
-  const {varianceEpsilon} = attrs;
-  const {x, mean, variance, offset, scale} = inputs;
-  const xId = backend.dataIdMap.get(x.dataId).id;
-  const meanId = backend.dataIdMap.get(mean.dataId).id;
-  const varianceId = backend.dataIdMap.get(variance.dataId).id;
-  const offsetId = offset != null ? backend.dataIdMap.get(offset.dataId).id : 0;
-  const scaleId = scale != null ? backend.dataIdMap.get(scale.dataId).id : 0;
+TensorInfo fusedBatchNorm({
+  required BackendWasm backend,
+  required NamedTensorInfoMap inputs,
+  NamedAttrMap? attrs,
+}) {
+  final varianceEpsilon = attrs!['varianceEpsilon'] as num;
+  final x = inputs['x']!;
+  final mean = inputs['mean']!;
+  final variance = inputs['variance']!;
+  final offset = inputs['offset'];
+  final scale = inputs['scale'];
+  final xId = backend.dataIdMap.get(x.dataId)!.id;
+  final meanId = backend.dataIdMap.get(mean.dataId)!.id;
+  final varianceId = backend.dataIdMap.get(variance.dataId)!.id;
+  final offsetId =
+      offset != null ? backend.dataIdMap.get(offset.dataId)!.id : 0;
+  final scaleId = scale != null ? backend.dataIdMap.get(scale.dataId)!.id : 0;
 
-  const out = backend.makeOutput(x.shape, x.dtype);
+  final out = backend.makeOutput(x.shape, x.dtype);
   // Short-circuit zero-sized tensors.
-  if (util.sizeFromShape(x.shape) === 0) {
+  if (util.sizeFromShape(x.shape) == 0) {
     return out;
   }
 
-  const outId = backend.dataIdMap.get(out.dataId).id;
+  final outId = backend.dataIdMap.get(out.dataId)!.id;
 
-  wasmBatchNorm(
-      xId, meanId, varianceId, offsetId, scaleId, varianceEpsilon, outId);
+  _wasmBatchNorm(
+      [xId, meanId, varianceId, offsetId, scaleId, varianceEpsilon, outId]);
   return out;
 }
 
-export const fusedBatchNormConfig: KernelConfig = {
+final fusedBatchNormConfig = KernelConfigG(
   kernelName: FusedBatchNorm,
   backendName: 'wasm',
-  setupFunc: setup,
-  kernelFunc: fusedBatchNorm as {} as KernelFunc
-};
+  setupFunc: _setup,
+  kernelFunc: fusedBatchNorm,
+);

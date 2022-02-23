@@ -18,3 +18,29 @@ TensorInfo copyTensorInfo(
     dtype: dtype ?? info.dtype,
   );
 }
+
+List<int> parseAxis(Object value) {
+  if (value is List<int>) {
+    return value;
+  } else if (value is num) {
+    if (value is int || value.toInt() == value) {
+      return [value.toInt()];
+    }
+    throw Exception(
+      'parseAxis(value=$value) unexpected double.',
+    );
+  } else if (value is List) {
+    return value.map((e) {
+      if (e is num && (e is int || e.toInt() == e)) {
+        return e.toInt();
+      }
+      throw Exception(
+        'parseAxis(value=$value) unexpected item ${e} of type ${value.runtimeType}.',
+      );
+    }).toList();
+  } else {
+    throw Exception(
+      'parseAxis(value=$value) unexpected type ${value.runtimeType}.',
+    );
+  }
+}

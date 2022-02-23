@@ -15,36 +15,52 @@
  * =============================================================================
  */
 
-import {KernelConfig, KernelFunc, SplitV, SplitVAttrs, SplitVInputs, util} from '@tensorflow/tfjs-core';
-import {backend_util} from '@tensorflow/tfjs-core';
+// import {KernelConfig, KernelFunc, SplitV, SplitVAttrs, SplitVInputs, util} from '@tensorflow/tfjs-core';
+// import {backend_util} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-import {slice} from './Slice';
+// import {slice} from './Slice';
 
-export function splitV(
-    args: {inputs: SplitVInputs, attrs: SplitVAttrs, backend: BackendWasm}) {
-  const {inputs, attrs, backend} = args;
-  const {x} = inputs;
-  const {numOrSizeSplits, axis} = attrs;
+import '_prelude.dart';
 
-  const $axis = util.parseAxisParam(axis, x.shape)[0];
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
+import 'package:tensorflow_wasm/backend_util.dart' as backend_util;
 
-  const splitSizes = backend_util.prepareSplitSize(x, numOrSizeSplits, $axis);
-  const begin = new Array(x.shape.length).fill(0);
-  const size = x.shape.slice();
-  return splitSizes.map(s => {
-    const xSliceSize = [...size];
+import 'slice.dart';
+
+TensorInfoList splitV({
+  required NamedTensorInfoMap inputs,
+  NamedAttrMap? attrs,
+  required BackendWasm backend,
+}) {
+  final x = inputs['x']!;
+  final numOrSizeSplits = parseAxis(attrs!['numOrSizeSplits']!);
+  final axis = parseAxis(attrs['axis']!);
+
+  final $axis = util.parseAxisParam(axis, x.shape)[0];
+
+  final splitSizes = backend_util.prepareSplitSize(x, numOrSizeSplits, $axis);
+  final begin = List.filled(x.shape.length, 0);
+  final size = [...x.shape];
+  return TensorInfoList(splitSizes.map((s) {
+    final xSliceSize = [...size];
     xSliceSize[$axis] = s;
-    const xSlice =
-        slice({inputs: {x}, attrs: {begin, size: xSliceSize}, backend});
+    final xSlice = slice(
+      inputs: {'x': x},
+      attrs: {
+        'begin': begin,
+        'size': xSliceSize,
+      },
+      backend: backend,
+    );
     begin[$axis] += s;
     return xSlice;
-  });
+  }).toList());
 }
 
-export const splitVConfig: KernelConfig = {
+final splitVConfig = KernelConfigG(
   kernelName: SplitV,
   backendName: 'wasm',
-  kernelFunc: splitV as {} as KernelFunc
-};
+  kernelFunc: splitV,
+);

@@ -15,97 +15,119 @@
  * =============================================================================
  */
 
-import {_FusedMatMul, _FusedMatMulAttrs, _FusedMatMulInputs, broadcast_util, KernelConfig, KernelFunc} from '@tensorflow/tfjs-core';
+// import {_FusedMatMul, _FusedMatMulAttrs, _FusedMatMulInputs, broadcast_util, KernelConfig, KernelFunc} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-import {FusableActivation} from './types';
+// import {FusableActivation} from './types';
 
-let wasmFusedMatMul:
-    (aId: number, aShape: Uint8Array, aShapeSize: number, bId: number,
-     bShape: Uint8Array, bShapeSize: number, transposeA: boolean,
-     transposeB: boolean, activation: number, biasId: number,
-     preluActivationWeightsId: number, leakyreluAlpha: number, outId: number) =>
-        void;
+import 'dart:typed_data';
 
-function setup(backend: BackendWasm) {
-  wasmFusedMatMul = backend.wasm.cwrap(_FusedMatMul, null /* void */, [
-    'number',  // a_id
-    'array',   // a_shape
-    'number',  // a_shape.length
-    'number',  // b_id
-    'array',   // b_shape
-    'number',  // b_shape.length
-    'number',  // transpose_a
-    'number',  // transpose_b
-    'number',  // activation
-    'number',  // biasId
-    'number',  // preluActivationWeightsId
-    'number',  // leakyreluAlpha
-    'number'   // out_id
+import 'package:tensorflow_wasm/src/ops/fused_types.dart';
+import 'package:collection/collection.dart' hide ListExtensions;
+import '_prelude.dart';
+import '../../ops/broadcast_util.dart' as broadcast_util;
+import 'package:tensorflow_wasm/tensorflow_wasm.dart' show SliceList;
+
+late final Function(List) _wasmFusedMatMul;
+// (aId: number, aShape: Uint8Array, aShapeSize: number, bId: number,
+//  bShape: Uint8Array, bShapeSize: number, transposeA: boolean,
+//  transposeB: boolean, activation: number, biasId: number,
+//  preluActivationWeightsId: number, leakyreluAlpha: number, outId: number) =>
+//     void;
+
+void _setup(BackendWasm backend) {
+  _wasmFusedMatMul = backend.wasm.cwrap(FusedMatMul_, null /* void */, [
+    'number', // a_id
+    'array', // a_shape
+    'number', // a_shape.length
+    'number', // b_id
+    'array', // b_shape
+    'number', // b_shape.length
+    'number', // transpose_a
+    'number', // transpose_b
+    'number', // activation
+    'number', // biasId
+    'number', // preluActivationWeightsId
+    'number', // leakyreluAlpha
+    'number' // out_id
   ]);
 }
 
-function fusedBatchMatMul(args: {
-  inputs: _FusedMatMulInputs,
-  backend: BackendWasm,
-  attrs: _FusedMatMulAttrs
-}) {
-  const {inputs, backend, attrs} = args;
-  const {a, b, bias, preluActivationWeights} = inputs;
+TensorInfo fusedBatchMatMul(
+    {required NamedTensorInfoMap inputs,
+    required BackendWasm backend,
+    NamedAttrMap? attrs}) {
+  final a = inputs['a']!;
+  final b = inputs['b']!;
+  final bias = inputs['bias'];
+  final preluActivationWeights = inputs['preluActivationWeights'];
 
-  if (a.dtype !== 'float32' || b.dtype !== 'float32') {
-    throw new Error(
-        `_FusedMatMul for non non-float32 tensors not yet supported.`);
+  if (a.dtype != 'float32' || b.dtype != 'float32') {
+    throw Exception(
+        "_FusedMatMul for non non-float32 tensors not yet supported.");
   }
 
-  const {transposeA, transposeB, activation, leakyreluAlpha} = attrs;
-  const aId = backend.dataIdMap.get(a.dataId).id;
-  const bId = backend.dataIdMap.get(b.dataId).id;
+  final transposeA = attrs!['transposeA'] as bool;
+  final transposeB = attrs['transposeB'] as bool;
+  final activation = attrs['activation'] as Activation;
+  final leakyreluAlpha = attrs['leakyreluAlpha'] as num?;
+  final aId = backend.dataIdMap.get(a.dataId)!.id;
+  final bId = backend.dataIdMap.get(b.dataId)!.id;
 
-  let biasId = 0;
+  int biasId = 0;
   if (bias != null) {
-    const biasData = backend.dataIdMap.get(bias.dataId);
-    if (biasData.shape.length !== 1) {
-      throw new Error(
-          `_FusedMatMul only supports rank-1 bias but got ` +
-          `rank ${biasData.shape.length}.`);
+    final biasData = backend.dataIdMap.get(bias.dataId)!;
+    if (biasData.shape.length != 1) {
+      throw Exception("_FusedMatMul only supports rank-1 bias but got " +
+          "rank ${biasData.shape.length}.");
     }
     biasId = biasData.id;
   }
-  const preluActivationWeightsId = preluActivationWeights == null ?
-      0 :
-      backend.dataIdMap.get(preluActivationWeights.dataId).id;
-  const fusedActivation =
-      FusableActivation[activation as {} as keyof typeof FusableActivation];
+  final preluActivationWeightsId = preluActivationWeights == null
+      ? 0
+      : backend.dataIdMap.get(preluActivationWeights.dataId)!.id;
+  final fusedActivation = FusableActivation.values
+      .firstWhereOrNull((a) => a.name == activation.name);
   if (fusedActivation == null) {
-    throw new Error(
-        `${activation} activation not yet supported for FusedConv2D ` +
-        `in the wasm backend.`);
+    throw Exception(
+        "${activation} activation not yet supported for FusedConv2D " +
+            "in the wasm backend.");
   }
 
-  const leftDim = transposeA ? a.shape[2] : a.shape[1];
-  const rightDim = transposeB ? b.shape[1] : b.shape[2];
-  const batchDims = broadcast_util.assertAndGetBroadcastShape(
+  final leftDim = transposeA ? a.shape[2] : a.shape[1];
+  final rightDim = transposeB ? b.shape[1] : b.shape[2];
+  final batchDims = broadcast_util.assertAndGetBroadcastShape(
       a.shape.slice(0, -2), b.shape.slice(0, -2));
 
-  const out = backend.makeOutput([...batchDims, leftDim, rightDim], a.dtype);
-  const outId = backend.dataIdMap.get(out.dataId).id;
+  final out = backend.makeOutput([...batchDims, leftDim, rightDim], a.dtype);
+  final outId = backend.dataIdMap.get(out.dataId)!.id;
 
-  const aShapeBytes = new Uint8Array(new Int32Array(a.shape).buffer);
-  const bShapeBytes = new Uint8Array(new Int32Array(b.shape).buffer);
+  final aShapeBytes = Uint8List.view(Int32List.fromList(a.shape).buffer);
+  final bShapeBytes = Uint8List.view(Int32List.fromList(b.shape).buffer);
 
-  wasmFusedMatMul(
-      aId, aShapeBytes, a.shape.length, bId, bShapeBytes, b.shape.length,
-      transposeA, transposeB, fusedActivation, biasId, preluActivationWeightsId,
-      leakyreluAlpha || 0, outId);
+  _wasmFusedMatMul([
+    aId,
+    aShapeBytes,
+    a.shape.length,
+    bId,
+    bShapeBytes,
+    b.shape.length,
+    transposeA,
+    transposeB,
+    fusedActivation,
+    biasId,
+    preluActivationWeightsId,
+    leakyreluAlpha ?? 0,
+    outId
+  ]);
 
   return out;
 }
 
-export const _fusedMatMulConfig: KernelConfig = {
-  kernelName: _FusedMatMul,
+final fusedMatMulConfig_ = KernelConfigG(
+  kernelName: FusedMatMul_,
   backendName: 'wasm',
-  setupFunc: setup,
-  kernelFunc: fusedBatchMatMul as {} as KernelFunc
-};
+  setupFunc: _setup,
+  kernelFunc: fusedBatchMatMul,
+);

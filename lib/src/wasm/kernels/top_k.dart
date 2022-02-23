@@ -15,54 +15,68 @@
  * =============================================================================
  */
 
-import {KernelConfig, KernelFunc, TensorInfo, TopK, TopKAttrs, TopKInputs} from '@tensorflow/tfjs-core';
+// import {KernelConfig, KernelFunc, TensorInfo, TopK, TopKAttrs, TopKInputs} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
-import {CppDType} from './types';
+// import {BackendWasm} from '../backend_wasm';
+// import {CppDType} from './types';
 
-let wasmTopK: (
-    xId: number, xShapeBytes: Uint8Array, xShapeLength: number,
-    xDtype: CppDType, k: number, sorted: boolean, outValuesId: number,
-    outIndicesId: number) => void;
+import 'dart:typed_data';
 
-function setup(backend: BackendWasm) {
-  wasmTopK = backend.wasm.cwrap(TopK, null /* void */, [
-    'number',  // xId
-    'array',   // x.shape
-    'number',  // x.shape.length
-    'number',  // x.dtype
-    'number',  // k
-    'bool',    // sorted
-    'number',  // outValuesId
-    'number',  // outIndicesId
+import '_prelude.dart';
+
+late final Function(List) _wasmTopK;
+// (xId: number, xShapeBytes: Uint8Array, xShapeLength: number,
+// xDtype: CppDType, k: number, sorted: boolean, outValuesId: number,
+// outIndicesId: number) => void;
+
+void _setup(BackendWasm backend) {
+  _wasmTopK = backend.wasm.cwrap(TopK, null /* void */, [
+    'number', // xId
+    'array', // x.shape
+    'number', // x.shape.length
+    'number', // x.dtype
+    'number', // k
+    'bool', // sorted
+    'number', // outValuesId
+    'number', // outIndicesId
   ]);
 }
 
-export const topk:
-    (args: {inputs: TopKInputs, backend: BackendWasm, attrs: TopKAttrs}) =>
-        TensorInfo[] | TensorInfo = ({inputs, backend, attrs}) => {
-          const {x} = inputs;
-          const {k, sorted} = attrs;
+TensorInfoList topk({
+  required NamedTensorInfoMap inputs,
+  required BackendWasm backend,
+  NamedAttrMap? attrs,
+}) {
+  final x = inputs['x']!;
+  final k = attrs!['k'] as int;
+  final sorted = attrs['sorted'] as bool;
 
-          const xId = backend.dataIdMap.get(x.dataId).id;
-          const xShapeBytes = new Uint8Array(new Int32Array(x.shape).buffer);
-          const outputShape = x.shape.slice();
-          outputShape[outputShape.length - 1] = k;
-          const outValues = backend.makeOutput(outputShape, x.dtype);
-          const outValuesId = backend.dataIdMap.get(outValues.dataId).id;
-          const outIndices = backend.makeOutput(outputShape, 'int32');
-          const outIndicesId = backend.dataIdMap.get(outIndices.dataId).id;
+  final xId = backend.dataIdMap.get(x.dataId)!.id;
+  final xShapeBytes = Uint8List.view(Int32List.fromList(x.shape).buffer);
+  final outputShape = [...x.shape];
+  outputShape[outputShape.length - 1] = k;
+  final outValues = backend.makeOutput(outputShape, x.dtype);
+  final outValuesId = backend.dataIdMap.get(outValues.dataId)!.id;
+  final outIndices = backend.makeOutput(outputShape, 'int32');
+  final outIndicesId = backend.dataIdMap.get(outIndices.dataId)!.id;
 
-          wasmTopK(
-              xId, xShapeBytes, x.shape.length, CppDType[x.dtype], k, sorted,
-              outValuesId, outIndicesId);
+  _wasmTopK([
+    xId,
+    xShapeBytes,
+    x.shape.length,
+    CppDType.values.byName(x.dtype).index,
+    k,
+    sorted,
+    outValuesId,
+    outIndicesId
+  ]);
 
-          return [outValues, outIndices];
-        };
+  return TensorInfoList([outValues, outIndices]);
+}
 
-export const topKConfig: KernelConfig = {
+final topKConfig = KernelConfigG(
   kernelName: TopK,
   backendName: 'wasm',
-  setupFunc: setup,
-  kernelFunc: topk as {} as KernelFunc,
-};
+  setupFunc: _setup,
+  kernelFunc: topk,
+);

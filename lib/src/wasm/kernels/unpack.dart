@@ -15,45 +15,54 @@
  * =============================================================================
  */
 
-import {KernelConfig, KernelFunc, TensorInfo, Unpack, UnpackAttrs, UnpackInputs} from '@tensorflow/tfjs-core';
+// import {KernelConfig, KernelFunc, TensorInfo, Unpack, UnpackAttrs, UnpackInputs} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-import {slice} from './Slice';
+// import {slice} from './Slice';
 
-function unpack(
-    args: {inputs: UnpackInputs, backend: BackendWasm, attrs: UnpackAttrs}):
-    TensorInfo[] {
-  const {inputs, backend, attrs} = args;
-  const {value} = inputs;
-  let {axis} = attrs;
+import '_prelude.dart';
+import 'slice.dart';
+
+TensorInfoList unpack({
+  required NamedTensorInfoMap inputs,
+  required BackendWasm backend,
+  NamedAttrMap? attrs,
+}) {
+  final value = inputs['value']!;
+  int axis = attrs!['axis'] as int;
 
   if (axis < 0) {
     axis += value.shape.length;
   }
 
-  const numOutputs = value.shape[axis];
-  const rank = value.shape.length;
-  const outShape: number[] = new Array(rank - 1);
-  let outIndex = 0;
-  for (let i = 0; i < rank; i++) {
-    if (i !== axis) {
-      outShape[outIndex++] = value.shape[i];
+  final numOutputs = value.shape[axis];
+  final rank = value.shape.length;
+  final List<int> outShape = [];
+
+  for (int i = 0; i < rank; i++) {
+    if (i != axis) {
+      outShape.add(value.shape[i]);
     }
   }
-  const outs: TensorInfo[] = new Array(numOutputs);
-  const begin = new Array(rank).fill(0);
-  const size = value.shape.slice();
+  final List<TensorInfo> outs = [];
+  final begin = List.filled(rank, 0);
+  final size = [...value.shape];
   size[axis] = 1;
-  for (let i = 0; i < outs.length; i++) {
+  for (int i = 0; i < outs.length; i++) {
     begin[axis] = i;
-    outs[i] = slice({inputs: {x: value}, attrs: {begin, size}, backend});
+    outs.add(slice(
+      inputs: {'x': value},
+      attrs: {'begin': begin, 'size': size},
+      backend: backend,
+    ));
   }
-  return outs.map(({dataId, dtype}) => ({dataId, dtype, shape: outShape}));
+  return TensorInfoList(
+      outs.map((t) => copyTensorInfo(t, shape: outShape)).toList());
 }
 
-export const unpackConfig: KernelConfig = {
+final unpackConfig = KernelConfigG(
   kernelName: Unpack,
   backendName: 'wasm',
-  kernelFunc: unpack as {} as KernelFunc,
-};
+  kernelFunc: unpack,
+);
