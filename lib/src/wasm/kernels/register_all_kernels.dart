@@ -9,14 +9,27 @@ import 'package:tensorflow_wasm/src/wasm/kernels/concat.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/cumsum.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/depthwise_conv2d_native.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/expand_dims.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/fused_batch_norm.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/fused_conv2d.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/fused_depthwise_conv2d.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/fused_mat_mul_.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/gather_nd.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/gather_v2.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/identity.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/max.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/pack.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/reshape.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/scatter_nd.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/select.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/sigmoid.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/slice.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/softmax.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/split_v.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/sum.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/tile.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/top_k.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/transpose.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/unpack.dart';
 
 void registerAllKernels() {
   final configs = <KernelConfig>[
@@ -74,17 +87,23 @@ void registerAllKernels() {
     reshapeConfig,
     selectConfig,
     tileConfig,
+    fusedBatchNormConfig,
+    fusedConv2DConfig,
+    fusedDepthwiseConv2DConfig,
+    fusedMatMulConfig_,
+    gatherNdConfig,
+    gatherV2Config,
+    scatterNdConfig,
+    sigmoidConfig,
+    sliceConfig,
+    softmaxConfig,
+    splitVConfig,
+    topKConfig,
+    unpackConfig,
     //
     depthwiseConv2dNativeConfig,
     // Mean
-    // FusedBatchNorm
-    // FusedConv2D
-    // FusedDepthwiseConv2D
     // OneHot
-    // Sigmoid
-    // Softmax
-    // TopK
-    // _FusedMatMul
 
     // AvgPool
     // BatchToSpaceND
@@ -95,11 +114,6 @@ void registerAllKernels() {
     // DepthToSpace
     // Fill
     // FlipLeftRight
-    // FusedBatchNorm
-    // FusedConv2D
-    // FusedDepthwiseConv2D
-    // GatherNd
-    // GatherV2
     // LeakyRelu
     // MaxPool
     // MirrorPad
@@ -115,19 +129,14 @@ void registerAllKernels() {
     // ResizeBilinear
     // Reverse
     // RotateWithOffset
-    // ScatterNd
-    // Slice
     // SpaceToBatchND
     // SparseFillEmptyRows
     // SparseReshape
     // SparseSegmentMean
     // SparseSegmentReduction
     // SparseSegmentSum
-    // SplitV
     // Step
-    // StridedSlice
     // Transform
-    // Unpack
     // ZerosLike
   ];
 
