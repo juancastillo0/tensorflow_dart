@@ -37,10 +37,10 @@ import 'fused_types.dart';
 
 // Returns gradient for fused activation.
 Tensor getFusedDyActivation(Tensor dy, Tensor y, Activation activation) {
-  if (activation == null || activation == 'linear') {
+  if (activation == null || activation == Activation.linear) {
     return dy;
   }
-  if (activation == 'relu') {
+  if (activation == Activation.relu) {
     return mul(dy, step(y));
   }
   throw Exception(
@@ -64,19 +64,19 @@ Tensor applyActivation(
   Tensor? preluActivationWeights,
   double? leakyreluAlpha,
 }) {
-  if (activation == 'linear') {
+  if (activation == Activation.linear) {
     return x;
-  } else if (activation == 'relu') {
+  } else if (activation == Activation.relu) {
     return relu(x);
-  } else if (activation == 'elu') {
+  } else if (activation == Activation.elu) {
     return elu(x);
-  } else if (activation == 'relu6') {
+  } else if (activation == Activation.relu6) {
     return relu6(x);
-  } else if (activation == 'prelu') {
+  } else if (activation == Activation.prelu) {
     return prelu(x, preluActivationWeights!);
-  } else if (activation == 'leakyrelu') {
+  } else if (activation == Activation.leakyrelu) {
     return leakyRelu(x, leakyreluAlpha!);
-  } else if (activation == 'sigmoid') {
+  } else if (activation == Activation.sigmoid) {
     return sigmoid(x);
   }
   throw Exception('Unknown fused activation ${activation}.');
@@ -85,5 +85,5 @@ Tensor applyActivation(
 // Whether we should call fused ops.
 bool shouldFuse(int gradientDepth, Activation activation) {
   final gradientMode = gradientDepth > 0;
-  return !gradientMode || activation == 'linear';
+  return !gradientMode || activation == Activation.linear;
 }
