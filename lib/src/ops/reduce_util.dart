@@ -19,20 +19,29 @@
  * Inputs of size above this threshold will be parallelized by calling multiple
  * shader programs.
  */
-import {nearestDivisor} from '../util';
 
-export const PARALLELIZE_THRESHOLD = 30;
+import '../util_base.dart' show nearestDivisor;
+import 'dart:math' as math;
 
-export interface ReduceInfo {
-  windowSize: number;
-  batchSize: number;
-  inSize: number;
-  outSize: number;
+const PARALLELIZE_THRESHOLD = 30;
+
+class ReduceInfo {
+  final int windowSize;
+  final int batchSize;
+  final int inSize;
+  final int outSize;
+
+  ReduceInfo({
+    required this.windowSize,
+    required this.batchSize,
+    required this.inSize,
+    required this.outSize,
+  });
 }
 
-export function computeOptimalWindowSize(inSize: number): number {
+int computeOptimalWindowSize(int inSize) {
   if (inSize <= PARALLELIZE_THRESHOLD) {
     return inSize;
   }
-  return nearestDivisor(inSize, Math.floor(Math.sqrt(inSize)));
+  return nearestDivisor(inSize, math.sqrt(inSize).floor());
 }

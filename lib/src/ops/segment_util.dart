@@ -1,3 +1,10 @@
+import 'dart:math' as math;
+import 'package:tensorflow_wasm/src/ops/reduce_util.dart'
+    show PARALLELIZE_THRESHOLD;
+import 'package:tensorflow_wasm/src/tensor.dart';
+
+import '../util_base.dart' show nearestDivisor;
+
 /**
  * @license
  * Copyright 2018 Google LLC. All Rights Reserved.
@@ -15,32 +22,38 @@
  * =============================================================================
  */
 
-import {TensorInfo} from '../kernel_registry';
-import {nearestDivisor} from '../util';
+// import {TensorInfo} from '../kernel_registry';
+// import {nearestDivisor} from '../util';
 
-import {PARALLELIZE_THRESHOLD} from './reduce_util';
+// import {PARALLELIZE_THRESHOLD} from './reduce_util';
 
-export interface SegOpInfo {
-  windowSize: number;
-  batchSize: number;
-  inSize: number;
-  numSegments: number;
+class SegOpInfo {
+  final int windowSize;
+  final int batchSize;
+  final int inSize;
+  final int numSegments;
+
+  SegOpInfo({
+    required this.windowSize,
+    required this.batchSize,
+    required this.inSize,
+    required this.numSegments,
+  });
 }
 
-export function segOpComputeOptimalWindowSize(
-    inSize: number, numSegments: number): number {
-  let done = false;
-  let res;
+int segOpComputeOptimalWindowSize(int inSize, int numSegments) {
+  bool done = false;
+  int res;
 
   if (inSize <= PARALLELIZE_THRESHOLD) {
     res = inSize;
     done = true;
   } else {
-    res = nearestDivisor(inSize, Math.floor(Math.sqrt(inSize)));
+    res = nearestDivisor(inSize, math.sqrt(inSize).floor());
   }
 
   while (!done) {
-    if (res > numSegments || res === inSize) {
+    if (res > numSegments || res == inSize) {
       done = true;
     } else {
       res = nearestDivisor(inSize, res + 1);
@@ -49,38 +62,44 @@ export function segOpComputeOptimalWindowSize(
   return res;
 }
 
-export function computeOutShape(
-    aShape: number[], axis: number, numSegments: number): number[] {
-  const outShape = [];
-  const rank = aShape.length;
-  for (let dim = 0; dim < rank; dim++) {
-    if (dim !== axis) {
-      outShape.push(aShape[dim]);
+Shape computeSegmentOutShape(Shape aShape, int axis, int numSegments) {
+  final Shape outShape = [];
+  final rank = aShape.length;
+  for (int dim = 0; dim < rank; dim++) {
+    if (dim != axis) {
+      outShape.add(aShape[dim]);
     } else {
-      outShape.push(numSegments);
+      outShape.add(numSegments);
     }
   }
   return outShape;
 }
 
-export interface GatherOpShapeInfo {
-  batchSize: number;
-  sliceSize: number;
-  outerSize: number;
-  dimSize: number;
-  outputShape: number[];
+class GatherOpShapeInfo {
+  final int batchSize;
+  final int sliceSize;
+  final int outerSize;
+  final int dimSize;
+  final List<int> outputShape;
+
+  GatherOpShapeInfo({
+    required this.batchSize,
+    required this.sliceSize,
+    required this.outerSize,
+    required this.dimSize,
+    required this.outputShape,
+  });
 }
 
-export function collectGatherOpShapeInfo(
-    x: TensorInfo, indices: TensorInfo, axis: number,
-    batchDims: number): GatherOpShapeInfo {
-  const indicesRank = indices.shape.length;
-  const xRank = x.shape.length;
+GatherOpShapeInfo collectGatherOpShapeInfo(
+    TensorInfo x, TensorInfo indices, int axis, int batchDims) {
+  final indicesRank = indices.shape.length;
+  final xRank = x.shape.length;
 
-  if (batchDims !== 0) {
+  if (batchDims != 0) {
     if (batchDims < -indicesRank || batchDims > indicesRank) {
-      throw new Error(`Expect batchDims in the range of [-${indicesRank}, ${
-          indicesRank}], but got ${batchDims}`);
+      throw Exception(
+          'Expect batchDims in the range of [-${indicesRank}, ${indicesRank}], but got ${batchDims}');
     }
   }
 
@@ -89,47 +108,52 @@ export function collectGatherOpShapeInfo(
   }
 
   if (batchDims > xRank) {
-    throw new Error(`batchDims (${batchDims}) must be less than rank(x) (
-    ${xRank}).`);
+    throw Exception(
+        'batchDims (${batchDims}) must be less than rank(x) (${xRank}).');
   }
 
   if (axis < batchDims) {
-    throw new Error(`batchDims (${
-        batchDims}) must be less than or equal to axis (${axis}).`);
+    throw Exception(
+        'batchDims (${batchDims}) must be less than or equal to axis (${axis}).');
   }
 
-  for (let i = 0; i < batchDims; ++i) {
-    if (x.shape[i] !== indices.shape[i]) {
-      throw new Error(
-          `x.shape[${i}]: ${x.shape[i]} should be equal to indices.shape[${
-              i}]: ${indices.shape[i]}.`);
+  for (int i = 0; i < batchDims; ++i) {
+    if (x.shape[i] != indices.shape[i]) {
+      throw Exception(
+          'x.shape[${i}]: ${x.shape[i]} should be equal to indices.shape[${i}]: ${indices.shape[i]}.');
     }
   }
-  const dimSize = x.shape[axis];
+  final dimSize = x.shape[axis];
 
-  const outputShape: number[] = [];
-  let batchSize = 1;
-  let outerSize = 1;
-  let sliceSize = 1;
+  final Shape outputShape = [];
+  int batchSize = 1;
+  int outerSize = 1;
+  int sliceSize = 1;
 
-  for (let i = 0; i < batchDims; ++i) {
-    outputShape.push(x.shape[i]);
+  for (int i = 0; i < batchDims; ++i) {
+    outputShape.add(x.shape[i]);
     batchSize *= x.shape[i];
   }
 
-  for (let i = batchDims; i < axis; i++) {
-    outputShape.push(x.shape[i]);
+  for (int i = batchDims; i < axis; i++) {
+    outputShape.add(x.shape[i]);
     outerSize *= x.shape[i];
   }
 
-  for (let i = batchDims; i < indicesRank; i++) {
-    outputShape.push(indices.shape[i]);
+  for (int i = batchDims; i < indicesRank; i++) {
+    outputShape.add(indices.shape[i]);
   }
 
-  for (let i = axis + 1; i < xRank; i++) {
-    outputShape.push(x.shape[i]);
+  for (int i = axis + 1; i < xRank; i++) {
+    outputShape.add(x.shape[i]);
     sliceSize *= x.shape[i];
   }
 
-  return {batchSize, sliceSize, outerSize, dimSize, outputShape};
+  return GatherOpShapeInfo(
+    batchSize: batchSize,
+    sliceSize: sliceSize,
+    outerSize: outerSize,
+    dimSize: dimSize,
+    outputShape: outputShape,
+  );
 }

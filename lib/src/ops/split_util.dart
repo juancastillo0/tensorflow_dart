@@ -14,44 +14,47 @@
  * limitations under the License.
  * =============================================================================
  */
-import {TensorInfo} from '../kernel_registry';
-import {Tensor} from '../tensor';
-import {assert} from '../util';
+// import {TensorInfo} from '../kernel_registry';
+// import {Tensor} from '../tensor';
+// import {assert} from '../util';
+
+import 'package:tensorflow_wasm/src/tensor.dart';
+
+import '../util_base.dart';
 
 /**
  * Prepare the split size array. When the input is a number, the axis is evenly
  * divided among the split size. When the input contains the negative value, the
  * rest of the axis is allocated toward that.
  */
-export function prepareSplitSize(
-    x: Tensor|TensorInfo, numOrSizeSplits: number[]|number,
-    axis = 0): number[] {
-  let splitSizes = [];
-  if (typeof (numOrSizeSplits) === 'number') {
-    assert(
-        x.shape[axis] % numOrSizeSplits === 0,
+List<int> prepareSplitSize(
+  TensorInfo x,
+  List<int> numOrSizeSplits, [
+  int axis = 0,
+]) {
+  List<int> splitSizes = [];
+  if (numOrSizeSplits is int) {
+    final size = numOrSizeSplits as int;
+    assert_(x.shape[axis] % size == 0,
         () => 'Number of splits must evenly divide the axis.');
-    splitSizes =
-        new Array(numOrSizeSplits).fill(x.shape[axis] / numOrSizeSplits);
+    splitSizes = List.filled(size, x.shape[axis] ~/ size);
   } else {
-    const numOfNegs = numOrSizeSplits.reduce((count, value) => {
-      if (value === -1) {
+    final numOfNegs = numOrSizeSplits.fold<int>(0, (count, value) {
+      if (value == -1) {
         count += 1;
       }
       return count;
-    }, 0);
-    assert(
-        numOfNegs <= 1,
+    });
+    assert_(numOfNegs <= 1,
         () => 'There should be only one negative value in split array.');
-    const negIndex = numOrSizeSplits.indexOf(-1);
+    final negIndex = numOrSizeSplits.indexOf(-1);
     // Allow the number of split array to be -1, which indicates the rest
     // of dimension is allocated to that split.
-    if (negIndex !== -1) {
-      const total = numOrSizeSplits.reduce((a, b) => b > 0 ? a + b : a);
+    if (negIndex != -1) {
+      final total = numOrSizeSplits.reduce((a, b) => b > 0 ? a + b : a);
       numOrSizeSplits[negIndex] = x.shape[axis] - total;
     }
-    assert(
-        x.shape[axis] === numOrSizeSplits.reduce((a, b) => a + b),
+    assert_(x.shape[axis] == numOrSizeSplits.reduce((a, b) => a + b),
         () => 'The sum of sizes must match the size of the axis dimension.');
     splitSizes = numOrSizeSplits;
   }

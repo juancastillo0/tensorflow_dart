@@ -164,7 +164,7 @@ List<int> maskToAxes(int mask) {
 bool _intBool(int value) => value != 0;
 
 /** Computes the output shape given the strided slice params. */
-List<int> computeOutShape(List<int> begin, List<int> end, List<int> strides) {
+List<int> computeSliceOutShape(List<int> begin, List<int> end, List<int> strides) {
   final size = <int>[];
   for (int axis = 0; axis < begin.length; axis++) {
     size[axis] = ((end[axis] - begin[axis]) / strides[axis]).ceil();

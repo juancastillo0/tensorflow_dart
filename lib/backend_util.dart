@@ -24,12 +24,12 @@ export './src/ops/axis_util.dart';
 export './src/ops/broadcast_util.dart';
 export './src/ops/concat_util.dart';
 export './src/ops/conv_util.dart';
-export './src/ops/fused_util.dart';
 export './src/ops/fused_types.dart';
-// export './src/ops/reduce_util.dart';
+export './src/ops/reduce_util.dart';
 
 // import * as slice_util from './src/ops/slice_util.dart';
 // export {slice_util};
+export './src/ops/slice_util.dart';
 
 // export {BackendValues, TypedArray, upcastType, PixelData} from './src/types.dart';
 export './src/engine.dart' show MemoryInfo, TimingInfo;
@@ -38,18 +38,19 @@ export './src/engine.dart' show MemoryInfo, TimingInfo;
 export './src/ops/gather_nd_util.dart';
 export './src/ops/scatter_nd_util.dart';
 // export './src/ops/selu_util.dart';
-// export './src/ops/fused_util.dart';
+export './src/ops/fused_util.dart';
 // export './src/ops/erf_util.dart';
 // export './src/log.dart';
 // export './src/backends/complex_util.dart';
 // export './src/backends/einsum_util.dart';
-// export './src/ops/split_util.dart';
+export './src/ops/split_util.dart';
 // export './src/ops/sparse/sparse_fill_empty_rows_util.dart';
 // export './src/ops/sparse/sparse_reshape_util.dart';
 // export './src/ops/sparse/sparse_segment_reduction_util.dart';
 
 // import * as './src/ops/segment_util.dart';
 // export {segment_util};
+export './src/ops/segment_util.dart';
 
 List<String> fromUint8ToStringArray(List<Uint8List> vals) {
   try {
