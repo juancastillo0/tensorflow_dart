@@ -1,3 +1,8 @@
+import 'dart:math' as math;
+import '_prelude.dart';
+import 'buffer.dart';
+import 'rand_util.dart';
+import 'reshape.dart';
 
 /**
  * Creates a `tf.Tensor` with values drawn from a multinomial distribution.
@@ -19,42 +24,48 @@
  *
  * @doc {heading: 'Tensors', subheading: 'Random'}
  */
-function multinomial_(
-    logits: Tensor1D|Tensor2D|TensorLike, numSamples: number, seed?: number,
-    normalized = false): Tensor1D|Tensor2D {
-  const $logits = convertToTensor(logits, 'logits', 'multinomial');
-  const numOutcomes = $logits.size;
-  const origRank = $logits.rank;
-  if (numOutcomes < 2) {
-    throw new Error(
-        `Error in multinomial: you need at least 2 outcomes, but got ` +
-        `${numOutcomes}.`);
-  }
-  if (origRank > 2) {
-    throw new Error(`Rank of probabilities must be 1 or 2, but is ${origRank}`);
-  }
-  // TODO(lina128): Investigate correct seed behavior. The code seems not allow
-  // setting see to 0.
-  seed = seed || Math.random();
+Tensor1D multinomial(
+  // Tensor1D|Tensor2D
+  Tensor logits,
+  int numSamples, {
+  int? seed,
+  bool normalized = false,
+}) {
+  return execOp('multinomial', () {
+    final $logits = convertToTensor(logits, 'logits', 'multinomial');
+    final numOutcomes = $logits.size;
+    final origRank = $logits.rank;
+    if (numOutcomes < 2) {
+      throw Exception(
+          'Error in multinomial: you need at least 2 outcomes, but got ' +
+              '${numOutcomes}.');
+    }
+    if (origRank > 2) {
+      throw Exception(
+          'Rank of probabilities must be 1 or 2, but is ${origRank}');
+    }
+    // TODO(lina128): Investigate correct seed behavior. The code seems not allow
+    // setting see to 0.
+    seed = seed ?? math.Random().nextInt((1e10).toInt());
 
-  // The kernel only accepts (and returns) rank 2 tensors.
-  const logits2D: Tensor2D =
-      origRank === 1 ? reshape($logits, [1, -1]) : $logits as Tensor2D;
+    // The kernel only accepts (and returns) rank 2 tensors.
+    final Tensor2D logits2D =
+        origRank == 1 ? reshape($logits, [1, -1]) : $logits as Tensor2D;
 
-  const inputs: MultinomialInputs = {logits: logits2D};
-  const attrs: MultinomialAttrs = {numSamples, seed, normalized};
+    final inputs = {'logits': logits2D}; // : MultinomialInputs
+    final attrs = {
+      'numSamples': numSamples,
+      'seed': seed,
+      'normalized': normalized,
+    }; // : MultinomialAttrs
 
-  // tslint:disable-next-line: no-unnecessary-type-assertion
-  const res = ENGINE.runKernel(
-                  Multinomial, inputs as {} as NamedTensorMap,
-                  attrs as {} as NamedAttrMap) as Tensor2D;
+    // tslint:disable-next-line: no-unnecessary-type-assertion
+    final res = ENGINE.runKernel(Multinomial, inputs, attrs) as Tensor2D;
 
-  // tslint:disable-next-line:no-unnecessary-type-assertion
-  return origRank === 1 ? reshape(res, [res.size]) as Tensor1D : res;
+    // tslint:disable-next-line:no-unnecessary-type-assertion
+    return origRank == 1 ? reshape(res, [res.size]) as Tensor1D : res;
+  });
 }
-
-export const multinomial = op({multinomial_});
-
 
 /**
  * Creates a `tf.Tensor` with values sampled from a uniform distribution.
@@ -68,27 +79,31 @@ export const multinomial = op({multinomial_});
  * ```
  *
  * @param shape An array of integers defining the output tensor shape.
- * @param minval The lower bound on the range of random values to generate.
+ * @param min The lower bound on the range of random values to generate.
  *   Defaults to 0.
- * @param maxval The upper bound on the range of random values to generate.
+ * @param max The upper bound on the range of random values to generate.
  *   Defaults to 1.
  * @param dtype The data type of the output tensor. Defaults to 'float32'.
  *
  * @doc {heading: 'Tensors', subheading: 'Random'}
  */
-function randomUniform_<R extends Rank>(
-    shape: ShapeMap[R], minval = 0, maxval = 1, dtype: DataType = 'float32',
-    seed?: number|string): Tensor<R> {
-  const res = buffer(shape, dtype);
-  const random = new UniformRandom(minval, maxval, null, seed);
-  for (let i = 0; i < res.values.length; i++) {
-    res.values[i] = random.nextValue();
-  }
-  return res.toTensor();
+Tensor<R> randomUniform<R extends Rank>(
+  // : ShapeMap[R]
+  Shape shape, {
+  double min = 0,
+  double max = 1,
+  DataType dtype = 'float32',
+  int? seed,
+}) {
+  return execOp('randomUniform', () {
+    final res = buffer(shape, dtype, null);
+    final random = UniformRandom(min: min, max: max, seed: seed);
+    for (int i = 0; i < res.values.length; i++) {
+      res.values[i] = random.nextValue();
+    }
+    return res.toTensor() as Tensor<R>;
+  });
 }
-
-export const randomUniform = op({randomUniform_});
-
 
 /**
  * Creates a `tf.Tensor` with values sampled from a truncated normal
@@ -110,23 +125,33 @@ export const randomUniform = op({randomUniform_});
  *
  * @doc {heading: 'Tensors', subheading: 'Creation'}
  */
-function truncatedNormal_<R extends Rank>(
-    shape: ShapeMap[R], mean = 0, stdDev = 1, dtype?: 'float32'|'int32',
-    seed?: number): Tensor<R> {
-  if (dtype != null && (dtype as DataType) === 'bool') {
-    throw new Error(`Unsupported data type $ { dtype }`);
-  }
-  const randGauss =
-      new MPRandGauss(mean, stdDev, dtype, true /* truncated */, seed);
-  const res = buffer(shape, dtype);
-  for (let i = 0; i < res.values.length; i++) {
-    res.values[i] = randGauss.nextValue();
-  }
-  return res.toTensor();
+Tensor<R> truncatedNormal<R extends Rank>(
+  // : ShapeMap[R]
+  Shape shape, {
+  double mean = 0,
+  double stdDev = 1,
+  // : 'float32'|'int32'
+  DataType dtype = 'float32',
+  int? seed,
+}) {
+  return execOp('randomUniform', () {
+    if (dtype != null && (dtype as DataType) == 'bool') {
+      throw Exception('Unsupported data type ${dtype}');
+    }
+    final randGauss = MPRandGauss(
+        mean: mean,
+        stdDev: stdDev,
+        truncated: true /* truncated */,
+        seed: seed);
+    final res = buffer(shape, dtype, null);
+    final isInt = dtype == 'int32';
+    for (int i = 0; i < res.values.length; i++) {
+      final v = randGauss.nextValue();
+      res.values[i] = isInt ? v.round() : v;
+    }
+    return res.toTensor() as Tensor<R>;
+  });
 }
-
-export const truncatedNormal = op({truncatedNormal_});
-
 
 /**
  * Creates a `tf.Tensor` with values sampled from a gamma distribution.
@@ -144,24 +169,26 @@ export const truncatedNormal = op({truncatedNormal_});
  *
  * @doc {heading: 'Tensors', subheading: 'Random'}
  */
-function randomGamma_<R extends Rank>(
-    shape: ShapeMap[R], alpha: number, beta = 1,
-    dtype: 'float32'|'int32' = 'float32', seed?: number): Tensor<R> {
-  if (beta == null) {
-    beta = 1;
-  }
-  if (dtype == null) {
-    dtype = 'float32';
-  }
-  if (dtype !== 'float32' && dtype !== 'int32') {
-    throw new Error(`Unsupported data type ${dtype}`);
-  }
-  const rgamma = new RandGamma(alpha, beta, dtype, seed);
-  const res = buffer(shape, dtype);
-  for (let i = 0; i < res.values.length; i++) {
-    res.values[i] = rgamma.nextValue();
-  }
-  return res.toTensor();
+Tensor<R> randomGamma<R extends Rank>(
+  // : ShapeMap[R]
+  Shape shape,
+  double alpha, {
+  double beta = 1,
+  // : 'float32'|'int32'
+  DataType dtype = 'float32',
+  int? seed,
+}) {
+  return execOp('randomGamma', () {
+    if (dtype != 'float32' && dtype != 'int32') {
+      throw Exception('Unsupported data type ${dtype}');
+    }
+    final rgamma = RandGamma(alpha: alpha, beta: beta, seed: seed);
+    final res = buffer(shape, dtype, null);
+    final isInt = dtype == 'int32';
+    for (int i = 0; i < res.values.length; i++) {
+      final v = rgamma.nextValue();
+      res.values[i] = isInt ? v.round() : v;
+    }
+    return res.toTensor() as Tensor<R>;
+  });
 }
-
-export const randomGamma = op({randomGamma_});

@@ -619,14 +619,14 @@ DataType inferDtype(Object values) {
 //   return !!(f && f.constructor && f.call && f.apply);
 // }
 
-// export function nearestDivisor(size: number, start: number): number {
-//   for (let i = start; i < size; ++i) {
-//     if (size % i === 0) {
-//       return i;
-//     }
-//   }
-//   return size;
-// }
+int nearestDivisor(int size, int start) {
+  for (int i = start; i < size; ++i) {
+    if (size % i == 0) {
+      return i;
+    }
+  }
+  return size;
+}
 
 List<int> computeStrides(List<int> shape) {
   final rank = shape.length;
