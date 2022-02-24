@@ -408,7 +408,7 @@ const ExpandDims = 'ExpandDims';
 // export const FFT = 'FFT';
 // export type FFTInputs = Pick<NamedTensorInfoMap, 'input'>;
 
-// export const Fill = 'Fill';
+const Fill = 'Fill';
 // export interface FillAttrs {
 //   shape: number[];
 //   value: number|string;
@@ -484,7 +484,7 @@ typedef LessInputs = BinaryInputs;
 const LessEqual = 'LessEqual';
 typedef LessEqualInputs = BinaryInputs;
 
-// export const LinSpace = 'LinSpace';
+const LinSpace = 'LinSpace';
 // export interface LinSpaceAttrs {
 //   start: number;
 //   stop: number;
@@ -615,7 +615,8 @@ typedef MinimumInputs = BinaryInputs;
 const Mod = 'Mod';
 typedef ModInputs = BinaryInputs;
 
-// export const Multinomial = 'Multinomial';
+// TODO: wasm backend
+const Multinomial = 'Multinomial';
 // export type MultinomialInputs = Pick<NamedTensorInfoMap, 'logits'>;
 // export interface MultinomialAttrs {
 //   numSamples: number;
@@ -661,10 +662,10 @@ typedef NotEqualInputs = BinaryInputs;
 //   softNmsSigma: number;
 // }
 
-// export const OnesLike = 'OnesLike';
+const OnesLike = 'OnesLike';
 // export type OnesLikeInputs = UnaryInputs;
 
-// export const OneHot = 'OneHot';
+const OneHot = 'OneHot';
 // export type OneHotInputs = Pick<NamedTensorInfoMap, 'indices'>;
 // export interface OneHotAttrs {
 //   depth: number;
@@ -701,7 +702,7 @@ typedef ProdInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 //   keepDims: boolean;
 // }
 
-// export const Range = 'Range';
+const Range = 'Range';
 // export interface RangeAttrs {
 //   start: number;
 //   stop: number;
@@ -973,7 +974,7 @@ typedef UnpackInputs
 //   numSegments: number;
 // }
 
-// export const ZerosLike = 'ZerosLike';
+const ZerosLike = 'ZerosLike';
 // export type ZerosLikeInputs = UnaryInputs;
 
 // /**

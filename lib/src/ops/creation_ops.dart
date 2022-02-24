@@ -1,4 +1,7 @@
+import 'package:tensorflow_wasm/src/util_base.dart';
 
+import '_prelude.dart';
+import 'complex.dart';
 
 /**
  * Creates a `tf.Tensor` filled with a scalar value.
@@ -14,15 +17,20 @@
  *
  * @doc {heading: 'Tensors', subheading: 'Creation'}
  */
-function fill<R extends Rank>(
-    shape: ShapeMap[R], value: number|string, dtype?: DataType): Tensor<R> {
-  const attrs: FillAttrs = {shape, value, dtype};
+Tensor<R> fill<R extends Rank>(
+  // ShapeMap[R]
+  List<int> shape,
+  Object value, [
+  DataType? dtype,
+]) {
+  final attrs = {
+    'shape': shape,
+    'value': value,
+    'dtype': dtype ?? (value is String ? 'string' : 'float32'),
+  }; // FillAttrs
 
-  return ENGINE.runKernel(Fill, {}, attrs as {} as NamedAttrMap);
+  return ENGINE.runKernel(Fill, {}, attrs) as Tensor<R>;
 }
-
-export {fill};
-
 
 /**
  * Return an evenly spaced sequence of numbers over the given interval.
@@ -36,15 +44,18 @@ export {fill};
  *
  * @doc {heading: 'Tensors', subheading: 'Creation'}
  */
-export function linspace(start: number, stop: number, num: number): Tensor1D {
-  if (num <= 0) {
-    throw new Error('The number of values should be positive.');
+Tensor1D linspace(double start, double stop, int numValues) {
+  if (numValues <= 0) {
+    throw Exception('The number of values should be positive.');
   }
 
-  const attrs: LinSpaceAttrs = {start, stop, num};
-  return ENGINE.runKernel(LinSpace, {}, attrs as {} as NamedAttrMap);
+  final attrs = {
+    'start': start,
+    'stop': stop,
+    'num': numValues,
+  }; // LinSpaceAttrs
+  return ENGINE.runKernel(LinSpace, {}, attrs) as Tensor1D;
 }
-
 
 /**
  * Creates a new `tf.Tensor1D` filled with the numbers in the range provided.
@@ -65,19 +76,26 @@ export function linspace(start: number, stop: number, num: number): Tensor1D {
  *
  * @doc {heading: 'Tensors', subheading: 'Creation'}
  */
-export function range(
-    start: number, stop: number, step = 1,
-    dtype: 'float32'|'int32' = 'float32'): Tensor1D {
-  if (step === 0) {
-    throw new Error('Cannot have a step of zero');
+Tensor1D range(
+  int start,
+  int stop, {
+  int? step,
+  // : 'float32'|'int32'
+  String dtype = 'float32',
+}) {
+  if (step == 0) {
+    throw Exception('Cannot have a step of zero');
   }
 
-  const attrs: RangeAttrs = {start, stop, step, dtype};
+  final attrs = {
+    'start': start,
+    'stop': stop,
+    'step': step ?? 1,
+    'dtype': dtype,
+  }; // RangeAttrs
 
-  return ENGINE.runKernel(Range, {} /* inputs */, attrs as {} as NamedAttrMap);
+  return ENGINE.runKernel(Range, {} /* inputs */, attrs) as Tensor;
 }
-
-
 
 /**
  * Creates a one-hot `tf.Tensor`. The locations represented by `indices` take
@@ -102,24 +120,28 @@ export function range(
  *
  * @doc {heading: 'Tensors', subheading: 'Creation'}
  */
-function oneHot_(
-    indices: Tensor|TensorLike, depth: number, onValue = 1,
-    offValue = 0): Tensor {
-  if (depth < 2) {
-    throw new Error(`Error in oneHot: depth must be >=2, but it is ${depth}`);
-  }
-  const $indices = convertToTensor(indices, 'indices', 'oneHot', 'int32');
+Tensor oneHot(
+  Tensor indices,
+  int depth, {
+  double onValue = 1,
+  double offValue = 0,
+}) {
+  return execOp('oneHot', () {
+    if (depth < 2) {
+      throw Exception('Error in oneHot: depth must be >=2, but it is ${depth}');
+    }
+    final $indices = convertToTensor(indices, 'indices', 'oneHot', 'int32');
 
-  const inputs: OneHotInputs = {indices: $indices};
-  const attrs: OneHotAttrs = {depth, onValue, offValue};
+    final inputs = {'indices': $indices}; // : OneHotInputs
+    final attrs = {
+      'depth': depth,
+      'onValue': onValue,
+      'offValue': offValue,
+    }; // : OneHotAttrs
 
-  return ENGINE.runKernel(
-      OneHot, inputs as unknown as NamedTensorMap,
-      attrs as unknown as NamedAttrMap);
+    return ENGINE.runKernel(OneHot, inputs, attrs) as Tensor;
+  });
 }
-
-export const oneHot = op({oneHot_});
-
 
 /**
  * Creates a `tf.Tensor` with all elements set to 1.
@@ -134,17 +156,19 @@ export const oneHot = op({oneHot_});
  *
  * @doc {heading: 'Tensors', subheading: 'Creation'}
  */
-export function ones<R extends Rank>(
-    shape: ShapeMap[R], dtype: DataType = 'float32'): Tensor<R> {
-  if (dtype === 'complex64') {
-    const real = ones(shape, 'float32');
-    const imag = zeros(shape, 'float32');
+Tensor<R> ones<R extends Rank>(
+  // : ShapeMap[R]
+  List<int> shape, [
+  DataType dtype = 'float32',
+]) {
+  if (dtype == 'complex64') {
+    final real = ones<R>(shape, 'float32');
+    final imag = zeros<R>(shape, 'float32');
     return complex(real, imag);
   }
-  const values = makeOnesTypedArray(sizeFromShape(shape), dtype);
+  final values = makeOnesTypedArray(sizeFromShape(shape), dtype);
   return ENGINE.makeTensor(values, shape, dtype) as Tensor<R>;
 }
-
 
 /**
  * Creates a `tf.Tensor` with all elements set to 1 with the same shape as the
@@ -158,15 +182,14 @@ export function ones<R extends Rank>(
  *
  * @doc {heading: 'Tensors', subheading: 'Creation'}
  */
-function onesLike_<T extends Tensor>(x: T|TensorLike): T {
-  const $x = convertToTensor(x, 'x', 'onesLike');
+T onesLike<T extends Tensor>(T x) {
+  return execOp('onesLike', () {
+    final $x = convertToTensor(x, 'x', 'onesLike');
 
-  const inputs: OnesLikeInputs = {x: $x};
-  return ENGINE.runKernel(OnesLike, inputs as {} as NamedTensorMap);
+    final inputs = {'x': $x}; // : OnesLikeInputs
+    return ENGINE.runKernel(OnesLike, inputs) as T;
+  });
 }
-
-export const onesLike = op({onesLike_});
-
 
 /**
  * Creates a `tf.Tensor` with all elements set to 0.
@@ -181,17 +204,19 @@ export const onesLike = op({onesLike_});
  *
  * @doc {heading: 'Tensors', subheading: 'Creation'}
  */
-export function zeros<R extends Rank>(
-    shape: ShapeMap[R], dtype: DataType = 'float32'): Tensor<R> {
-  if (dtype === 'complex64') {
-    const real = zeros(shape, 'float32');
-    const imag = zeros(shape, 'float32');
+Tensor<R> zeros<R extends Rank>(
+  /// : ShapeMap[R]
+  List<int> shape, [
+  DataType dtype = 'float32',
+]) {
+  if (dtype == 'complex64') {
+    final real = zeros<R>(shape, 'float32');
+    final imag = zeros<R>(shape, 'float32');
     return complex(real, imag);
   }
-  const values = makeZerosTypedArray(sizeFromShape(shape), dtype);
+  final values = makeZerosTypedArray(sizeFromShape(shape), dtype);
   return ENGINE.makeTensor(values, shape, dtype) as Tensor<R>;
 }
-
 
 /**
  * Creates a `tf.Tensor` with all elements set to 0 with the same shape as the
@@ -206,9 +231,10 @@ export function zeros<R extends Rank>(
  *
  * @doc {heading: 'Tensors', subheading: 'Creation'}
  */
-function zerosLike_<T extends Tensor>(x: T|TensorLike): T {
-  const $x = convertToTensor(x, 'x', 'zerosLike');
-  const inputs: ZerosLikeInputs = {x: $x};
-  return ENGINE.runKernel(ZerosLike, inputs as {} as NamedTensorMap);
+T zerosLike<T extends Tensor>(T x) {
+  return execOp('zerosLike', () {
+    final $x = convertToTensor(x, 'x', 'zerosLike');
+    final inputs = {'x': $x}; // ZerosLikeInputs
+    return ENGINE.runKernel(ZerosLike, inputs) as T;
+  });
 }
-export const zerosLike = op({zerosLike_});
