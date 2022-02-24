@@ -1,3 +1,7 @@
+import 'dart:typed_data';
+
+import 'package:tensorflow_wasm/src/tensor.dart';
+
 /**
  * @license
  * Copyright 2020 Google LLC. All Rights Reserved.
@@ -15,35 +19,51 @@
  * =============================================================================
  */
 
-import {backend_util, BackendValues, DataType, TypedArray, util} from '@tensorflow/tfjs-core';
+// import {backend_util, BackendValues, DataType, TypedArray, util} from '@tensorflow/tfjs-core';
 
-export function concatImpl(
-    inputs: Array<{vals: BackendValues, shape: number[]}>, outShape: number[],
-    dtype: DataType, simplyConcat: boolean): TypedArray|string[] {
-  const outVals = util.getArrayFromDType(dtype, util.sizeFromShape(outShape));
+import '../../util_base.dart' as util;
+import 'package:tensorflow_wasm/backend_util.dart' as backend_util;
 
-  if (simplyConcat && dtype !== 'string') {
+class ValueWithShape {
+  final BackendValues vals;
+  final Shape shape;
+
+  ValueWithShape({
+    required this.vals,
+    required this.shape,
+  });
+}
+
+List concatImplCPU(
+  List<ValueWithShape> inputs,
+  Shape outShape,
+  DataType dtype,
+  bool simplyConcat,
+) {
+  final outVals = util.getArrayFromDType(dtype, util.sizeFromShape(outShape));
+
+  if (simplyConcat && dtype != 'string') {
     // Use built-in TypedArray.set() method for speed.
-    let offset = 0;
-    inputs.forEach(input => {
-      const size = util.sizeFromShape(input.shape);
+    int offset = 0;
+    inputs.forEach((input) {
+      final size = util.sizeFromShape(input.shape);
 
-      (outVals as TypedArray).set(input.vals as TypedArray, offset);
+      outVals.set(input.vals as TypedArray, offset);
       offset += size;
     });
   } else {
-    let colOffset = 0;
+    int colOffset = 0;
 
-    inputs.forEach(input => {
-      const decodedData = dtype === 'string' ?
-          backend_util.fromUint8ToStringArray(input.vals as Uint8Array[]) :
-          input.vals as TypedArray;
+    inputs.forEach((input) {
+      final decodedData = dtype == 'string'
+          ? backend_util.fromUint8ToStringArray(input.vals as List<Uint8List>)
+          : input.vals as TypedArray;
 
-      let tIdx = 0;
+      int tIdx = 0;
 
-      for (let row = 0; row < input.shape[0]; ++row) {
-        const resIdx = row * outShape[1] + colOffset;
-        for (let col = 0; col < input.shape[1]; ++col) {
+      for (int row = 0; row < input.shape[0]; ++row) {
+        final resIdx = row * outShape[1] + colOffset;
+        for (int col = 0; col < input.shape[1]; ++col) {
           outVals[resIdx + col] = decodedData[tIdx++];
         }
       }

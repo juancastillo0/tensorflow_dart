@@ -1,3 +1,5 @@
+import 'package:tensorflow_wasm/src/ops/_prelude.dart';
+
 /**
  * @license
  * Copyright 2020 Google LLC. All Rights Reserved.
@@ -15,31 +17,39 @@
  * =============================================================================
  */
 
-import {DataTypeMap, util} from '@tensorflow/tfjs-core';
+// import {DataTypeMap, util} from '@tensorflow/tfjs-core';
 
-export function rangeImpl(
-    start: number, stop: number, step: number,
-    dtype: 'float32'|'int32'): DataTypeMap['float32' | 'int32'] {
-  const sameStartStop = start === stop;
-  const increasingRangeNegativeStep = start < stop && step < 0;
-  const decreasingRangePositiveStep = stop < start && step > 1;
+import '../../util_base.dart' as util;
 
-  if (sameStartStop || increasingRangeNegativeStep ||
+//DataTypeMap['float32' | 'int32']
+List rangeImplCPU(
+  int start,
+  int stop,
+  int step,
+  // : 'float32'|'int32'
+  DataType dtype,
+) {
+  final sameStartStop = start == stop;
+  final increasingRangeNegativeStep = start < stop && step < 0;
+  final decreasingRangePositiveStep = stop < start && step > 1;
+
+  if (sameStartStop ||
+      increasingRangeNegativeStep ||
       decreasingRangePositiveStep) {
     return util.makeZerosTypedArray(0, dtype);
   }
 
-  const numElements = Math.abs(Math.ceil((stop - start) / step));
-  const values = util.makeZerosTypedArray(numElements, dtype);
+  final numElements = ((stop - start) / step).ceil().abs();
+  final values = util.makeZerosTypedArray(numElements, dtype);
 
-  if (stop < start && step === 1) {
+  if (stop < start && step == 1) {
     // Auto adjust the step's sign if it hasn't been set
     // (or was set to 1)
     step = -1;
   }
 
   values[0] = start;
-  for (let i = 1; i < values.length; i++) {
+  for (int i = 1; i < values.length; i++) {
     values[i] = values[i - 1] + step;
   }
   return values;
