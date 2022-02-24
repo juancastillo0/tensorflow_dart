@@ -15,16 +15,22 @@
  * =============================================================================
  */
 
-import {Tensor} from '../tensor';
-import {makeTypesMatch} from '../tensor_util';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
+// import {Tensor} from '../tensor';
+// import {makeTypesMatch} from '../tensor_util';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
 
-import {div} from './div';
-import {equal} from './equal';
-import {op} from './operation';
-import {where} from './where';
-import {zerosLike} from './zeros_like';
+// import {div} from './div';
+// import {equal} from './equal';
+// import {op} from './operation';
+// import {where} from './where';
+// import {zerosLike} from './zeros_like';
+
+import '_prelude.dart';
+import 'creation_ops.dart';
+import 'div.dart';
+import 'logical_binary.dart';
+import 'where.dart';
 
 /**
  * Divides two `tf.Tensor`s element-wise, A / B. Supports broadcasting. Return 0
@@ -56,17 +62,18 @@ import {zerosLike} from './zeros_like';
  *
  * @doc {heading: 'Operations', subheading: 'Arithmetic'}
  */
-function divNoNan_<T extends Tensor>(
-    a: Tensor|TensorLike, b: Tensor|TensorLike): T {
-  // TODO: Make this into its own kernel.
-  let $a = convertToTensor(a, 'a', 'div');
-  let $b = convertToTensor(b, 'b', 'div');
-  [$a, $b] = makeTypesMatch($a, $b);
+T divNoNan<T extends Tensor>(Tensor a, Tensor b) {
+  return execOp('divNoNan', () {
+    // TODO: Make this into its own kernel.
+    var $a = convertToTensor(a, 'a', 'div');
+    var $b = convertToTensor(b, 'b', 'div');
+    final _t = makeTypesMatch($a, $b);
+    $a = _t.first;
+    $b = _t.second;
 
-  const divResult = div($a, $b);
-  const zeros = zerosLike(divResult);
-  const bEqualsZero = equal($b, zeros);
-  return where(bEqualsZero, zeros, divResult) as T;
+    final divResult = div($a, $b);
+    final zeros = zerosLike(divResult);
+    final bEqualsZero = equal($b, zeros);
+    return where(bEqualsZero, zeros, divResult) as T;
+  });
 }
-
-export const divNoNan = op({divNoNan_});

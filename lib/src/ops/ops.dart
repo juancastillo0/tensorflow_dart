@@ -14,6 +14,7 @@ export 'activation_ops.dart';
 export 'trigonometric.dart';
 export 'div.dart';
 export 'floor_div.dart';
+export 'div_no_nan.dart';
 export 'squared_difference.dart';
 export 'mat_mul.dart';
 //
@@ -39,5 +40,6 @@ export 'round_ops.dart';
 export 'mul_ops.dart';
 export 'normalization_ops.dart';
 export 'gather_ops.dart';
-
+export 'creation_ops.dart';
+export 'creation_rand_ops.dart';
 export 'fused/fused.dart';
