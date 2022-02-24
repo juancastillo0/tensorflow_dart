@@ -14,16 +14,20 @@
  * limitations under the License.
  * =============================================================================
  */
-import {ENGINE} from '../../engine';
-import {Transform, TransformAttrs, TransformInputs} from '../../kernel_names';
-import {NamedAttrMap} from '../../kernel_registry';
-import {Tensor2D, Tensor4D} from '../../tensor';
-import {NamedTensorMap} from '../../tensor_types';
-import {convertToTensor} from '../../tensor_util_env';
-import {TensorLike} from '../../types';
-import * as util from '../../util';
+// import {ENGINE} from '../../engine';
+// import {Transform, TransformAttrs, TransformInputs} from '../../kernel_names';
+// import {NamedAttrMap} from '../../kernel_registry';
+// import {Tensor2D, Tensor4D} from '../../tensor';
+// import {NamedTensorMap} from '../../tensor_types';
+// import {convertToTensor} from '../../tensor_util_env';
+// import {TensorLike} from '../../types';
+// import * as util from '../../util';
 
-import {op} from '../operation';
+// import {op} from '../operation';
+
+import '../_prelude.dart';
+
+import '../../util_base.dart' as util;
 
 /**
  * Applies the given transform(s) to the image(s).
@@ -55,39 +59,54 @@ import {op} from '../operation';
  *
  * @doc {heading: 'Operations', subheading: 'Images', namespace: 'image'}
  */
-function transform_(
-    image: Tensor4D|TensorLike, transforms: Tensor2D|TensorLike,
-    interpolation: 'nearest'|'bilinear' = 'nearest',
-    fillMode: 'constant'|'reflect'|'wrap'|'nearest' = 'constant', fillValue = 0,
-    outputShape?: [number, number]): Tensor4D {
-  const $image = convertToTensor(image, 'image', 'transform', 'float32');
-  const $transforms =
-      convertToTensor(transforms, 'transforms', 'transform', 'float32');
+Tensor4D transform(
+  Tensor4D image,
+  Tensor2D transforms,
+  // : 'nearest'|'bilinear'
+  {
+  String interpolation = 'nearest',
+  // : 'constant'|'reflect'|'wrap'|'nearest'
+  String fillMode = 'constant',
+  double fillValue = 0,
+  // [number, number]
+  List<int>? outputShape,
+}) {
+  return execOp('transform', () {
+    final $image = convertToTensor(image, 'image', 'transform', 'float32');
+    final $transforms =
+        convertToTensor(transforms, 'transforms', 'transform', 'float32');
 
-  util.assert(
-      $image.rank === 4,
-      () => 'Error in transform: image must be rank 4,' +
-          `but got rank ${$image.rank}.`);
+    util.assert_(
+        $image.rank == 4,
+        () =>
+            'Error in transform: image must be rank 4,' +
+            'but got rank ${$image.rank}.');
 
-  util.assert(
-      $transforms.rank === 2 &&
-          ($transforms.shape[0] === $image.shape[0] ||
-           $transforms.shape[0] === 1) &&
-          $transforms.shape[1] === 8,
-      () => `Error in transform: Input transform should be batch x 8 or 1 x 8`);
+    util.assert_(
+        $transforms.rank == 2 &&
+            ($transforms.shape[0] == $image.shape[0] ||
+                $transforms.shape[0] == 1) &&
+            $transforms.shape[1] == 8,
+        () =>
+            'Error in transform: Input transform should be batch x 8 or 1 x 8');
 
-  util.assert(
-      outputShape == null || outputShape.length === 2,
-      () =>
-          'Error in transform: outputShape must be [height, width] or null, ' +
-          `but got ${outputShape}.`);
+    util.assert_(
+        outputShape == null || outputShape.length == 2,
+        () =>
+            'Error in transform: outputShape must be [height, width] or null, ' +
+            'but got ${outputShape}.');
 
-  const inputs: TransformInputs = {image: $image, transforms: $transforms};
-  const attrs:
-      TransformAttrs = {interpolation, fillMode, fillValue, outputShape};
+    final inputs = {
+      'image': $image,
+      'transforms': $transforms,
+    }; // TransformInputs
+    final attrs = {
+      'interpolation': interpolation,
+      'fillMode': fillMode,
+      'fillValue': fillValue,
+      'outputShape': outputShape
+    }; // TransformAttrs
 
-  return ENGINE.runKernel(
-      Transform, inputs as {} as NamedTensorMap, attrs as {} as NamedAttrMap);
+    return ENGINE.runKernel(Transform, inputs, attrs) as Tensor4D;
+  });
 }
-
-export const transform = op({transform_});

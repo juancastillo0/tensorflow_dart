@@ -15,16 +15,19 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../../engine';
-import {NonMaxSuppressionV4, NonMaxSuppressionV4Attrs, NonMaxSuppressionV4Inputs} from '../../kernel_names';
-import {NamedAttrMap} from '../../kernel_registry';
-import {Tensor, Tensor1D, Tensor2D} from '../../tensor';
-import {NamedTensorMap} from '../../tensor_types';
-import {convertToTensor} from '../../tensor_util_env';
-import {TensorLike} from '../../types';
+// import {ENGINE} from '../../engine';
+// import {NonMaxSuppressionV4, NonMaxSuppressionV4Attrs, NonMaxSuppressionV4Inputs} from '../../kernel_names';
+// import {NamedAttrMap} from '../../kernel_registry';
+// import {Tensor, Tensor1D, Tensor2D} from '../../tensor';
+// import {NamedTensorMap} from '../../tensor_types';
+// import {convertToTensor} from '../../tensor_util_env';
+// import {TensorLike} from '../../types';
 
-import {nonMaxSuppSanityCheck} from '../nonmax_util';
-import {op} from '../operation';
+// import {nonMaxSuppSanityCheck} from '../nonmax_util';
+// import {op} from '../operation';
+
+import '../_prelude.dart';
+import 'non_max_util.dart';
 
 /**
  * Asynchronously performs non maximum suppression of bounding boxes based on
@@ -49,35 +52,40 @@ import {op} from '../operation';
  *
  * @doc {heading: 'Operations', subheading: 'Images', namespace: 'image'}
  */
-function nonMaxSuppressionPadded_(
-    boxes: Tensor2D|TensorLike, scores: Tensor1D|TensorLike,
-    maxOutputSize: number, iouThreshold = 0.5,
-    scoreThreshold = Number.NEGATIVE_INFINITY,
-    padToMaxOutputSize = false): NamedTensorMap {
-  const $boxes = convertToTensor(boxes, 'boxes', 'nonMaxSuppression');
-  const $scores = convertToTensor(scores, 'scores', 'nonMaxSuppression');
+NamedTensorMap nonMaxSuppressionPadded(
+  Tensor2D boxes,
+  Tensor1D scores,
+  int maxOutputSize, {
+  double iouThreshold = 0.5,
+  double scoreThreshold = double.negativeInfinity,
+  bool padToMaxOutputSize = false,
+}) {
+  return execOp('nonMaxSuppressionPadded', () {
+    final $boxes = convertToTensor(boxes, 'boxes', 'nonMaxSuppression');
+    final $scores = convertToTensor(scores, 'scores', 'nonMaxSuppression');
 
-  const params = nonMaxSuppSanityCheck(
-      $boxes, $scores, maxOutputSize, iouThreshold, scoreThreshold,
-      null /* softNmsSigma */);
-  const $maxOutputSize = params.maxOutputSize;
-  const $iouThreshold = params.iouThreshold;
-  const $scoreThreshold = params.scoreThreshold;
+    final params = nonMaxSuppSanityCheck($boxes, $scores, maxOutputSize,
+        iouThreshold, scoreThreshold, null /* softNmsSigma */);
+    final $maxOutputSize = params.maxOutputSize;
+    final $iouThreshold = params.iouThreshold;
+    final $scoreThreshold = params.scoreThreshold;
 
-  const inputs: NonMaxSuppressionV4Inputs = {boxes: $boxes, scores: $scores};
-  const attrs: NonMaxSuppressionV4Attrs = {
-    maxOutputSize: $maxOutputSize,
-    iouThreshold: $iouThreshold,
-    scoreThreshold: $scoreThreshold,
-    padToMaxOutputSize
-  };
+    final inputs = {
+      'boxes': $boxes,
+      'scores': $scores
+    }; //NonMaxSuppressionV4Inputs
+    final attrs = {
+      // NonMaxSuppressionV4Attrs
+      'maxOutputSize': $maxOutputSize,
+      'iouThreshold': $iouThreshold,
+      'scoreThreshold': $scoreThreshold,
+      'padToMaxOutputSize': padToMaxOutputSize
+    };
 
-  // tslint:disable-next-line: no-unnecessary-type-assertion
-  const result = ENGINE.runKernel(
-                     NonMaxSuppressionV4, inputs as {} as NamedTensorMap,
-                     attrs as {} as NamedAttrMap) as Tensor[];
+    // tslint:disable-next-line: no-unnecessary-type-assertion
+    final result =
+        ENGINE.runKernel(NonMaxSuppressionV4, inputs, attrs) as List<Tensor>;
 
-  return {selectedIndices: result[0], validOutputs: result[1]};
+    return {'selectedIndices': result[0], 'validOutputs': result[1]};
+  });
 }
-
-export const nonMaxSuppressionPadded = op({nonMaxSuppressionPadded_});

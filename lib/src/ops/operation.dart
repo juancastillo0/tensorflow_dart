@@ -27,7 +27,7 @@ import 'broadcast_util.dart' show assertAndGetBroadcastShape;
 
 const OP_SCOPE_SUFFIX = '__op';
 
-T execOp<T extends Tensors>(
+T execOp<T>(
   String name,
   T Function() fn,
   // String kernelName,

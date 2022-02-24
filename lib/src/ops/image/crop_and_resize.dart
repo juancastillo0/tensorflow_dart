@@ -15,16 +15,20 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../../engine';
-import {CropAndResize, CropAndResizeAttrs, CropAndResizeInputs} from '../../kernel_names';
-import {NamedAttrMap} from '../../kernel_registry';
-import {Tensor1D, Tensor2D, Tensor4D} from '../../tensor';
-import {NamedTensorMap} from '../../tensor_types';
-import {convertToTensor} from '../../tensor_util_env';
-import {TensorLike} from '../../types';
-import * as util from '../../util';
+// import {ENGINE} from '../../engine';
+// import {CropAndResize, CropAndResizeAttrs, CropAndResizeInputs} from '../../kernel_names';
+// import {NamedAttrMap} from '../../kernel_registry';
+// import {Tensor1D, Tensor2D, Tensor4D} from '../../tensor';
+// import {NamedTensorMap} from '../../tensor_types';
+// import {convertToTensor} from '../../tensor_util_env';
+// import {TensorLike} from '../../types';
+// import * as util from '../../util';
 
-import {op} from '../operation';
+// import {op} from '../operation';
+
+import '../_prelude.dart';
+
+import '../../util_base.dart' as util;
 
 /**
  * Extracts crops from the input image tensor and resizes them using bilinear
@@ -49,50 +53,59 @@ import {op} from '../operation';
  *
  * @doc {heading: 'Operations', subheading: 'Images', namespace: 'image'}
  */
-function cropAndResize_(
-    image: Tensor4D|TensorLike,
-    boxes: Tensor2D|TensorLike,
-    boxInd: Tensor1D|TensorLike,
-    cropSize: [number, number],
-    method: 'bilinear'|'nearest' = 'bilinear',
-    extrapolationValue = 0,
-    ): Tensor4D {
-  const $image = convertToTensor(image, 'image', 'cropAndResize');
-  const $boxes = convertToTensor(boxes, 'boxes', 'cropAndResize', 'float32');
-  const $boxInd = convertToTensor(boxInd, 'boxInd', 'cropAndResize', 'int32');
+Tensor4D cropAndResize(
+  Tensor4D image,
+  Tensor2D boxes,
+  Tensor1D boxInd,
+  // : [number, number]
+  List<int> cropSize, {
+  // : 'bilinear'|'nearest'
+  String method = 'bilinear',
+  double extrapolationValue = 0,
+}) {
+  return execOp('cropAndResize', () {
+    final $image = convertToTensor(image, 'image', 'cropAndResize');
+    final $boxes = convertToTensor(boxes, 'boxes', 'cropAndResize', 'float32');
+    final $boxInd = convertToTensor(boxInd, 'boxInd', 'cropAndResize', 'int32');
 
-  const numBoxes = $boxes.shape[0];
+    final numBoxes = $boxes.shape[0];
 
-  util.assert(
-      $image.rank === 4,
-      () => 'Error in cropAndResize: image must be rank 4,' +
-          `but got rank ${$image.rank}.`);
-  util.assert(
-      $boxes.rank === 2 && $boxes.shape[1] === 4,
-      () => `Error in cropAndResize: boxes must be have size [${numBoxes},4] ` +
-          `but had shape ${$boxes.shape}.`);
-  util.assert(
-      $boxInd.rank === 1 && $boxInd.shape[0] === numBoxes,
-      () => `Error in cropAndResize: boxInd must be have size [${numBoxes}] ` +
-          `but had shape ${$boxes.shape}.`);
-  util.assert(
-      cropSize.length === 2,
-      () => `Error in cropAndResize: cropSize must be of length 2, but got ` +
-          `length ${cropSize.length}.`);
-  util.assert(
-      cropSize[0] >= 1 && cropSize[1] >= 1,
-      () => `cropSize must be atleast [1,1], but was ${cropSize}`);
-  util.assert(
-      method === 'bilinear' || method === 'nearest',
-      () => `method must be bilinear or nearest, but was ${method}`);
+    util.assert_(
+        $image.rank == 4,
+        () =>
+            'Error in cropAndResize: image must be rank 4,' +
+            'but got rank ${$image.rank}.');
+    util.assert_(
+        $boxes.rank == 2 && $boxes.shape[1] == 4,
+        () =>
+            'Error in cropAndResize: boxes must be have size [${numBoxes},4] ' +
+            'but had shape ${$boxes.shape}.');
+    util.assert_(
+        $boxInd.rank == 1 && $boxInd.shape[0] == numBoxes,
+        () =>
+            'Error in cropAndResize: boxInd must be have size [${numBoxes}] ' +
+            'but had shape ${$boxes.shape}.');
+    util.assert_(
+        cropSize.length == 2,
+        () =>
+            'Error in cropAndResize: cropSize must be of length 2, but got ' +
+            'length ${cropSize.length}.');
+    util.assert_(cropSize[0] >= 1 && cropSize[1] >= 1,
+        () => 'cropSize must be atleast [1,1], but was ${cropSize}');
+    util.assert_(method == 'bilinear' || method == 'nearest',
+        () => 'method must be bilinear or nearest, but was ${method}');
 
-  const inputs:
-      CropAndResizeInputs = {image: $image, boxes: $boxes, boxInd: $boxInd};
-  const attrs: CropAndResizeAttrs = {method, extrapolationValue, cropSize};
-  const res = ENGINE.runKernel(
-      CropAndResize, inputs as {} as NamedTensorMap,
-      attrs as {} as NamedAttrMap);
-  return res as Tensor4D;
+    final inputs = {
+      'image': $image,
+      'boxes': $boxes,
+      'boxInd': $boxInd
+    }; // CropAndResizeInputs
+    final attrs = {
+      'method': method,
+      'extrapolationValue': extrapolationValue,
+      'cropSize': cropSize,
+    }; // CropAndResizeAttrs
+    final res = ENGINE.runKernel(CropAndResize, inputs, attrs);
+    return res as Tensor4D;
+  });
 }
-
-export const cropAndResize = op({cropAndResize_});

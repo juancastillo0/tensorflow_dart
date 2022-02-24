@@ -15,12 +15,15 @@
  * =============================================================================
  */
 
-import {nonMaxSuppressionV3Impl} from '../../backends/non_max_suppression_impl';
-import {Tensor1D, Tensor2D} from '../../tensor';
-import {convertToTensor} from '../../tensor_util_env';
-import {TensorLike} from '../../types';
-import {nonMaxSuppSanityCheck} from '../nonmax_util';
-import {tensor1d} from '../tensor1d';
+// import {nonMaxSuppressionV3Impl} from '../../backends/non_max_suppression_impl';
+// import {Tensor1D, Tensor2D} from '../../tensor';
+// import {convertToTensor} from '../../tensor_util_env';
+// import {TensorLike} from '../../types';
+// import {nonMaxSuppSanityCheck} from '../nonmax_util';
+// import {tensor1d} from '../tensor1d';
+
+import '../_prelude.dart';
+import 'non_max_util.dart';
 
 /**
  * Performs non maximum suppression of bounding boxes based on
@@ -42,36 +45,38 @@ import {tensor1d} from '../tensor1d';
  *
  * @doc {heading: 'Operations', subheading: 'Images', namespace: 'image'}
  */
-async function nonMaxSuppressionAsync_(
-    boxes: Tensor2D|TensorLike, scores: Tensor1D|TensorLike,
-    maxOutputSize: number, iouThreshold = 0.5,
-    scoreThreshold = Number.NEGATIVE_INFINITY): Promise<Tensor1D> {
-  const $boxes = convertToTensor(boxes, 'boxes', 'nonMaxSuppressionAsync');
-  const $scores = convertToTensor(scores, 'scores', 'nonMaxSuppressionAsync');
+Future<Tensor1D> nonMaxSuppressionAsync(
+    Tensor2D boxes, Tensor1D scores,
+    int maxOutputSize, {double iouThreshold = 0.5,
+    double scoreThreshold = double.negativeInfinity,}) {
+      return execOp('nonMaxSuppressionAsync', () async{
 
-  const inputs = nonMaxSuppSanityCheck(
-      $boxes, $scores, maxOutputSize, iouThreshold, scoreThreshold);
+      
+  final $boxes = convertToTensor(boxes, 'boxes', 'nonMaxSuppressionAsync');
+  final $scores = convertToTensor(scores, 'scores', 'nonMaxSuppressionAsync');
+
+  final inputs = nonMaxSuppSanityCheck(
+      $boxes, $scores, maxOutputSize, iouThreshold, scoreThreshold, null);
   maxOutputSize = inputs.maxOutputSize;
   iouThreshold = inputs.iouThreshold;
   scoreThreshold = inputs.scoreThreshold;
 
-  const boxesAndScores = await Promise.all([$boxes.data(), $scores.data()]);
-  const boxesVals = boxesAndScores[0];
-  const scoresVals = boxesAndScores[1];
+  final boxesAndScores = await Future.wait([$boxes.data(), $scores.data()]);
+  final boxesVals = boxesAndScores[0];
+  final scoresVals = boxesAndScores[1];
 
   // We call a cpu based impl directly with the typedarray data  here rather
   // than a kernel because all kernels are synchronous (and thus cannot await
   // .data()).
-  const {selectedIndices} = nonMaxSuppressionV3Impl(
+  final {selectedIndices} = nonMaxSuppressionV3Impl(
       boxesVals, scoresVals, maxOutputSize, iouThreshold, scoreThreshold);
-  if ($boxes !== boxes) {
+  if ($boxes != boxes) {
     $boxes.dispose();
   }
-  if ($scores !== scores) {
+  if ($scores != scores) {
     $scores.dispose();
   }
 
   return tensor1d(selectedIndices, 'int32');
+  });
 }
-
-export const nonMaxSuppressionAsync = nonMaxSuppressionAsync_;

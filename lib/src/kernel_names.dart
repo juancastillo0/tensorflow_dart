@@ -273,7 +273,7 @@ typedef CumsumInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 //   reverse: boolean;
 // }
 
-// export const CropAndResize = 'CropAndResize';
+const CropAndResize = 'CropAndResize';
 // export type CropAndResizeInputs =
 //     Pick<NamedTensorInfoMap, 'image'|'boxes'|'boxInd'>;
 // export interface CropAndResizeAttrs {
@@ -633,7 +633,7 @@ typedef NegInputs = UnaryInputs;
 const NotEqual = 'NotEqual';
 typedef NotEqualInputs = BinaryInputs;
 
-// export const NonMaxSuppressionV3 = 'NonMaxSuppressionV3';
+const NonMaxSuppressionV3 = 'NonMaxSuppressionV3';
 // export type NonMaxSuppressionV3Inputs =
 //     Pick<NamedTensorInfoMap, 'boxes'|'scores'>;
 // export interface NonMaxSuppressionV3Attrs {
@@ -642,7 +642,7 @@ typedef NotEqualInputs = BinaryInputs;
 //   scoreThreshold: number;
 // }
 
-// export const NonMaxSuppressionV4 = 'NonMaxSuppressionV4';
+const NonMaxSuppressionV4 = 'NonMaxSuppressionV4';
 // export type NonMaxSuppressionV4Inputs =
 //     Pick<NamedTensorInfoMap, 'boxes'|'scores'>;
 // export interface NonMaxSuppressionV4Attrs {
@@ -652,7 +652,7 @@ typedef NotEqualInputs = BinaryInputs;
 //   padToMaxOutputSize: boolean;
 // }
 
-// export const NonMaxSuppressionV5 = 'NonMaxSuppressionV5';
+const NonMaxSuppressionV5 = 'NonMaxSuppressionV5';
 // export type NonMaxSuppressionV5Inputs =
 //     Pick<NamedTensorInfoMap, 'boxes'|'scores'>;
 // export interface NonMaxSuppressionV5Attrs {
@@ -725,7 +725,7 @@ typedef ReshapeInputs = UnaryInputs;
 //   shape: number[];
 // }
 
-// export const ResizeNearestNeighbor = 'ResizeNearestNeighbor';
+const ResizeNearestNeighbor = 'ResizeNearestNeighbor';
 // export type ResizeNearestNeighborInputs = Pick<NamedTensorInfoMap, 'images'>;
 // export interface ResizeNearestNeighborAttrs {
 //   alignCorners: boolean;
@@ -738,7 +738,7 @@ typedef ReshapeInputs = UnaryInputs;
 //     Pick<NamedTensorInfoMap, 'images'|'dy'>;
 // export type ResizeNearestNeighborGradAttrs = ResizeNearestNeighborAttrs;
 
-// export const ResizeBilinear = 'ResizeBilinear';
+const ResizeBilinear = 'ResizeBilinear';
 // export type ResizeBilinearInputs = Pick<NamedTensorInfoMap, 'images'>;
 // export interface ResizeBilinearAttrs {
 //   alignCorners: boolean;
@@ -937,7 +937,7 @@ typedef TopKInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 //   sorted: boolean;
 // }
 
-// export const Transform = 'Transform';
+const Transform = 'Transform';
 // export type TransformInputs = Pick<NamedTensorInfoMap, 'image'|'transforms'>;
 // export interface TransformAttrs {
 //   interpolation: 'nearest'|'bilinear';

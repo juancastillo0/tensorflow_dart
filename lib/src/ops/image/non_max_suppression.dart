@@ -15,13 +15,16 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../../engine';
-import {NonMaxSuppressionV3} from '../../kernel_names';
-import {Tensor1D, Tensor2D} from '../../tensor';
-import {convertToTensor} from '../../tensor_util_env';
-import {TensorLike} from '../../types';
-import {nonMaxSuppSanityCheck} from '../nonmax_util';
-import {op} from '../operation';
+// import {ENGINE} from '../../engine';
+// import {NonMaxSuppressionV3} from '../../kernel_names';
+// import {Tensor1D, Tensor2D} from '../../tensor';
+// import {convertToTensor} from '../../tensor_util_env';
+// import {TensorLike} from '../../types';
+// import {nonMaxSuppSanityCheck} from '../nonmax_util';
+// import {op} from '../operation';
+
+import '../_prelude.dart';
+import 'non_max_util.dart';
 
 /**
  * Performs non maximum suppression of bounding boxes based on
@@ -41,24 +44,34 @@ import {op} from '../operation';
  *
  * @doc {heading: 'Operations', subheading: 'Images', namespace: 'image'}
  */
-function nonMaxSuppression_(
-    boxes: Tensor2D|TensorLike, scores: Tensor1D|TensorLike,
-    maxOutputSize: number, iouThreshold = 0.5,
-    scoreThreshold = Number.NEGATIVE_INFINITY): Tensor1D {
-  const $boxes =
-      convertToTensor(boxes, 'boxes', 'nonMaxSuppression', 'float32');
-  const $scores =
-      convertToTensor(scores, 'scores', 'nonMaxSuppression', 'float32');
+Tensor1D nonMaxSuppression(
+  Tensor2D boxes,
+  Tensor1D scores,
+  int maxOutputSize, {
+  double iouThreshold = 0.5,
+  double scoreThreshold = double.negativeInfinity,
+}) {
+  return execOp('nonMaxSuppression', () {
+    final $boxes =
+        convertToTensor(boxes, 'boxes', 'nonMaxSuppression', 'float32');
+    final $scores =
+        convertToTensor(scores, 'scores', 'nonMaxSuppression', 'float32');
 
-  const inputs = nonMaxSuppSanityCheck(
-      $boxes, $scores, maxOutputSize, iouThreshold, scoreThreshold);
-  maxOutputSize = inputs.maxOutputSize;
-  iouThreshold = inputs.iouThreshold;
-  scoreThreshold = inputs.scoreThreshold;
+    final inputs = nonMaxSuppSanityCheck(
+        $boxes, $scores, maxOutputSize, iouThreshold, scoreThreshold, null);
+    maxOutputSize = inputs.maxOutputSize;
+    iouThreshold = inputs.iouThreshold;
+    scoreThreshold = inputs.scoreThreshold;
 
-  const attrs = {maxOutputSize, iouThreshold, scoreThreshold};
-  return ENGINE.runKernel(
-      NonMaxSuppressionV3, {boxes: $boxes, scores: $scores}, attrs);
+    final attrs = {
+      'maxOutputSize': maxOutputSize,
+      'iouThreshold': iouThreshold,
+      'scoreThreshold': scoreThreshold,
+    };
+    return ENGINE.runKernel(
+      NonMaxSuppressionV3,
+      {'boxes': $boxes, 'scores': $scores},
+      attrs,
+    ) as Tensor1D;
+  });
 }
-
-export const nonMaxSuppression = op({nonMaxSuppression_});

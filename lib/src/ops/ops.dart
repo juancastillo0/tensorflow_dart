@@ -43,3 +43,4 @@ export 'gather_ops.dart';
 export 'creation_ops.dart';
 export 'creation_rand_ops.dart';
 export 'fused/fused.dart';
+export 'image/image.dart';
