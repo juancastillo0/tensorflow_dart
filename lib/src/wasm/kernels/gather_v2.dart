@@ -70,7 +70,7 @@ TensorInfo gatherV2({
             'GatherV2: the index value ${index} is not in [0, ${axisDim - 1}]');
   }
 
-  final shapeInfo = backend_util.segment_util.collectGatherOpShapeInfo(
+  final shapeInfo = backend_util.collectGatherOpShapeInfo(
       x as Tensor, indices as Tensor, parsedAxis, batchDims);
 
   final flattenX = reshape(inputs: {
@@ -92,7 +92,7 @@ TensorInfo gatherV2({
   final flattenOutputShape = [
     shapeInfo.batchSize,
     shapeInfo.outerSize,
-    indicesSize / shapeInfo.batchSize,
+    indicesSize ~/ shapeInfo.batchSize,
     shapeInfo.sliceSize
   ];
 

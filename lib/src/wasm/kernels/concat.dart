@@ -24,6 +24,7 @@
 
 import 'package:tensorflow_wasm/tensorflow_wasm.dart' show SliceList;
 
+import '../kernel_utils/shared.dart' show concatImplCPU, ValueWithShape;
 import '_prelude.dart';
 import 'package:tensorflow_wasm/src/util_base.dart' as util;
 import 'package:tensorflow_wasm/backend_util.dart' as backend_util;
@@ -74,19 +75,19 @@ TensorInfo concat({
     }).toList();
 
     final inputsValShapes = inputs2D.map((t) {
-      return {vals: backend.readSync(t.dataId), shape: t.shape};
-    });
+      return ValueWithShape(vals: backend.readSync(t.dataId), shape: t.shape);
+    }).toList();
 
     // Concats 2d tensors along axis=1.
     outShape = backend_util.computeOutShape(
         inputs2D.map((t) => t.shape).toList(), 1 /* axis */);
     final simplyConcat = inputs2D[0].shape[0] == 1;
-    final List<String> outVals = concatImplCPU(
+    final outVals = concatImplCPU(
       inputsValShapes,
       outShape,
       inputs[0].dtype,
       simplyConcat,
-    );
+    ) as List<String>;
 
     final finalOutShape = backend_util.computeOutShape(
         $inputs.map((t) => t.shape).toList(), axis);
