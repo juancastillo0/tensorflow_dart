@@ -90,13 +90,12 @@ List<Tensor> executeOp(
       final message =
           getParamValue('message', node, tensorMap, context) as String;
       final summarize =
-          getParamValue('summarize', node, tensorMap, context) as number;
+          getParamValue('summarize', node, tensorMap, context) as int;
       util.log.warning('The graph has a tf.print() operation,' +
           'usually used for debugging, which slows down performance.');
       util.log.info(message);
       for (int i = 0; i < data.length; i++) {
-        util.log.info(
-            Array.prototype.slice.call(data[i].dataSync()).slice(0, summarize));
+        util.log.info(data[i].dataSync().slice(0, summarize));
       }
       return [input];
 

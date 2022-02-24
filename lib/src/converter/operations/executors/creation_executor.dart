@@ -41,15 +41,15 @@ List<Tensor> executeOp(
         final dtype =
             getParamValue('dtype', node, tensorMap, context) as DataType;
         final value =
-            getParamValue('value', node, tensorMap, context) as number;
+            getParamValue('value', node, tensorMap, context) as Object;
         return [tfOps.fill(shape, value, dtype)];
       }
     case 'LinSpace':
       {
         final start =
-            getParamValue('start', node, tensorMap, context) as number;
-        final stop = getParamValue('stop', node, tensorMap, context) as number;
-        final num = getParamValue('num', node, tensorMap, context) as number;
+            getParamValue('start', node, tensorMap, context) as double;
+        final stop = getParamValue('stop', node, tensorMap, context) as double;
+        final num = getParamValue('num', node, tensorMap, context) as int;
         return [tfOps.linspace(start, stop, num)];
       }
     case 'Multinomial':
@@ -57,21 +57,22 @@ List<Tensor> executeOp(
         final logits =
             getParamValue('logits', node, tensorMap, context) as Tensor1D;
         final numSamples =
-            getParamValue('numSamples', node, tensorMap, context) as number;
-        final seed = getParamValue('seed', node, tensorMap, context) as number;
-        return [tfOps.multinomial(logits, numSamples, seed)];
+            getParamValue('numSamples', node, tensorMap, context) as int;
+        final seed = getParamValue('seed', node, tensorMap, context) as int?;
+        return [tfOps.multinomial(logits, numSamples, seed: seed)];
       }
     case 'OneHot':
       {
         final indices =
             getParamValue('indices', node, tensorMap, context) as Tensor1D;
-        final depth =
-            getParamValue('depth', node, tensorMap, context) as number;
+        final depth = getParamValue('depth', node, tensorMap, context) as int;
         final onValue =
-            getParamValue('onValue', node, tensorMap, context) as number;
+            getParamValue('onValue', node, tensorMap, context) as double;
         final offValue =
-            getParamValue('offValue', node, tensorMap, context) as number;
-        return [tfOps.oneHot(indices, depth, onValue, offValue)];
+            getParamValue('offValue', node, tensorMap, context) as double;
+        return [
+          tfOps.oneHot(indices, depth, onValue: onValue, offValue: offValue)
+        ];
       }
     case 'Ones':
       {
@@ -92,22 +93,22 @@ List<Tensor> executeOp(
         return [
           tfOps.randomUniform(
               // tslint:disable-next-line:no-any
-              getParamValue('shape', node, tensorMap, context) as any,
-              getParamValue('minval', node, tensorMap, context) as number,
-              getParamValue('maxval', node, tensorMap, context) as number,
-              getParamValue('dtype', node, tensorMap, context) as DataType)
+              getParamValue('shape', node, tensorMap, context) as List<int>,
+              min: getParamValue('minval', node, tensorMap, context) as double,
+              max: getParamValue('maxval', node, tensorMap, context) as double,
+              dtype:
+                  getParamValue('dtype', node, tensorMap, context) as DataType)
         ];
       }
     case 'Range':
       {
-        final start =
-            getParamValue('start', node, tensorMap, context) as number;
-        final stop = getParamValue('stop', node, tensorMap, context) as number;
-        final step = getParamValue('step', node, tensorMap, context) as number;
+        final start = getParamValue('start', node, tensorMap, context) as int;
+        final stop = getParamValue('stop', node, tensorMap, context) as int;
+        final step = getParamValue('step', node, tensorMap, context) as int?;
         return [
           tfOps.range(
-            start, stop, step,
-            getParamValue('dtype', node, tensorMap, context)
+            start, stop, step: step,
+            dtype: getParamValue('dtype', node, tensorMap, context)
                 as String, // 'float32' | 'int32',
           )
         ];
@@ -116,18 +117,17 @@ List<Tensor> executeOp(
       {
         final shape =
             getParamValue('shape', node, tensorMap, context) as List<int>;
-        final mean = getParamValue('mean', node, tensorMap, context) as number;
+        final mean = getParamValue('mean', node, tensorMap, context) as double;
         final stdDev =
-            getParamValue('stdDev', node, tensorMap, context) as number;
-        final seed = getParamValue('seed', node, tensorMap, context) as number;
+            getParamValue('stdDev', node, tensorMap, context) as double;
+        final seed = getParamValue('seed', node, tensorMap, context) as int?;
         return [
-          tfOps.truncatedNormal(
-              shape,
-              mean,
-              stdDev,
-              getParamValue('dtype', node, tensorMap, context)
+          tfOps.truncatedNormal(shape,
+              mean: mean,
+              stdDev: stdDev,
+              dtype: getParamValue('dtype', node, tensorMap, context)
                   as String, // 'float32' | 'int32',
-              seed)
+              seed: seed)
         ];
       }
     case 'Zeros':
