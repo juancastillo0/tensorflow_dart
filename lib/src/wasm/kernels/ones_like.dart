@@ -15,20 +15,26 @@
  * =============================================================================
  */
 
-import {KernelConfig, KernelFunc, OnesLike, OnesLikeInputs} from '@tensorflow/tfjs-core';
+// import {KernelConfig, KernelFunc, OnesLike, OnesLikeInputs} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-function onesLike(args: {inputs: OnesLikeInputs, backend: BackendWasm}) {
-  const {inputs: {x}, backend} = args;
-  const out = backend.makeOutput(x.shape, x.dtype);
-  const outVals = backend.typedArrayFromHeap(out);
-  outVals.fill(1);
+import '_prelude.dart';
+
+TensorInfo onesLike({
+  required NamedTensorInfoMap inputs,
+  required BackendWasm backend,
+  NamedAttrMap? attrs,
+}) {
+  final x = inputs['x']!;
+  final out = backend.makeOutput(x.shape, x.dtype);
+  final outVals = backend.typedArrayFromHeap(out) as List;
+  outVals.fillRange(0, outVals.length, 1);
   return out;
 }
 
-export const onesLikeConfig: KernelConfig = {
+final onesLikeConfig = KernelConfigG(
   kernelName: OnesLike,
   backendName: 'wasm',
-  kernelFunc: onesLike as {} as KernelFunc,
-};
+  kernelFunc: onesLike,
+);

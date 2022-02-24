@@ -15,25 +15,33 @@
  * =============================================================================
  */
 
-import {KernelConfig, KernelFunc, Range, RangeAttrs, TensorInfo} from '@tensorflow/tfjs-core';
+// import {KernelConfig, KernelFunc, Range, RangeAttrs, TensorInfo} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
-import {rangeImplCPU} from '../kernel_utils/shared';
+// import {BackendWasm} from '../backend_wasm';
+// import {rangeImplCPU} from '../kernel_utils/shared';
 
-export const range =
-    (args: {backend: BackendWasm, attrs: RangeAttrs}): TensorInfo => {
-      const {backend, attrs} = args;
-      const {start, stop, step, dtype} = attrs;
-      const values = rangeImplCPU(start, stop, step, dtype);
+import '../kernel_utils/shared.dart' show rangeImplCPU;
+import '_prelude.dart';
 
-      const out = backend.makeOutput([values.length], dtype);
-      const outVals = backend.typedArrayFromHeap(out);
-      outVals.set(values);
-      return out;
-    };
+TensorInfo range({
+  required NamedTensorInfoMap inputs,
+  required BackendWasm backend,
+  NamedAttrMap? attrs,
+}) {
+  final start = attrs!['start'] as int;
+  final stop = attrs['stop'] as int;
+  final step = attrs['step'] as int;
+  final dtype = attrs['dtype'] as DataType;
+  final values = rangeImplCPU(start, stop, step, dtype);
 
-export const rangeConfig: KernelConfig = {
+  final out = backend.makeOutput([values.length], dtype);
+  final outVals = backend.typedArrayFromHeap(out) as List;
+  outVals.setAll(0, values);
+  return out;
+}
+
+final rangeConfig = KernelConfigG(
   kernelName: Range,
   backendName: 'wasm',
-  kernelFunc: range as {} as KernelFunc
-};
+  kernelFunc: range,
+);

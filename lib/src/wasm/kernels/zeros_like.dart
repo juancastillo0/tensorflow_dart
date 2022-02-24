@@ -15,20 +15,26 @@
  * =============================================================================
  */
 
-import {KernelConfig, KernelFunc, ZerosLike, ZerosLikeInputs} from '@tensorflow/tfjs-core';
+// import {KernelConfig, KernelFunc, ZerosLike, ZerosLikeInputs} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-function zerosLike(args: {inputs: ZerosLikeInputs, backend: BackendWasm}) {
-  const {inputs: {x}, backend} = args;
-  const out = backend.makeOutput(x.shape, x.dtype);
-  const outVals = backend.typedArrayFromHeap(out);
-  outVals.fill(0);
+import '_prelude.dart';
+
+TensorInfo zerosLike({
+  required NamedTensorInfoMap inputs,
+  required BackendWasm backend,
+  NamedAttrMap? attrs,
+}) {
+  final x = inputs['x']!;
+  final out = backend.makeOutput(x.shape, x.dtype);
+  final outVals = backend.typedArrayFromHeap(out) as List;
+  outVals.fillRange(0, outVals.length, 0);
   return out;
 }
 
-export const zerosLikeConfig: KernelConfig = {
+final zerosLikeConfig = KernelConfigG(
   kernelName: ZerosLike,
   backendName: 'wasm',
-  kernelFunc: zerosLike as {} as KernelFunc,
-};
+  kernelFunc: zerosLike,
+);

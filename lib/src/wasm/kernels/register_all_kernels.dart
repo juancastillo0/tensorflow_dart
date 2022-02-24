@@ -9,6 +9,7 @@ import 'package:tensorflow_wasm/src/wasm/kernels/concat.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/cumsum.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/depthwise_conv2d_native.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/expand_dims.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/fill.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/fused_batch_norm.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/fused_conv2d.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/fused_depthwise_conv2d.dart';
@@ -17,7 +18,10 @@ import 'package:tensorflow_wasm/src/wasm/kernels/gather_nd.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/gather_v2.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/identity.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/max.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/one_hot.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/ones_like.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/pack.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/range.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/reshape.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/scatter_nd.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/select.dart';
@@ -30,6 +34,7 @@ import 'package:tensorflow_wasm/src/wasm/kernels/tile.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/top_k.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/transpose.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/unpack.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/zeros_like.dart';
 
 void registerAllKernels() {
   final configs = <KernelConfig>[
@@ -100,6 +105,11 @@ void registerAllKernels() {
     splitVConfig,
     topKConfig,
     unpackConfig,
+    rangeConfig,
+    zerosLikeConfig,
+    onesLikeConfig,
+    oneHotConfig,
+    fillConfig,
     //
     depthwiseConv2dNativeConfig,
     // Mean

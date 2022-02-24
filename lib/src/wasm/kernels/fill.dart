@@ -15,21 +15,30 @@
  * =============================================================================
  */
 
-import {KernelConfig, KernelFunc} from '@tensorflow/tfjs-core';
-import {Fill, FillAttrs} from '@tensorflow/tfjs-core';
+// import {KernelConfig, KernelFunc} from '@tensorflow/tfjs-core';
+// import {Fill, FillAttrs} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-export function fill(args: {attrs: FillAttrs, backend: BackendWasm}) {
-  const {attrs: {shape, value, dtype}, backend} = args;
-  const out = backend.makeOutput(shape, dtype);
-  const outVals = backend.typedArrayFromHeap(out);
-  outVals.fill(value as number);
+import '_prelude.dart';
+
+TensorInfo fill({
+  required NamedTensorInfoMap inputs,
+  NamedAttrMap? attrs,
+  required BackendWasm backend,
+}) {
+  final shape = attrs!['shape'] as List<int>;
+  final value = attrs['value'] as Object;
+  final dtype = attrs['dtype'] as DataType;
+
+  final out = backend.makeOutput(shape, dtype);
+  final outVals = backend.typedArrayFromHeap(out) as List;
+  outVals.fillRange(0, outVals.length, value);
   return out;
 }
 
-export const fillConfig: KernelConfig = {
+final fillConfig = KernelConfigG(
   kernelName: Fill,
   backendName: 'wasm',
-  kernelFunc: fill as {} as KernelFunc,
-};
+  kernelFunc: fill,
+);

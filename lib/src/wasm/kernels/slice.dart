@@ -22,6 +22,7 @@
 
 import 'dart:typed_data';
 
+import '../kernel_utils/shared.dart' show sliceImplCPU;
 import '_prelude.dart';
 import 'package:tensorflow_wasm/slice_util.dart' as slice_util;
 import 'package:tensorflow_wasm/src/util_base.dart' as util;
@@ -66,7 +67,7 @@ TensorInfo slice({
     return out;
   }
 
-  final outVals = backend.typedArrayFromHeap(out);
+  final outVals = backend.typedArrayFromHeap(out) as List;
   final rank = x.shape.length;
   if (rank == 2) {
     slice2d(xVals, xStrides[0], outVals, begin_, size_);

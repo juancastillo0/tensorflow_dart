@@ -15,44 +15,50 @@
  * =============================================================================
  */
 
-import {KernelConfig, KernelFunc, OneHot, OneHotAttrs, OneHotInputs} from '@tensorflow/tfjs-core';
+// import {KernelConfig, KernelFunc, OneHot, OneHotAttrs, OneHotInputs} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-let wasmOneHot: (
-    indicesId: number, depth: number, onValue: number, offValue: number,
-    outId: number) => void;
+import '_prelude.dart';
 
-function setup(backend: BackendWasm) {
-  wasmOneHot = backend.wasm.cwrap(OneHot, null /* void */, [
-    'number',  // indices_id
-    'number',  // depth,
-    'number',  // onValue
-    'number',  // offValue
-    'number'   // out_id
+late final Function(List) _wasmOneHot;
+// : ( indicesId: number, depth: number, onValue: number, offValue: number,
+//     outId: number) => void;
+
+void _setup(BackendWasm backend) {
+  _wasmOneHot = backend.wasm.cwrap(OneHot, null /* void */, [
+    'number', // indices_id
+    'number', // depth,
+    'number', // onValue
+    'number', // offValue
+    'number' // out_id
   ]);
 }
 
-function oneHot(
-    args: {inputs: OneHotInputs, attrs: OneHotAttrs, backend: BackendWasm}) {
-  const {inputs, backend, attrs} = args;
-  const {indices} = inputs;
-  const {depth, onValue, offValue} = attrs;
+TensorInfo oneHot({
+  required NamedTensorInfoMap inputs,
+  NamedAttrMap? attrs,
+  required BackendWasm backend,
+}) {
+  final indices = inputs['indices']!;
+  final depth = attrs!['depth'] as int;
+  final onValue = attrs['onValue'] as double;
+  final offValue = attrs['offValue'] as double;
 
-  const out = backend.makeOutput([...indices.shape, depth], 'int32');
-  const outId = backend.dataIdMap.get(out.dataId).id;
+  final out = backend.makeOutput([...indices.shape, depth], 'int32');
+  final outId = backend.dataIdMap.get(out.dataId)!.id;
 
-  const indicesData = backend.dataIdMap.get(indices.dataId);
-  const indicesId = indicesData.id;
+  final indicesData = backend.dataIdMap.get(indices.dataId)!;
+  final indicesId = indicesData.id;
 
-  wasmOneHot(indicesId, depth, onValue, offValue, outId);
+  _wasmOneHot([indicesId, depth, onValue, offValue, outId]);
 
   return out;
 }
 
-export const oneHotConfig: KernelConfig = {
+final oneHotConfig = KernelConfigG(
   kernelName: OneHot,
   backendName: 'wasm',
-  setupFunc: setup,
-  kernelFunc: oneHot as {} as KernelFunc,
-};
+  setupFunc: _setup,
+  kernelFunc: oneHot,
+);
