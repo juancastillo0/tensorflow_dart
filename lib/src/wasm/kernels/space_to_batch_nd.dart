@@ -15,62 +15,73 @@
  * =============================================================================
  */
 
-import {backend_util, KernelConfig, KernelFunc, ReshapeAttrs, ReshapeInputs, SpaceToBatchND, SpaceToBatchNDAttrs, SpaceToBatchNDInputs, TensorInfo, TransposeAttrs, TransposeInputs, util} from '@tensorflow/tfjs-core';
+// import {backend_util, KernelConfig, KernelFunc, ReshapeAttrs, ReshapeInputs, SpaceToBatchND, SpaceToBatchNDAttrs, SpaceToBatchNDInputs, TensorInfo, TransposeAttrs, TransposeInputs, util} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-import {padV2Config} from './PadV2';
-import {reshape} from './Reshape';
-import {transpose} from './Transpose';
+// import {padV2Config} from './PadV2';
+// import {reshape} from './Reshape';
+// import {transpose} from './Transpose';
 
-function spaceToBatchND(args: {
-  inputs: SpaceToBatchNDInputs,
-  backend: BackendWasm,
-  attrs: SpaceToBatchNDAttrs
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
+import 'package:tensorflow_wasm/backend_util.dart' as backend_util;
+
+import '_prelude.dart';
+import 'pad_v2.dart';
+import 'reshape.dart';
+import 'transpose.dart';
+
+TensorInfo spaceToBatchND({
+  required NamedTensorInfoMap inputs,
+  required BackendWasm backend,
+  NamedAttrMap? attrs,
 }) {
-  const {inputs, backend, attrs} = args;
-  const {x} = inputs;
-  const {blockShape, paddings} = attrs;
+  final x = inputs['x']!;
 
-  const prod = util.sizeFromShape(blockShape);
+  final paddings = attrs!['paddings'] as List<List<int>>;
+  final blockShape = attrs['blockShape'] as List<int>;
 
-  const completePaddings: Array<[number, number]> = [[0, 0]];
-  completePaddings.push(...(paddings as Array<[number, number]>));
+  final prod = util.sizeFromShape(blockShape);
 
-  for (let i = 1 + blockShape.length; i < x.shape.length; ++i) {
-    completePaddings.push([0, 0]);
+  final completePaddings = [
+    [0, 0]
+  ];
+  completePaddings.addAll(paddings);
+
+  for (int i = 1 + blockShape.length; i < x.shape.length; ++i) {
+    completePaddings.add([0, 0]);
   }
 
-  const paddedX = padV2Config.kernelFunc({
-    inputs: {x},
-    backend,
-    attrs: {paddings: completePaddings, constantValue: 0}
-  }) as TensorInfo;
+  final paddedX = padV2Config.kernelFunc(
+      inputs: {'x': x},
+      backend: backend,
+      attrs: {'paddings': completePaddings, 'finalantValue': 0}) as TensorInfo;
 
-  const reshapedPaddedShape =
+  final reshapedPaddedShape =
       backend_util.getReshaped(paddedX.shape, blockShape, prod, false);
 
-  const permutedReshapedPaddedPermutation = backend_util.getPermuted(
+  final permutedReshapedPaddedPermutation = backend_util.getPermuted(
       reshapedPaddedShape.length, blockShape.length, false);
 
-  const flattenShape =
+  final flattenShape =
       backend_util.getReshapedPermuted(paddedX.shape, blockShape, prod, false);
 
-  const reshapeInputs: ReshapeInputs = {x: paddedX};
-  const reshapeAttrs: ReshapeAttrs = {shape: reshapedPaddedShape};
-  const paddedXReshaped =
-      reshape({inputs: reshapeInputs, backend, attrs: reshapeAttrs});
+  final reshapeInputs = {'x': paddedX}; // : ReshapeInputs
+  final reshapeAttrs = {'shape': reshapedPaddedShape}; // : ReshapeAttrs
+  final paddedXReshaped =
+      reshape(inputs: reshapeInputs, backend: backend, attrs: reshapeAttrs);
 
-  const transposeInputs: TransposeInputs = {x: paddedXReshaped};
-  const transposeAttrs:
-      TransposeAttrs = {perm: permutedReshapedPaddedPermutation};
-  const paddedXT =
-      transpose({inputs: transposeInputs, backend, attrs: transposeAttrs});
+  final transposeInputs = {'x': paddedXReshaped}; // : TransposeInputs
+  final transposeAttrs = {
+    'perm': permutedReshapedPaddedPermutation
+  }; // : TransposeAttrs
+  final paddedXT = transpose(
+      inputs: transposeInputs, backend: backend, attrs: transposeAttrs);
 
-  const resultReshapeInputs: ReshapeInputs = {x: paddedXT};
-  const resultReshapeAttrs: ReshapeAttrs = {shape: flattenShape};
-  const result = reshape(
-      {inputs: resultReshapeInputs, backend, attrs: resultReshapeAttrs});
+  final resultReshapeInputs = {'x': paddedXT}; // : ReshapeInputs
+  final resultReshapeAttrs = {'shape': flattenShape}; // : ReshapeAttrs
+  final result = reshape(
+      inputs: resultReshapeInputs, backend: backend, attrs: resultReshapeAttrs);
 
   backend.disposeData(paddedX.dataId);
   backend.disposeData(paddedXReshaped.dataId);
@@ -79,8 +90,8 @@ function spaceToBatchND(args: {
   return result;
 }
 
-export const spaceToBatchNDConfig: KernelConfig = {
+final spaceToBatchNDConfig = KernelConfigG(
   kernelName: SpaceToBatchND,
   backendName: 'wasm',
-  kernelFunc: spaceToBatchND as {} as KernelFunc
-};
+  kernelFunc: spaceToBatchND,
+);

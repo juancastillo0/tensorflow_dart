@@ -15,66 +15,79 @@
  * =============================================================================
  */
 
-import {KernelConfig, KernelFunc, MirrorPad, MirrorPadAttrs, MirrorPadInputs} from '@tensorflow/tfjs-core';
+// import {KernelConfig, KernelFunc, MirrorPad, MirrorPadAttrs, MirrorPadInputs} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-import {CppDType} from './types';
+// import {CppDType} from './types';
+
+import 'dart:typed_data';
+
+import 'package:collection/collection.dart';
+import '_prelude.dart';
 
 // Must match enum in MirrorPad.cc
-enum MirrorPaddingMode {
-  reflect = 0,
-  symmetric = 1
-}
+enum MirrorPaddingMode { reflect, symmetric }
 
-let wasmMirrorPad: (
-    xId: number, xShapeBytes: Uint8Array, xShapeLength: number, xDtype: number,
-    prePaddingsBytes: Uint8Array, postPaddingsBytes: Uint8Array, mode: number,
-    outId: number) => void;
+late final Function(List) _wasmMirrorPad;
+// : ( xId: number, xShapeBytes: Uint8Array, xShapeLength: number, xDtype: number,
+//     prePaddingsBytes: Uint8Array, postPaddingsBytes: Uint8Array, mode: number,
+//     outId: number) => void;
 
-function setup(backend: BackendWasm) {
-  wasmMirrorPad = backend.wasm.cwrap(MirrorPad, null /* void */, [
-    'number',  // xId
-    'array',   // x.shape
-    'number',  // x.shape.length
-    'number',  // x.dtype
-    'array',   // pre-paddings
-    'array',   // post-paddings
-    'number',  // mode
-    'number',  // outId
+void _setup(BackendWasm backend) {
+  _wasmMirrorPad = backend.wasm.cwrap(MirrorPad, null /* void */, [
+    'number', // xId
+    'array', // x.shape
+    'number', // x.shape.length
+    'number', // x.dtype
+    'array', // pre-paddings
+    'array', // post-paddings
+    'number', // mode
+    'number', // outId
   ]);
 }
 
-function mirrorPad(args: {
-  inputs: MirrorPadInputs,
-  backend: BackendWasm,
-  attrs: MirrorPadAttrs
+TensorInfo mirrorPad({
+  required NamedTensorInfoMap inputs,
+  required BackendWasm backend,
+  NamedAttrMap? attrs,
 }) {
-  const {inputs: {x}, backend, attrs: {paddings, mode}} = args;
+  final x = inputs['x']!;
 
-  const outShape = paddings.map(
-      (p, i) => p[0] /* beforePad */ + x.shape[i] + p[1] /* afterPad */);
-  const xId = backend.dataIdMap.get(x.dataId).id;
-  const out = backend.makeOutput(outShape, x.dtype);
-  const outId = backend.dataIdMap.get(out.dataId).id;
-  const xShapeBytes = new Uint8Array(new Int32Array(x.shape).buffer);
+  final paddings = attrs!['paddings'] as List<List<int>>;
+  final mode = attrs['mode'] as String;
 
-  const prePaddingsFlat = paddings.map(padTuple => padTuple[0]);
-  const postPaddingsFlat = paddings.map(padTuple => padTuple[1]);
-  const prePaddingsBytes =
-      new Uint8Array(new Int32Array(prePaddingsFlat).buffer);
-  const postPaddingsBytes =
-      new Uint8Array(new Int32Array(postPaddingsFlat).buffer);
+  final outShape = paddings
+      .mapIndexed(
+          (i, p) => p[0] /* beforePad */ + x.shape[i] + p[1] /* afterPad */)
+      .toList();
+  final xId = backend.dataIdMap.get(x.dataId)!.id;
+  final out = backend.makeOutput(outShape, x.dtype);
+  final outId = backend.dataIdMap.get(out.dataId)!.id;
+  final xShapeBytes = Uint8List.view(Int32List.fromList(x.shape).buffer);
 
-  wasmMirrorPad(
-      xId, xShapeBytes, x.shape.length, CppDType[x.dtype], prePaddingsBytes,
-      postPaddingsBytes, MirrorPaddingMode[mode], outId);
+  final prePaddingsFlat = paddings.map((padTuple) => padTuple[0]).toList();
+  final postPaddingsFlat = paddings.map((padTuple) => padTuple[1]).toList();
+  final prePaddingsBytes =
+      Uint8List.view(Int32List.fromList(prePaddingsFlat).buffer);
+  final postPaddingsBytes =
+      Uint8List.view(Int32List.fromList(postPaddingsFlat).buffer);
+
+  _wasmMirrorPad([
+    xId,
+    xShapeBytes,
+    x.shape.length,
+    CppDType.values.byName(x.dtype).index,
+    prePaddingsBytes,
+    postPaddingsBytes,
+    MirrorPaddingMode.values.byName(mode).index,
+    outId
+  ]);
   return out;
 }
 
-export const mirrorPadConfig: KernelConfig = {
-  kernelName: MirrorPad,
-  backendName: 'wasm',
-  kernelFunc: mirrorPad as {} as KernelFunc,
-  setupFunc: setup
-};
+final mirrorPadConfig = KernelConfigG(
+    kernelName: MirrorPad,
+    backendName: 'wasm',
+    kernelFunc: mirrorPad,
+    setupFunc: _setup);

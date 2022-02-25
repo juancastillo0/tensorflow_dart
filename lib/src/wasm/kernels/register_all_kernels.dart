@@ -5,8 +5,10 @@ import 'package:tensorflow_wasm/src/wasm/kernels/any.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/arg_max.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/base_kernels.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/batch_mat_mul.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/batch_to_space_nd.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/concat.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/cumsum.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/depth_to_space.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/depthwise_conv2d_native.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/expand_dims.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/fill.dart';
@@ -18,9 +20,11 @@ import 'package:tensorflow_wasm/src/wasm/kernels/gather_nd.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/gather_v2.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/identity.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/max.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/mirror_pad.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/one_hot.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/ones_like.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/pack.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/pad_v2.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/range.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/reshape.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/scatter_nd.dart';
@@ -28,6 +32,7 @@ import 'package:tensorflow_wasm/src/wasm/kernels/select.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/sigmoid.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/slice.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/softmax.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/space_to_batch_nd.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/split_v.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/sum.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/tile.dart';
@@ -110,36 +115,38 @@ void registerAllKernels() {
     onesLikeConfig,
     oneHotConfig,
     fillConfig,
+    batchToSpaceNDConfig,
+    depthToSpaceConfig,
+    mirrorPadConfig,
+    padV2Config,
+    spaceToBatchNDConfig,
     //
     depthwiseConv2dNativeConfig,
     // Mean
-    // OneHot
+    // AvgPool
+    
+    // BatchToSpaceND
+    // DepthToSpace
+    // MirrorPad
+    // PadV2
+    // SpaceToBatchND
 
     // AvgPool
-    // BatchToSpaceND
     // ClipByValue
     // Conv2D
     // Conv2DBackpropInput
     // CropAndResize
-    // DepthToSpace
-    // Fill
     // FlipLeftRight
     // LeakyRelu
     // MaxPool
-    // MirrorPad
     // NonMaxSuppressionV3.ts
     // NonMaxSuppressionV4.ts
     // NonMaxSuppressionV5.ts
     // NonMaxSuppression_util.ts
-    // OneHot
-    // OnesLike
-    // PadV2
     // Prelu
-    // Range
     // ResizeBilinear
     // Reverse
     // RotateWithOffset
-    // SpaceToBatchND
     // SparseFillEmptyRows
     // SparseReshape
     // SparseSegmentMean
@@ -147,7 +154,6 @@ void registerAllKernels() {
     // SparseSegmentSum
     // Step
     // Transform
-    // ZerosLike
   ];
 
   for (final config in configs) {

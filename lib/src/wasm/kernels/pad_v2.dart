@@ -15,71 +15,91 @@
  * =============================================================================
  */
 
-import {KernelConfig, KernelFunc, PadV2, PadV2Attrs, PadV2Inputs, util} from '@tensorflow/tfjs-core';
+// import {KernelConfig, KernelFunc, PadV2, PadV2Attrs, PadV2Inputs, util} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-import {fill} from './Fill';
+// import {fill} from './Fill';
 
-import {CppDType} from './types';
+// import {CppDType} from './types';
 
-let wasmPadV2: (
-    xId: number, xShapeBytes: Uint8Array, xShapeLength: number, xDtype: number,
-    prePaddingsBytes: Uint8Array, postPaddingsBytes: Uint8Array,
-    constantValue: number, outId: number) => void;
+import 'dart:typed_data';
 
-function setup(backend: BackendWasm) {
-  wasmPadV2 = backend.wasm.cwrap(PadV2, null /* void */, [
-    'number',  // xId
-    'array',   // x.shape
-    'number',  // x.shape.length
-    'number',  // x.dtype
-    'array',   // pre-paddings
-    'array',   // post-paddings
-    'number',  // constantValue
-    'number',  // outId
+import 'package:collection/collection.dart';
+
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
+import '_prelude.dart';
+import 'fill.dart';
+
+late final Function(List) _wasmPadV2;
+// : (xId: number, xShapeBytes: Uint8Array, xShapeLength: number, xDtype: number,
+//     prePaddingsBytes: Uint8Array, postPaddingsBytes: Uint8Array,
+//     constantValue: number, outId: number) => void;
+
+void _setup(BackendWasm backend) {
+  _wasmPadV2 = backend.wasm.cwrap(PadV2, null /* void */, [
+    'number', // xId
+    'array', // x.shape
+    'number', // x.shape.length
+    'number', // x.dtype
+    'array', // pre-paddings
+    'array', // post-paddings
+    'number', // constantValue
+    'number', // outId
   ]);
 }
 
-function pad(
-    args: {inputs: PadV2Inputs, backend: BackendWasm, attrs: PadV2Attrs}) {
-  const {inputs: {x}, backend, attrs: {paddings, constantValue}} = args;
+TensorInfo pad({
+  required NamedTensorInfoMap inputs,
+  required BackendWasm backend,
+  NamedAttrMap? attrs,
+}) {
+  final x = inputs['x']!;
 
-  const outShape = paddings.map(
-      (p, i) => p[0] /* beforePad */ + x.shape[i] + p[1] /* afterPad */);
+  final paddings = attrs!['paddings'] as List<List<int>>;
+  final constantValue = attrs['constantValue'] as double;
 
-  if (util.sizeFromShape(x.shape) === 0) {
+  final outShape = paddings
+      .mapIndexed(
+          (i, p) => p[0] /* beforePad */ + x.shape[i] + p[1] /* afterPad */)
+      .toList();
+
+  if (util.sizeFromShape(x.shape) == 0) {
     // Short-circuit the computation, since x doesn't have value, only
     // the shape is used to compute output shape to pad.
-    return fill({
-      backend,
-      attrs: {shape: outShape, value: constantValue, dtype: x.dtype}
-    });
+    return fill(
+      backend: backend,
+      attrs: {'shape': outShape, 'value': constantValue, 'dtype': x.dtype},
+      inputs: {},
+    );
   }
 
-  const xId = backend.dataIdMap.get(x.dataId).id;
-  const out = backend.makeOutput(outShape, x.dtype);
-  const outTensorData = backend.dataIdMap.get(out.dataId);
-  const outId = outTensorData.id;
+  final xId = backend.dataIdMap.get(x.dataId)!.id;
+  final out = backend.makeOutput(outShape, x.dtype);
+  final outTensorData = backend.dataIdMap.get(out.dataId)!;
+  final outId = outTensorData.id;
 
-  const xShapeBytes = new Uint8Array(new Int32Array(x.shape).buffer);
+  final xShapeBytes = Uint8List.view(Int32List.fromList(x.shape).buffer);
 
-  const prePaddingsFlat = paddings.map(padTuple => padTuple[0]);
-  const postPaddingsFlat = paddings.map(padTuple => padTuple[1]);
-  const prePaddingsBytes =
-      new Uint8Array(new Int32Array(prePaddingsFlat).buffer);
-  const postPaddingsBytes =
-      new Uint8Array(new Int32Array(postPaddingsFlat).buffer);
+  final prePaddingsFlat = paddings.map((padTuple) => padTuple[0]).toList();
+  final postPaddingsFlat = paddings.map((padTuple) => padTuple[1]).toList();
+  final prePaddingsBytes =
+      Uint8List.view(Int32List.fromList(prePaddingsFlat).buffer);
+  final postPaddingsBytes =
+      Uint8List.view(Int32List.fromList(postPaddingsFlat).buffer);
 
-  wasmPadV2(
-      xId, xShapeBytes, x.shape.length, CppDType[x.dtype], prePaddingsBytes,
-      postPaddingsBytes, constantValue, outId);
+  _wasmPadV2([
+    xId,
+    xShapeBytes,
+    x.shape.length,
+    CppDType.values.byName(x.dtype).index,
+    prePaddingsBytes,
+    postPaddingsBytes,
+    constantValue,
+    outId
+  ]);
   return out;
 }
 
-export const padV2Config: KernelConfig = {
-  kernelName: PadV2,
-  backendName: 'wasm',
-  kernelFunc: pad as {} as KernelFunc,
-  setupFunc: setup
-};
+final padV2Config = KernelConfigG(
+    kernelName: PadV2, backendName: 'wasm', kernelFunc: pad, setupFunc: _setup);

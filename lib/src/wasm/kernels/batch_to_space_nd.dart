@@ -15,44 +15,55 @@
  * =============================================================================
  */
 
-import {backend_util, BatchToSpaceND, BatchToSpaceNDAttrs, BatchToSpaceNDInputs, KernelConfig, KernelFunc} from '@tensorflow/tfjs-core';
+// import {backend_util, BatchToSpaceND, BatchToSpaceNDAttrs, BatchToSpaceNDInputs, KernelConfig, KernelFunc} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-import {reshape} from './Reshape';
-import {slice} from './Slice';
-import {transpose} from './Transpose';
+// import {reshape} from './Reshape';
+// import {slice} from './Slice';
+// import {transpose} from './Transpose';
 
-function batchToSpaceND(args: {
-  inputs: BatchToSpaceNDInputs,
-  backend: BackendWasm,
-  attrs: BatchToSpaceNDAttrs
+import '_prelude.dart';
+
+import 'package:tensorflow_wasm/backend_util.dart' as backend_util;
+
+import 'reshape.dart';
+import 'slice.dart';
+import 'transpose.dart';
+
+TensorInfo batchToSpaceND({
+  required NamedTensorInfoMap inputs,
+  required BackendWasm backend,
+  NamedAttrMap? attrs,
 }) {
-  const {inputs, backend, attrs} = args;
-  const {x} = inputs;
-  const {blockShape, crops} = attrs;
+  final x = inputs['x']!;
 
-  const prod = blockShape.reduce((a, b) => a * b);
+  final crops = attrs!['crops'] as List<List<int>>;
+  final blockShape = attrs['blockShape'] as List<int>;
 
-  const reshaped = backend_util.getReshaped(x.shape, blockShape, prod);
-  const permuted = backend_util.getPermuted(reshaped.length, blockShape.length);
-  const reshapedPermuted =
+  final prod = blockShape.reduce((a, b) => a * b);
+
+  final reshaped = backend_util.getReshaped(x.shape, blockShape, prod);
+  final permuted = backend_util.getPermuted(reshaped.length, blockShape.length);
+  final reshapedPermuted =
       backend_util.getReshapedPermuted(x.shape, blockShape, prod);
-  const sliceBeginCoords =
+  final sliceBeginCoords =
       backend_util.getSliceBeginCoords(crops, blockShape.length);
-  const sliceSize =
+  final sliceSize =
       backend_util.getSliceSize(reshapedPermuted, crops, blockShape.length);
 
-  const xReshaped = reshape({inputs: {x}, backend, attrs: {shape: reshaped}});
-  const xTransposed =
-      transpose({inputs: {x: xReshaped}, backend, attrs: {perm: permuted}});
-  const xTransposedReshaped = reshape(
-      {inputs: {x: xTransposed}, backend, attrs: {shape: reshapedPermuted}});
-  const result = slice({
-    inputs: {x: xTransposedReshaped},
-    backend,
-    attrs: {begin: sliceBeginCoords, size: sliceSize}
-  });
+  final xReshaped =
+      reshape(inputs: {'x': x}, backend: backend, attrs: {'shape': reshaped});
+  final xTransposed = transpose(
+      inputs: {'x': xReshaped}, backend: backend, attrs: {'perm': permuted});
+  final xTransposedReshaped = reshape(
+      inputs: {'x': xTransposed},
+      backend: backend,
+      attrs: {'shape': reshapedPermuted});
+  final result = slice(
+      inputs: {'x': xTransposedReshaped},
+      backend: backend,
+      attrs: {'begin': sliceBeginCoords, 'size': sliceSize});
 
   backend.disposeData(xReshaped.dataId);
   backend.disposeData(xTransposed.dataId);
@@ -61,8 +72,8 @@ function batchToSpaceND(args: {
   return result;
 }
 
-export const batchToSpaceNDConfig: KernelConfig = {
+final batchToSpaceNDConfig = KernelConfigG(
   kernelName: BatchToSpaceND,
   backendName: 'wasm',
-  kernelFunc: batchToSpaceND as {} as KernelFunc
-};
+  kernelFunc: batchToSpaceND,
+);

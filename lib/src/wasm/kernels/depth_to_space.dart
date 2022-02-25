@@ -15,74 +15,89 @@
  * =============================================================================
  */
 
-import {DepthToSpace, DepthToSpaceAttrs, DepthToSpaceInputs, KernelConfig, KernelFunc, TensorInfo, util} from '@tensorflow/tfjs-core';
+// import {DepthToSpace, DepthToSpaceAttrs, DepthToSpaceInputs, KernelConfig, KernelFunc, TensorInfo, util} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-let wasmDepthToSpace: (
-    xId: number, blockSize: number, channelsLast: number, xStrides: Uint8Array,
-    xStridesLength: number, outputShape: Uint8Array, outputStrides: Uint8Array,
-    outSize: number, outId: number) => void;
+import 'dart:typed_data';
 
-function setup(backend: BackendWasm): void {
-  wasmDepthToSpace = backend.wasm.cwrap(DepthToSpace, null /*void*/, [
-    'number',  // xId
-    'number',  // blockSize
-    'number',  // channelsLast
-    'array',   // xStrides
-    'number',  // xStridesLength
-    'array',   // outputShape
-    'array',   // outputStrides
-    'number',  // outSize
-    'number',  // outId
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
+import '_prelude.dart';
+
+late final Function(List) _wasmDepthToSpace;
+// : (xId: number, blockSize: number, channelsLast: number, xStrides: Uint8Array,
+//     xStridesLength: number, outputShape: Uint8Array, outputStrides: Uint8Array,
+//     outSize: number, outId: number) => void;
+
+void _setup(BackendWasm backend) {
+  _wasmDepthToSpace = backend.wasm.cwrap(DepthToSpace, null /*void*/, [
+    'number', // xId
+    'number', // blockSize
+    'number', // channelsLast
+    'array', // xStrides
+    'number', // xStridesLength
+    'array', // outputShape
+    'array', // outputStrides
+    'number', // outSize
+    'number', // outId
   ]);
 }
 
-export function depthToSpace(args: {
-  backend: BackendWasm,
-  inputs: DepthToSpaceInputs,
-  attrs: DepthToSpaceAttrs
-}): TensorInfo {
-  const {backend, inputs, attrs} = args;
-  const {x} = inputs;
-  const {blockSize, dataFormat} = attrs;
+TensorInfo depthToSpace({
+  required NamedTensorInfoMap inputs,
+  required BackendWasm backend,
+  NamedAttrMap? attrs,
+}) {
+  final x = inputs['x']!;
 
-  const batchSize = x.shape[0];
-  const inputHeight = (dataFormat === 'NHWC') ? x.shape[1] : x.shape[2];
-  const inputWidth = (dataFormat === 'NHWC') ? x.shape[2] : x.shape[3];
-  const inputDepth = (dataFormat === 'NHWC') ? x.shape[3] : x.shape[1];
+  final blockSize = attrs!['blockSize'] as int;
+  final dataFormat = attrs['dataFormat'] as String;
 
-  const outputHeight = inputHeight * blockSize;
-  const outputWidth = inputWidth * blockSize;
-  const outputDepth = inputDepth / (blockSize * blockSize);
+  final batchSize = x.shape[0];
+  final inputHeight = (dataFormat == 'NHWC') ? x.shape[1] : x.shape[2];
+  final inputWidth = (dataFormat == 'NHWC') ? x.shape[2] : x.shape[3];
+  final inputDepth = (dataFormat == 'NHWC') ? x.shape[3] : x.shape[1];
 
-  const outputShape = (dataFormat === 'NHWC') ?
-      [batchSize, outputHeight, outputWidth, outputDepth] :
-      [batchSize, outputDepth, outputHeight, outputWidth];
+  final outputHeight = inputHeight * blockSize;
+  final outputWidth = inputWidth * blockSize;
+  final outputDepth = inputDepth ~/ (blockSize * blockSize);
 
-  const out = backend.makeOutput(outputShape, 'float32');
+  final outputShape = (dataFormat == 'NHWC')
+      ? [batchSize, outputHeight, outputWidth, outputDepth]
+      : [batchSize, outputDepth, outputHeight, outputWidth];
 
-  const xData = backend.dataIdMap.get(x.dataId);
-  const xId = xData.id;
-  const xStridesBytes =
-      new Uint8Array(new Int32Array(util.computeStrides(x.shape)).buffer);
+  final out = backend.makeOutput(outputShape, 'float32');
 
-  const outputShapeBytes = new Uint8Array(new Int32Array(outputShape).buffer);
-  const outStridesBytes =
-      new Uint8Array(new Int32Array(util.computeStrides(outputShape)).buffer);
+  final xData = backend.dataIdMap.get(x.dataId)!;
+  final xId = xData.id;
+  final xStridesBytes =
+      Uint8List.view(Int32List.fromList(util.computeStrides(x.shape)).buffer);
 
-  const outId = backend.dataIdMap.get(out.dataId).id;
-  const channelsLast = dataFormat === 'NHWC' ? 1 : 0;
-  wasmDepthToSpace(
-      xId, blockSize, channelsLast, xStridesBytes, x.shape.length - 1,
-      outputShapeBytes, outStridesBytes, outputShape.length, outId);
+  final outputShapeBytes =
+      Uint8List.view(Int32List.fromList(outputShape).buffer);
+  final outStridesBytes = Uint8List.view(
+      Int32List.fromList(util.computeStrides(outputShape)).buffer);
+
+  final outId = backend.dataIdMap.get(out.dataId)!.id;
+  final channelsLast = dataFormat == 'NHWC' ? 1 : 0;
+  _wasmDepthToSpace([
+    xId,
+    blockSize,
+    channelsLast,
+    xStridesBytes,
+    x.shape.length - 1,
+    outputShapeBytes,
+    outStridesBytes,
+    outputShape.length,
+    outId
+  ]);
 
   return out;
 }
 
-export const depthToSpaceConfig: KernelConfig = {
+final depthToSpaceConfig = KernelConfigG(
   kernelName: DepthToSpace,
   backendName: 'wasm',
-  setupFunc: setup,
-  kernelFunc: depthToSpace as {} as KernelFunc
-};
+  setupFunc: _setup,
+  kernelFunc: depthToSpace,
+);
