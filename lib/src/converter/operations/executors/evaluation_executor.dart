@@ -15,43 +15,50 @@
  * =============================================================================
  */
 
-import {Tensor} from '@tensorflow/tfjs-core';
-// tslint:disable-next-line: no-imports-from-dist
-import * as tfOps from '@tensorflow/tfjs-core/dist/ops/ops_for_converter';
+// import {Tensor} from '@tensorflow/tfjs-core';
+// // tslint:disable-next-line: no-imports-from-dist
+// import * as tfOps from '@tensorflow/tfjs-core/dist/ops/ops_for_converter';
 
-import {NamedTensorsMap} from '../../data/types';
-import {ExecutionContext} from '../../executor/execution_context';
-import {InternalOpExecutor, Node} from '../types';
+// import {NamedTensorsMap} from '../../data/types';
+// import {ExecutionContext} from '../../executor/execution_context';
+// import {InternalOpExecutor, Node} from '../types';
 
-import {getParamValue} from './utils';
+// import {getParamValue} from './utils';
 
-export const executeOp: InternalOpExecutor =
-    (node: Node, tensorMap: NamedTensorsMap, context: ExecutionContext):
-        Tensor[] => {
-          switch (node.op) {
-            case 'TopKV2': {
-              const x = getParamValue('x', node, tensorMap, context) as Tensor;
-              const k = getParamValue('k', node, tensorMap, context) as number;
-              const sorted =
-                  getParamValue('sorted', node, tensorMap, context) as boolean;
-              const result = tfOps.topk(x, k, sorted);
-              return [result.values, result.indices];
-            }
-            case 'Unique': {
-              const x = getParamValue('x', node, tensorMap, context) as Tensor;
-              const result = tfOps.unique(x);
-              return [result.values, result.indices];
-            }
-            case 'UniqueV2': {
-              const x = getParamValue('x', node, tensorMap, context) as Tensor;
-              const axis =
-                  getParamValue('axis', node, tensorMap, context) as number;
-              const result = tfOps.unique(x, axis);
-              return [result.values, result.indices];
-            }
-            default:
-              throw TypeError(`Node type ${node.op} is not implemented`);
-          }
-        };
+import 'package:tensorflow_wasm/tensorflow_wasm.dart' as tfOps;
+import '_prelude.dart';
 
-export const CATEGORY = 'evaluation';
+List<Tensor> executeOp(
+  Node node,
+  NamedTensorsMap tensorMap,
+  ExecutionContext context,
+) {
+  switch (node.op) {
+    case 'TopKV2':
+      {
+        final x = getParamValue('x', node, tensorMap, context) as Tensor;
+        final k = getParamValue('k', node, tensorMap, context) as int;
+        final sorted =
+            getParamValue('sorted', node, tensorMap, context) as bool;
+        final result = tfOps.topk(x, k, sorted);
+        return [result.values, result.indices];
+      }
+    case 'Unique':
+      {
+        final x = getParamValue('x', node, tensorMap, context) as Tensor;
+        final result = tfOps.unique(x);
+        return [result.values, result.indices];
+      }
+    case 'UniqueV2':
+      {
+        final x = getParamValue('x', node, tensorMap, context) as Tensor;
+        final axis = getParamValue('axis', node, tensorMap, context) as int;
+        final result = tfOps.unique(x, axis);
+        return [result.values, result.indices];
+      }
+    default:
+      throw StateError('Node type ${node.op} is not implemented');
+  }
+}
+
+const CATEGORY = 'evaluation';
