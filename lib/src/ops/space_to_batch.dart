@@ -15,16 +15,21 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../engine';
-import {SpaceToBatchND, SpaceToBatchNDAttrs, SpaceToBatchNDInputs} from '../kernel_names';
-import {NamedAttrMap} from '../kernel_registry';
-import {Tensor} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
-import * as util from '../util';
+// import {ENGINE} from '../engine';
+// import {SpaceToBatchND, SpaceToBatchNDAttrs, SpaceToBatchNDInputs} from '../kernel_names';
+// import {NamedAttrMap} from '../kernel_registry';
+// import {Tensor} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
+// import * as util from '../util';
 
-import {op} from './operation';
+// import {op} from './operation';
+
+import 'package:tensorflow_wasm/tensorflow_wasm.dart';
+
+import '_prelude.dart';
+import '../util_base.dart' as util;
 
 /**
  * This operation divides "spatial" dimensions `[1, ..., M]` of the input into
@@ -74,42 +79,44 @@ import {op} from './operation';
  *
  * @doc {heading: 'Tensors', subheading: 'Transformations'}
  */
-function spaceToBatchND_<T extends Tensor>(
-    x: T|TensorLike, blockShape: number[], paddings: number[][]): T {
-  const $x = convertToTensor(x, 'x', 'spaceToBatchND');
+T spaceToBatchND<T extends Tensor>(
+  T x,
+  List<int> blockShape,
+  List<List<int>> paddings,
+) {
+  return execOp('spaceToBatchND', () {
+    final $x = convertToTensor(x, 'x', 'spaceToBatchND');
 
-  util.assert(
-      $x.rank >= 1 + blockShape.length,
-      () => `input rank ${$x.rank} should be > than [blockShape] ${
-          blockShape.length}`);
+    util.assert_(
+        $x.rank >= 1 + blockShape.length,
+        () =>
+            'input rank ${$x.rank} should be > than [blockShape] ${blockShape.length}');
 
-  util.assert(
-      paddings.length === blockShape.length,
-      () => `paddings.shape[0] ${
-          paddings.length} must be equal to [blockShape] ${blockShape.length}`);
+    util.assert_(
+        paddings.length == blockShape.length,
+        () =>
+            'paddings.shape[0] ${paddings.length} must be equal to [blockShape] ${blockShape.length}');
 
-  util.assert(
-      $x.shape.reduce(
-          (a, b, i) => {
-            if (i > 0 && i <= blockShape.length) {
-              return a &&
-                  ((b + paddings[i - 1][0] + paddings[i - 1][1]) %
-                       blockShape[i - 1] ===
-                   0);
-            }
-            return a;
-          },
-          true),
-      () => `input spatial dimensions ${$x.shape.slice(1)} with paddings ${
-          paddings.toString()} must be divisible by blockShapes ${
-          blockShape.toString()}`);
+    int i = -1;
+    util.assert_(
+        $x.shape.fold(true, (a, b) {
+          if (++i > 0 && i <= blockShape.length) {
+            return a &&
+                ((b + paddings[i - 1][0] + paddings[i - 1][1]) %
+                        blockShape[i - 1] ==
+                    0);
+          }
+          return a;
+        }),
+        () => 'input spatial dimensions ${$x.shape.slice(1)} with paddings '
+            '${paddings.toString()} must be divisible by blockShapes ${blockShape.toString()}');
 
-  const inputs: SpaceToBatchNDInputs = {x: $x};
-  const attrs: SpaceToBatchNDAttrs = {blockShape, paddings};
+    final inputs = {'x': $x}; // : SpaceToBatchNDInputs
+    final attrs = {
+      'blockShape': blockShape,
+      'paddings': paddings,
+    }; // : SpaceToBatchNDAttrs
 
-  return ENGINE.runKernel(
-      SpaceToBatchND, inputs as {} as NamedTensorMap,
-      attrs as {} as NamedAttrMap);
+    return ENGINE.runKernel(SpaceToBatchND, inputs, attrs) as T;
+  });
 }
-
-export const spaceToBatchND = op({spaceToBatchND_});

@@ -15,16 +15,19 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../engine';
-import {MirrorPad, MirrorPadAttrs, MirrorPadInputs} from '../kernel_names';
-import {NamedAttrMap} from '../kernel_registry';
-import {Tensor} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
-import * as util from '../util';
+// import {ENGINE} from '../engine';
+// import {MirrorPad, MirrorPadAttrs, MirrorPadInputs} from '../kernel_names';
+// import {NamedAttrMap} from '../kernel_registry';
+// import {Tensor} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
+// import * as util from '../util';
 
-import {op} from './operation';
+// import {op} from './operation';
+
+import '_prelude.dart';
+import '../util_base.dart' as util;
 
 /**
  * Pads a `tf.Tensor` using mirror padding.
@@ -51,41 +54,48 @@ import {op} from './operation';
  * @param mode String to specify padding mode. Can be `'reflect' | 'symmetric'`
  */
 /** @doc {heading: 'Tensors', subheading: 'Transformations'} */
-function mirrorPad_<T extends Tensor>(
-    x: T|TensorLike, paddings: Array<[number, number]>,
-    mode: 'reflect'|'symmetric'): T {
-  util.assert(
-      mode === 'reflect' || mode === 'symmetric',
-      () => `Invalid mode. Mode must be either reflect or symmetric. ` +
-          `Got ${mode}.`);
+T mirrorPad<T extends Tensor>(
+  T x,
+  List<List<int>> paddings, {
+  required String mode, // : 'reflect'|'symmetric'
+}) {
+  return execOp('mirrorPad', () {
+    util.assert_(
+        mode == 'reflect' || mode == 'symmetric',
+        () =>
+            'Invalid mode. Mode must be either reflect or symmetric. ' +
+            'Got ${mode}.');
 
-  const $x = convertToTensor(x, 'x', 'mirrorPad');
-  if ($x.rank === 0) {
-    throw new Error(
-        'mirrorPad(scalar) is not defined. ' +
-        'Pass non-scalar to mirrorPad');
-  }
-  util.assert(
-      paddings.length === $x.rank,
-      () => `Padding doesn't match input. Must be ${$x.rank}. ` +
-          `Got ${paddings.length}.`);
-  const shapeOffset = mode === 'reflect' ? 1 : 0;
-  for (let i = 0; i < $x.rank; i++) {
-    util.assert(
-        paddings[i].length === 2,
-        () => `Invalid number of paddings. Must be length of 2 each.`);
-    util.assert(
-        paddings[i][0] >= 0 && paddings[i][0] <= $x.shape[i] - shapeOffset &&
-            paddings[i][1] >= 0 && paddings[i][1] <= $x.shape[i] - shapeOffset,
-        () => `Padding in dimension ${i} cannot be greater than or equal ` +
-            `to ${$x.shape[i] - shapeOffset} or less than 0 for input of ` +
-            `shape ${$x.shape}`);
-  }
+    final $x = convertToTensor(x, 'x', 'mirrorPad');
+    if ($x.rank == 0) {
+      throw Exception('mirrorPad(scalar) is not defined. ' +
+          'Pass non-scalar to mirrorPad');
+    }
+    util.assert_(
+        paddings.length == $x.rank,
+        () =>
+            "Padding doesn't match input. Must be ${$x.rank}. " +
+            'Got ${paddings.length}.');
+    final shapeOffset = mode == 'reflect' ? 1 : 0;
+    for (int i = 0; i < $x.rank; i++) {
+      util.assert_(paddings[i].length == 2,
+          () => 'Invalid number of paddings. Must be length of 2 each.');
+      util.assert_(
+          paddings[i][0] >= 0 &&
+              paddings[i][0] <= $x.shape[i] - shapeOffset &&
+              paddings[i][1] >= 0 &&
+              paddings[i][1] <= $x.shape[i] - shapeOffset,
+          () =>
+              'Padding in dimension ${i} cannot be greater than or equal ' +
+              'to ${$x.shape[i] - shapeOffset} or less than 0 for input of ' +
+              'shape ${$x.shape}');
+    }
 
-  const attrs: MirrorPadAttrs = {paddings, mode};
-  const inputs: MirrorPadInputs = {x: $x};
-  return ENGINE.runKernel(
-      MirrorPad, inputs as {} as NamedTensorMap, attrs as {} as NamedAttrMap);
+    final attrs = {
+      'paddings': paddings,
+      'mode': mode,
+    }; // : MirrorPadAttrs
+    final inputs = {'x': $x}; // : MirrorPadInputs
+    return ENGINE.runKernel(MirrorPad, inputs, attrs) as T;
+  });
 }
-
-export const mirrorPad = op({mirrorPad_});

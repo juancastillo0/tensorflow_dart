@@ -15,16 +15,19 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../engine';
-import {BatchToSpaceND, BatchToSpaceNDAttrs, BatchToSpaceNDInputs} from '../kernel_names';
-import {NamedAttrMap} from '../kernel_registry';
-import {Tensor} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
-import * as util from '../util';
+// import {ENGINE} from '../engine';
+// import {BatchToSpaceND, BatchToSpaceNDAttrs, BatchToSpaceNDInputs} from '../kernel_names';
+// import {NamedAttrMap} from '../kernel_registry';
+// import {Tensor} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
+// import * as util from '../util';
 
-import {op} from './operation';
+// import {op} from './operation';
+
+import '_prelude.dart';
+import '../util_base.dart' as util;
 
 /**
  * This operation reshapes the "batch" dimension 0 into `M + 1` dimensions of
@@ -74,34 +77,34 @@ import {op} from './operation';
  *
  * @doc {heading: 'Tensors', subheading: 'Transformations'}
  */
-function batchToSpaceND_<T extends Tensor>(
-    x: T|TensorLike, blockShape: number[], crops: number[][]): T {
-  const $x = convertToTensor(x, 'x', 'batchToSpaceND');
-  const prod = blockShape.reduce((a, b) => a * b);
+T batchToSpaceND<T extends Tensor>(
+    T x, List<int> blockShape, List<List<int>> crops) {
+  return execOp('batchToSpaceND', () {
+    final $x = convertToTensor(x, 'x', 'batchToSpaceND');
+    final prod = blockShape.reduce((a, b) => a * b);
 
-  util.assert(
-      $x.rank >= 1 + blockShape.length,
-      () => `input rank is ${$x.rank} but should be > than blockShape.length ${
-          blockShape.length}`);
+    util.assert_(
+        $x.rank >= 1 + blockShape.length,
+        () =>
+            'input rank is ${$x.rank} but should be > than blockShape.length ${blockShape.length}');
 
-  util.assert(
-      crops.length === blockShape.length,
-      () => `crops.length is ${
-          crops.length} but should be equal to blockShape.length  ${
-          blockShape.length}`);
+    util.assert_(
+        crops.length == blockShape.length,
+        () =>
+            'crops.length is ${crops.length} but should be equal to blockShape.length  ${blockShape.length}');
 
-  util.assert(
-      $x.shape[0] % prod === 0,
-      () => `input tensor batch is ${
-                $x.shape[0]} but is not divisible by the product of ` +
-          `the elements of blockShape ${blockShape.join(' * ')} === ${prod}`);
+    util.assert_(
+        $x.shape[0] % prod == 0,
+        () =>
+            'input tensor batch is ${$x.shape[0]} but is not divisible by the product of ' +
+            'the elements of blockShape ${blockShape.join(' * ')} === ${prod}');
 
-  const inputs: BatchToSpaceNDInputs = {x: $x};
-  const attrs: BatchToSpaceNDAttrs = {blockShape, crops};
+    final inputs = {'x': $x}; // : BatchToSpaceNDInputs
+    final attrs = {
+      'blockShape': blockShape,
+      'crops': crops
+    }; // : BatchToSpaceNDAttrs
 
-  return ENGINE.runKernel(
-      BatchToSpaceND, inputs as {} as NamedTensorMap,
-      attrs as {} as NamedAttrMap);
+    return ENGINE.runKernel(BatchToSpaceND, inputs, attrs) as T;
+  });
 }
-
-export const batchToSpaceND = op({batchToSpaceND_});

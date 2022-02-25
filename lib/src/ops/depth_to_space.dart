@@ -15,16 +15,19 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../engine';
-import {DepthToSpace, DepthToSpaceAttrs, DepthToSpaceInputs} from '../kernel_names';
-import {NamedAttrMap} from '../kernel_registry';
-import {Tensor4D} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike4D} from '../types';
-import * as util from '../util';
+// import {ENGINE} from '../engine';
+// import {DepthToSpace, DepthToSpaceAttrs, DepthToSpaceInputs} from '../kernel_names';
+// import {NamedAttrMap} from '../kernel_registry';
+// import {Tensor4D} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike4D} from '../types';
+// import * as util from '../util';
 
-import {op} from './operation';
+// import {op} from './operation';
+
+import '_prelude.dart';
+import '../util_base.dart' as util;
 
 /**
  * Rearranges data from depth into blocks of spatial data. More specifically,
@@ -63,43 +66,45 @@ import {op} from './operation';
  *
  * @doc {heading: 'Tensors', subheading: 'Transformations'}
  */
-function depthToSpace_(
-    x: Tensor4D|TensorLike4D, blockSize: number,
-    dataFormat: 'NHWC'|'NCHW' = 'NHWC'): Tensor4D {
-  const $x = convertToTensor(x, 'x', 'depthToSpace', 'float32') as Tensor4D;
+Tensor4D depthToSpace(
+  Tensor4D x,
+  int blockSize, {
+  String dataFormat = 'NHWC', //  'NHWC'|'NCHW'
+}) {
+  return execOp('depthToSpace', () {
+    final $x = convertToTensor(x, 'x', 'depthToSpace', 'float32') as Tensor4D;
 
-  const inputHeight = (dataFormat === 'NHWC') ? $x.shape[1] : $x.shape[2];
-  const inputWidth = (dataFormat === 'NHWC') ? $x.shape[2] : $x.shape[3];
-  const inputDepth = (dataFormat === 'NHWC') ? $x.shape[3] : $x.shape[1];
+    final inputHeight = (dataFormat == 'NHWC') ? $x.shape[1] : $x.shape[2];
+    final inputWidth = (dataFormat == 'NHWC') ? $x.shape[2] : $x.shape[3];
+    final inputDepth = (dataFormat == 'NHWC') ? $x.shape[3] : $x.shape[1];
 
-  util.assert(
-      blockSize > 1,
-      () => `blockSize should be > 1 for depthToSpace, but was: ${blockSize}`);
+    util.assert_(
+        blockSize > 1,
+        () =>
+            'blockSize should be > 1 for depthToSpace, but was: ${blockSize}');
 
-  util.assert(
-      inputHeight * blockSize >= 0,
-      () => `Negative dimension size caused by overflow when multiplying
-    ${inputHeight} and ${blockSize}  for depthToSpace with input shape
-    ${$x.shape}`);
+    util.assert_(
+        inputHeight * blockSize >= 0,
+        () => 'Negative dimension size caused by overflow when multiplying'
+            '${inputHeight} and ${blockSize}  for depthToSpace with input shape ${$x.shape}');
 
-  util.assert(
-      inputWidth * blockSize >= 0,
-      () => `Negative dimension size caused by overflow when multiplying
-    ${inputWidth} and ${blockSize} for depthToSpace with input shape
-        ${$x.shape}`);
+    util.assert_(
+        inputWidth * blockSize >= 0,
+        () => 'Negative dimension size caused by overflow when multiplying'
+            '${inputWidth} and ${blockSize} for '
+            'depthToSpace with input shape ${$x.shape}');
 
-  util.assert(
-      (inputDepth % (blockSize * blockSize) === 0),
-      () => `Dimension size must be evenly divisible by ${
-          blockSize * blockSize} but is ${
-          inputDepth} for depthToSpace with input shape ${$x.shape}`);
+    util.assert_(
+        (inputDepth % (blockSize * blockSize) == 0),
+        () =>
+            'Dimension size must be evenly divisible by ${blockSize * blockSize} but is ${inputDepth} for depthToSpace with input shape ${$x.shape}');
 
-  const inputs: DepthToSpaceInputs = {x: $x};
-  const attrs: DepthToSpaceAttrs = {blockSize, dataFormat};
+    final inputs = {'x': $x}; // : DepthToSpaceInputs
+    final attrs = {
+      'blockSize': blockSize,
+      'dataFormat': dataFormat,
+    }; // : DepthToSpaceAttrs
 
-  return ENGINE.runKernel(
-      DepthToSpace, inputs as {} as NamedTensorMap,
-      attrs as {} as NamedAttrMap);
+    return ENGINE.runKernel(DepthToSpace, inputs, attrs) as Tensor4D;
+  });
 }
-
-export const depthToSpace = op({depthToSpace_});

@@ -29,6 +29,12 @@ export 'tile.dart';
 export 'transpose.dart';
 export 'reverse.dart';
 export 'clip_by_value.dart';
+export 'mirror_pad.dart';
+export 'pad.dart';
+export 'depth_to_space.dart';
+export 'space_to_batch.dart';
+export 'broadcast_args.dart';
+export 'batch_to_space.dart';
 //
 export 'maximum.dart';
 export 'minimum.dart';

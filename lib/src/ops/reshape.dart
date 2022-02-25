@@ -25,7 +25,7 @@
 
 // import {op} from './operation';
 
-import 'package:tensorflow_wasm/src/util_base.dart' show squeezeShape;
+import 'package:tensorflow_wasm/src/util_base.dart' show squeezeShape, assert_;
 
 import '_prelude.dart';
 
@@ -107,16 +107,15 @@ T squeeze<T extends Tensor>(Tensor x, [List<int>? axis]) {
  *
  * @doc {heading: 'Tensors', subheading: 'Transformations'}
  */
-function expandDims_<T extends Tensor>(x: Tensor|TensorLike, axis = 0): T {
-  const $x = convertToTensor(x, 'x', 'expandDims', 'string_or_numeric');
+T expandDims<T extends Tensor>(Tensor x, [int axis = 0]) {
+  return execOp('expandDims', () {
+    final $x = convertToTensor(x, 'x', 'expandDims', 'string_or_numeric');
 
-  util.assert(axis <= $x.rank, () => 'Axis must be <= rank of the tensor');
+    assert_(axis <= $x.rank, () => 'Axis must be <= rank of the tensor');
 
-  const inputs: ExpandDimsInputs = {input: $x};
-  const attrs: ExpandDimsAttrs = {dim: axis};
+    final inputs = {'input': $x}; // : ExpandDimsInputs
+    final attrs = {'dim': axis}; // : ExpandDimsAttrs
 
-  return ENGINE.runKernel(
-      ExpandDims, inputs as {} as NamedTensorMap, attrs as {} as NamedAttrMap);
+    return ENGINE.runKernel(ExpandDims, inputs, attrs) as T;
+  });
 }
-
-export const expandDims = op({expandDims_});
