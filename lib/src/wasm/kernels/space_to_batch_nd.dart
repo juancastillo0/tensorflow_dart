@@ -57,14 +57,16 @@ TensorInfo spaceToBatchND({
       backend: backend,
       attrs: {'paddings': completePaddings, 'finalantValue': 0}) as TensorInfo;
 
-  final reshapedPaddedShape =
-      backend_util.getReshaped(paddedX.shape, blockShape, prod, false);
+  final reshapedPaddedShape = backend_util
+      .getReshaped(paddedX.shape, blockShape, prod, batchToSpace: false);
 
   final permutedReshapedPaddedPermutation = backend_util.getPermuted(
-      reshapedPaddedShape.length, blockShape.length, false);
+      reshapedPaddedShape.length, blockShape.length,
+      batchToSpace: false);
 
-  final flattenShape =
-      backend_util.getReshapedPermuted(paddedX.shape, blockShape, prod, false);
+  final flattenShape = backend_util.getReshapedPermuted(
+      paddedX.shape, blockShape, prod,
+      batchToSpace: false);
 
   final reshapeInputs = {'x': paddedX}; // : ReshapeInputs
   final reshapeAttrs = {'shape': reshapedPaddedShape}; // : ReshapeAttrs

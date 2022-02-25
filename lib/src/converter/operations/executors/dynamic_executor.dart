@@ -15,98 +15,123 @@
  * =============================================================================
  */
 
-import {Tensor, Tensor1D, Tensor2D} from '@tensorflow/tfjs-core';
-// tslint:disable-next-line: no-imports-from-dist
-import * as tfOps from '@tensorflow/tfjs-core/dist/ops/ops_for_converter';
+// import {Tensor, Tensor1D, Tensor2D} from '@tensorflow/tfjs-core';
+// // tslint:disable-next-line: no-imports-from-dist
+// import * as tfOps from '@tensorflow/tfjs-core/dist/ops/ops_for_converter';
 
-import {NamedTensorsMap} from '../../data/types';
-import {ExecutionContext} from '../../executor/execution_context';
-import {InternalOpAsyncExecutor, Node} from '../types';
+// import {NamedTensorsMap} from '../../data/types';
+// import {ExecutionContext} from '../../executor/execution_context';
+// import {InternalOpAsyncExecutor, Node} from '../types';
 
-import {getParamValue} from './utils';
+// import {getParamValue} from './utils';
 
-function nmsParams(
-    node: Node, tensorMap: NamedTensorsMap, context: ExecutionContext) {
-  const boxes = getParamValue('boxes', node, tensorMap, context) as Tensor;
-  const scores = getParamValue('scores', node, tensorMap, context) as Tensor;
-  const maxOutputSize =
-      getParamValue('maxOutputSize', node, tensorMap, context) as number;
-  const iouThreshold =
-      getParamValue('iouThreshold', node, tensorMap, context) as number;
-  const scoreThreshold =
-      getParamValue('scoreThreshold', node, tensorMap, context) as number;
-  const softNmsSigma =
-      getParamValue('softNmsSigma', node, tensorMap, context) as number;
+import 'package:tensorflow_wasm/tensorflow_wasm.dart' as tfOps;
+import '_prelude.dart';
 
-  return {
-    boxes,
-    scores,
-    maxOutputSize,
-    iouThreshold,
-    scoreThreshold,
-    softNmsSigma
-  };
+class _Params {
+  final Tensor boxes;
+  final Tensor scores;
+  final int maxOutputSize;
+  final double? iouThreshold;
+  final double? scoreThreshold;
+  final double? softNmsSigma;
+
+  _Params({
+    required this.boxes,
+    required this.scores,
+    required this.maxOutputSize,
+    required this.iouThreshold,
+    required this.scoreThreshold,
+    required this.softNmsSigma,
+  });
 }
 
-export const executeOp: InternalOpAsyncExecutor = async(
-    node: Node, tensorMap: NamedTensorsMap,
-    context: ExecutionContext): Promise<Tensor[]> => {
+_Params _nmsParams(
+  Node node,
+  NamedTensorsMap tensorMap,
+  ExecutionContext context,
+) {
+  final boxes = getParamValue('boxes', node, tensorMap, context) as Tensor;
+  final scores = getParamValue('scores', node, tensorMap, context) as Tensor;
+  final maxOutputSize =
+      getParamValue('maxOutputSize', node, tensorMap, context) as int;
+  final iouThreshold =
+      getParamValue('iouThreshold', node, tensorMap, context) as double?;
+  final scoreThreshold =
+      getParamValue('scoreThreshold', node, tensorMap, context) as double?;
+  final softNmsSigma =
+      getParamValue('softNmsSigma', node, tensorMap, context) as double?;
+
+  return _Params(
+    boxes: boxes,
+    scores: scores,
+    maxOutputSize: maxOutputSize,
+    iouThreshold: iouThreshold,
+    scoreThreshold: scoreThreshold,
+    softNmsSigma: softNmsSigma,
+  );
+}
+
+Future<List<Tensor>> executeOp(
+    Node node, NamedTensorsMap tensorMap, ExecutionContext context) async {
   switch (node.op) {
-    case 'NonMaxSuppressionV5': {
-      const {
-        boxes,
-        scores,
-        maxOutputSize,
-        iouThreshold,
-        scoreThreshold,
-        softNmsSigma
-      } = nmsParams(node, tensorMap, context);
+    case 'NonMaxSuppressionV5':
+      {
+        final p = _nmsParams(node, tensorMap, context);
 
-      const result = await tfOps.image.nonMaxSuppressionWithScoreAsync(
-          boxes as Tensor2D, scores as Tensor1D, maxOutputSize, iouThreshold,
-          scoreThreshold, softNmsSigma);
+        final result = await tfOps.image.nonMaxSuppressionWithScoreAsync(
+            p.boxes as Tensor2D, p.scores as Tensor1D, p.maxOutputSize,
+            iouThreshold: p.iouThreshold,
+            scoreThreshold: p.scoreThreshold,
+            softNmsSigma: p.softNmsSigma);
 
-      return [result.selectedIndices, result.selectedScores];
-    }
-    case 'NonMaxSuppressionV4': {
-      const {boxes, scores, maxOutputSize, iouThreshold, scoreThreshold} =
-          nmsParams(node, tensorMap, context);
+        return [result.selectedIndices, result.selectedScores];
+      }
+    case 'NonMaxSuppressionV4':
+      {
+        final p = _nmsParams(node, tensorMap, context);
 
-      const padToMaxOutputSize =
-          getParamValue('padToMaxOutputSize', node, tensorMap, context) as
-          boolean;
+        final padToMaxOutputSize =
+            getParamValue('padToMaxOutputSize', node, tensorMap, context)
+                as bool;
 
-      const result = await tfOps.image.nonMaxSuppressionPaddedAsync(
-          boxes as Tensor2D, scores as Tensor1D, maxOutputSize, iouThreshold,
-          scoreThreshold, padToMaxOutputSize);
+        final result = await tfOps.image.nonMaxSuppressionPaddedAsync(
+            p.boxes as Tensor2D, p.scores as Tensor1D, p.maxOutputSize,
+            iouThreshold: p.iouThreshold,
+            scoreThreshold: p.scoreThreshold,
+            padToMaxOutputSize: padToMaxOutputSize);
 
-      return [result.selectedIndices, result.validOutputs];
-    }
+        return [result.selectedIndices, result.validOutputs];
+      }
     case 'NonMaxSuppressionV3':
-    case 'NonMaxSuppressionV2': {
-      const {boxes, scores, maxOutputSize, iouThreshold, scoreThreshold} =
-          nmsParams(node, tensorMap, context);
+    case 'NonMaxSuppressionV2':
+      {
+        final p = _nmsParams(node, tensorMap, context);
 
-      return [await tfOps.image.nonMaxSuppressionAsync(
-          boxes as Tensor2D, scores as Tensor1D, maxOutputSize, iouThreshold,
-          scoreThreshold)];
-    }
-    case 'Where': {
-      const condition = tfOps.cast(
-          (getParamValue('condition', node, tensorMap, context) as Tensor),
-          'bool');
-      const result = [await tfOps.whereAsync(condition)];
-      condition.dispose();
-      return result;
-    }
-    case 'ListDiff': {
-      return tfOps.setdiff1dAsync(
-          getParamValue('x', node, tensorMap, context) as Tensor,
-          getParamValue('y', node, tensorMap, context) as Tensor);
-    }
+        return [
+          await tfOps.image.nonMaxSuppressionAsync(
+              p.boxes as Tensor2D, p.scores as Tensor1D, p.maxOutputSize,
+              iouThreshold: p.iouThreshold, scoreThreshold: p.scoreThreshold)
+        ];
+      }
+    case 'Where':
+      {
+        final condition = tfOps.cast(
+            (getParamValue('condition', node, tensorMap, context) as Tensor),
+            'bool');
+        final result = [await tfOps.whereAsync(condition)];
+        condition.dispose();
+        return result;
+      }
+    case 'ListDiff':
+      {
+        return tfOps.setdiff1dAsync(
+            getParamValue('x', node, tensorMap, context) as Tensor,
+            getParamValue('y', node, tensorMap, context) as Tensor);
+      }
     default:
-      throw TypeError(`Node type ${node.op} is not implemented`);
+      throw StateError('Node type ${node.op} is not implemented');
   }
-};
+}
 
-export const CATEGORY = 'dynamic';
+const CATEGORY = 'dynamic';

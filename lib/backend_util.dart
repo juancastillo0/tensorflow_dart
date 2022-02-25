@@ -34,7 +34,7 @@ export './src/ops/slice_util.dart';
 // export {BackendValues, TypedArray, upcastType, PixelData} from './src/types.dart';
 export './src/engine.dart' show MemoryInfo, TimingInfo;
 // export './src/ops/rotate_util.dart';
-// export './src/ops/array_ops_util.dart';
+export './src/ops/array_ops_util.dart';
 export './src/ops/gather_nd_util.dart';
 export './src/ops/scatter_nd_util.dart';
 // export './src/ops/selu_util.dart';

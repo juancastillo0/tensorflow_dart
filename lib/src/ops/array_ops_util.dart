@@ -23,22 +23,31 @@
  *
  * See step 1: https://www.tensorflow.org/api_docs/python/tf/batch_to_space_nd
  */
-export function getReshaped(
-    inputShape: number[], blockShape: number[], prod: number,
-    batchToSpace = true): number[] {
-  let reshaped: number[] = [];
+
+import 'package:tensorflow_wasm/tensorflow_wasm.dart' show SliceList;
+
+List<int> getReshaped(
+  List<int> inputShape,
+  List<int> blockShape,
+  int prod, {
+  bool batchToSpace = true,
+}) {
+  List<int> reshaped = [];
   if (batchToSpace) {
-    reshaped = reshaped.concat(blockShape.slice(0));
-    reshaped.push(inputShape[0] / prod);
-    reshaped = reshaped.concat(inputShape.slice(1));
+    reshaped = [...reshaped, ...blockShape.slice(0)];
+    reshaped.add(inputShape[0] ~/ prod);
+    reshaped = [...reshaped, ...inputShape.slice(1)];
   } else {
-    reshaped = reshaped.concat(inputShape[0]);
-    const spatialLength = blockShape.length;
-    for (let i = 0; i < spatialLength; ++i) {
-      reshaped =
-          reshaped.concat([inputShape[i + 1] / blockShape[i], blockShape[i]]);
+    reshaped = [...reshaped, inputShape[0]];
+    final spatialLength = blockShape.length;
+    for (int i = 0; i < spatialLength; ++i) {
+      reshaped = [
+        ...reshaped,
+        inputShape[i + 1] ~/ blockShape[i],
+        blockShape[i]
+      ];
     }
-    reshaped = reshaped.concat(inputShape.slice(spatialLength + 1));
+    reshaped = [...reshaped, ...inputShape.slice(spatialLength + 1)];
   }
   return reshaped;
 }
@@ -52,33 +61,35 @@ export function getReshaped(
  *
  * see step 2: https://www.tensorflow.org/api_docs/python/tf/batch_to_space_nd
  */
-export function getPermuted(
-    reshapedRank: number, blockShapeRank: number,
-    batchToSpace = true): number[] {
-  const permuted = [];
+List<int> getPermuted(
+  int reshapedRank,
+  int blockShapeRank, {
+  bool batchToSpace = true,
+}) {
+  final List<int> permuted = [];
   if (batchToSpace) {
-    permuted.push(blockShapeRank);
-    for (let i = blockShapeRank + 1; i < reshapedRank; ++i) {
+    permuted.add(blockShapeRank);
+    for (int i = blockShapeRank + 1; i < reshapedRank; ++i) {
       if (i <= 2 * blockShapeRank) {
-        permuted.push(i);
-        permuted.push(i - (blockShapeRank + 1));
+        permuted.add(i);
+        permuted.add(i - (blockShapeRank + 1));
       } else {
-        permuted.push(i);
+        permuted.add(i);
       }
     }
   } else {
-    const permutedBeforeBatch = [];
-    const permutedAfterBatch = [];
-    for (let i = 1; i < reshapedRank; ++i) {
-      if (i >= blockShapeRank * 2 + 1 || i % 2 === 1) {
-        permutedAfterBatch.push(i);
+    final List<int> permutedBeforeBatch = [];
+    final List<int> permutedAfterBatch = [];
+    for (int i = 1; i < reshapedRank; ++i) {
+      if (i >= blockShapeRank * 2 + 1 || i % 2 == 1) {
+        permutedAfterBatch.add(i);
       } else {
-        permutedBeforeBatch.push(i);
+        permutedBeforeBatch.add(i);
       }
     }
-    permuted.push(...permutedBeforeBatch);
-    permuted.push(0);
-    permuted.push(...permutedAfterBatch);
+    permuted.addAll(permutedBeforeBatch);
+    permuted.add(0);
+    permuted.addAll(permutedAfterBatch);
   }
   return permuted;
 }
@@ -92,26 +103,29 @@ export function getPermuted(
  *
  * See step 3: https://www.tensorflow.org/api_docs/python/tf/batch_to_space_nd
  */
-export function getReshapedPermuted(
-    inputShape: number[], blockShape: number[], prod: number,
-    batchToSpace = true): number[] {
-  const reshapedPermuted = [];
+List<int> getReshapedPermuted(
+  List<int> inputShape,
+  List<int> blockShape,
+  int prod, {
+  bool batchToSpace = true,
+}) {
+  final reshapedPermuted = <int>[];
 
   if (batchToSpace) {
-    reshapedPermuted.push(inputShape[0] / prod);
+    reshapedPermuted.add(inputShape[0] ~/ prod);
   } else {
-    reshapedPermuted.push(inputShape[0] * prod);
+    reshapedPermuted.add(inputShape[0] * prod);
   }
 
-  for (let i = 1; i < inputShape.length; ++i) {
+  for (int i = 1; i < inputShape.length; ++i) {
     if (i <= blockShape.length) {
       if (batchToSpace) {
-        reshapedPermuted.push(blockShape[i - 1] * inputShape[i]);
+        reshapedPermuted.add(blockShape[i - 1] * inputShape[i]);
       } else {
-        reshapedPermuted.push(inputShape[i] / blockShape[i - 1]);
+        reshapedPermuted.add(inputShape[i] ~/ blockShape[i - 1]);
       }
     } else {
-      reshapedPermuted.push(inputShape[i]);
+      reshapedPermuted.add(inputShape[i]);
     }
   }
 
@@ -122,11 +136,12 @@ export function getReshapedPermuted(
  * Converts the crops argument into the beginning coordinates of a slice
  * operation.
  */
-export function getSliceBeginCoords(
-    crops: number[][], blockShape: number): number[] {
-  const sliceBeginCoords = [0];
-  for (let i = 0; i < blockShape; ++i) {
-    sliceBeginCoords.push(crops[i][0]);
+List<int> getSliceBeginCoords(List<List<int>> crops, int blockShape) {
+  final sliceBeginCoords = [
+    ...[0]
+  ];
+  for (int i = 0; i < blockShape; ++i) {
+    sliceBeginCoords.add(crops[i][0]);
   }
   return sliceBeginCoords;
 }
@@ -142,11 +157,11 @@ export function getSliceBeginCoords(
  *
  * See step 4: https://www.tensorflow.org/api_docs/python/tf/batch_to_space_nd
  */
-export function getSliceSize(
-    uncroppedShape: number[], crops: number[][], blockShape: number): number[] {
-  const sliceSize = uncroppedShape.slice(0, 1);
-  for (let i = 0; i < blockShape; ++i) {
-    sliceSize.push(uncroppedShape[i + 1] - crops[i][0] - crops[i][1]);
+List<int> getSliceSize(
+    List<int> uncroppedShape, List<List<int>> crops, int blockShape) {
+  final sliceSize = uncroppedShape.slice(0, 1);
+  for (int i = 0; i < blockShape; ++i) {
+    sliceSize.add(uncroppedShape[i + 1] - crops[i][0] - crops[i][1]);
   }
 
   return sliceSize;
