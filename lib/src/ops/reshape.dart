@@ -90,3 +90,33 @@ T squeeze<T extends Tensor>(Tensor x, [List<int>? axis]) {
     return reshape($x, squeezeShape($x.shape, axis).newShape) as T;
   });
 }
+
+/**
+ * Returns a `tf.Tensor` that has expanded rank, by inserting a dimension
+ * into the tensor's shape.
+ *
+ * ```js
+ * const x = tf.tensor1d([1, 2, 3, 4]);
+ * const axis = 1;
+ * x.expandDims(axis).print();
+ * ```
+ *
+ * @param x The input tensor whose dimensions to be expanded.
+ * @param axis The dimension index at which to insert shape of `1`. Defaults
+ *     to 0 (the first dimension).
+ *
+ * @doc {heading: 'Tensors', subheading: 'Transformations'}
+ */
+function expandDims_<T extends Tensor>(x: Tensor|TensorLike, axis = 0): T {
+  const $x = convertToTensor(x, 'x', 'expandDims', 'string_or_numeric');
+
+  util.assert(axis <= $x.rank, () => 'Axis must be <= rank of the tensor');
+
+  const inputs: ExpandDimsInputs = {input: $x};
+  const attrs: ExpandDimsAttrs = {dim: axis};
+
+  return ENGINE.runKernel(
+      ExpandDims, inputs as {} as NamedTensorMap, attrs as {} as NamedAttrMap);
+}
+
+export const expandDims = op({expandDims_});
