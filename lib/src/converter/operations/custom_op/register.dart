@@ -1,3 +1,4 @@
+import '../types.dart';
 
 /**
  * @license
@@ -16,9 +17,9 @@
  * =============================================================================
  */
 
-import {OpExecutor, OpMapper} from '../types';
+// import {OpExecutor, OpMapper} from '../types';
 
-const CUSTOM_OPS: {[key: string]: OpMapper} = {};
+final Map<String, OpMapper> CUSTOM_OPS = {};
 
 /**
  * Register an Op for graph model executor. This allow you to register
@@ -45,14 +46,13 @@ const CUSTOM_OPS: {[key: string]: OpMapper} = {};
  *
  * @doc {heading: 'Models', subheading: 'Op Registry'}
  */
-export function registerOp(name: string, opFunc: OpExecutor) {
-  const opMapper: OpMapper = {
-    tfOpName: name,
-    category: 'custom',
-    inputs: [],
-    attrs: [],
-    customExecutor: opFunc
-  };
+void registerOp(String name, OpExecutor opFunc) {
+  final opMapper = OpMapper(
+      tfOpName: name,
+      category: 'custom',
+      inputs: [],
+      attrs: [],
+      customExecutor: opFunc);
 
   CUSTOM_OPS[name] = opMapper;
 }
@@ -64,7 +64,7 @@ export function registerOp(name: string, opFunc: OpExecutor) {
  *
  * @doc {heading: 'Models', subheading: 'Op Registry'}
  */
-export function getRegisteredOp(name: string): OpMapper {
+OpMapper? getRegisteredOp(String name) {
   return CUSTOM_OPS[name];
 }
 
@@ -75,6 +75,6 @@ export function getRegisteredOp(name: string): OpMapper {
  *
  * @doc {heading: 'Models', subheading: 'Op Registry'}
  */
-export function deregisterOp(name: string) {
-  delete CUSTOM_OPS[name];
+void deregisterOp(String name) {
+  CUSTOM_OPS.remove(name);
 }

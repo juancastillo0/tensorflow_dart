@@ -78,7 +78,7 @@ class TensorArray {
   /**
    * Dispose the tensors and idTensor and mark the TensoryArray as closed.
    */
-  clearAndClose(Set<int>? keepIds) {
+  void clearAndClose([Set<int>? keepIds]) {
     this.tensors.forEach((tensor) {
       if (keepIds == null || !keepIds.contains(tensor.tensor.id)) {
         tensor.tensor.dispose();

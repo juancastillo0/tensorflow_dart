@@ -22,17 +22,18 @@
 // import {ResourceManager} from '../executor/resource_manager';
 
 // import {NodeValueImpl} from './custom_op/node_value_impl';
-// import {getRegisteredOp} from './custom_op/register';
+import 'custom_op/node_value_impl.dart';
+import 'custom_op/register.dart' show getRegisteredOp;
 import './executors/arithmetic_executor.dart' as arithmetic;
 import './executors/basic_math_executor.dart' as basicMath;
-// import * as control from './executors/control_executor';
-// import * as convolution from './executors/convolution_executor';
+import './executors/control_executor.dart' as control;
+import './executors/convolution_executor.dart' as convolution;
 import './executors/creation_executor.dart' as creation;
-// import * as dynamic from './executors/dynamic_executor';
-// import * as evaluation from './executors/evaluation_executor';
+import './executors/dynamic_executor.dart' as dynamic_;
+import './executors/evaluation_executor.dart' as evaluation;
 import './executors/graph_executor.dart' as graph;
 // import * as hashTable from './executors/hash_table_executor';
-// import * as image from './executors/image_executor';
+import './executors/image_executor.dart' as image;
 import './executors/logical_executor.dart' as logical;
 import './executors/matrices_executor.dart' as matrices;
 import './executors/normalization_executor.dart' as normalization;
@@ -41,7 +42,7 @@ import './executors/slice_join_executor.dart' as sliceJoin;
 // import * as sparse from './executors/sparse_executor';
 // import * as spectral from './executors/spectral_executor';
 // import * as string from './executors/string_executor';
-// import * as transformation from './executors/transformation_executor';
+import './executors/transformation_executor.dart' as transformation;
 // import {Node} from './types';
 
 import 'dart:async';
@@ -79,7 +80,7 @@ FutureOr<List<tfc.Tensor>> executeOp(
       case 'creation':
         return tfc.tidy(() => creation.executeOp(node, tensorMap, context));
       case 'dynamic':
-        return dynamic.executeOp(node, tensorMap, context);
+        return dynamic_.executeOp(node, tensorMap, context);
       case 'evaluation':
         return tfc.tidy(() => evaluation.executeOp(node, tensorMap, context));
       case 'image':
@@ -110,9 +111,9 @@ FutureOr<List<tfc.Tensor>> executeOp(
         return hashTable.executeOp(node, tensorMap, context, resourceManager);
       case 'custom':
         final opMapper = getRegisteredOp(node.op);
-        if (opMapper && opMapper.customExecutor) {
+        if (opMapper != null && opMapper.customExecutor != null) {
           return opMapper
-              .customExecutor(NodeValueImpl(node, tensorMap, context));
+              .customExecutor!(NodeValueImpl(node, tensorMap, context));
         } else {
           throw StateError("Custom op ${node.op} is not registered.");
         }

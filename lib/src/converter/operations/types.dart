@@ -230,7 +230,7 @@ abstract class OpExecutor {
 
 class GraphNode {
   final List<Tensor> inputs;
-  final Map<String, ValueType> attrs;
+  final Map<String, ValueType?> attrs;
 
   GraphNode({
     required this.inputs,
