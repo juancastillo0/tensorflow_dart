@@ -139,8 +139,8 @@ typedef BatchMatMulInputs = BinaryInputs; // Pick<NamedTensorInfoMap, 'a'|'b'>;
 //   transposeB: boolean;
 // }
 
-// export const BatchToSpaceND = 'BatchToSpaceND';
-// export type BatchToSpaceNDInputs = Pick<NamedTensorInfoMap, 'x'>;
+const BatchToSpaceND = 'BatchToSpaceND';
+typedef BatchToSpaceNDInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 // export interface BatchToSpaceNDAttrs {
 //   blockShape: number[];
 //   crops: number[][];
@@ -168,7 +168,7 @@ class BinaryInputs {
 //   inputShape: number[];  // for gradient
 // }
 
-// export const BroadcastArgs = 'BroadcastArgs';
+const BroadcastArgs = 'BroadcastArgs';
 // export type BroadcastArgsInputs = Pick<NamedTensorInfoMap, 's0'|'s1'>;
 
 const Cast = 'Cast';
@@ -289,8 +289,8 @@ const CropAndResize = 'CropAndResize';
 //   binaryOutput?: boolean;
 // }
 
-// export const DepthToSpace = 'DepthToSpace';
-// export type DepthToSpaceInputs = Pick<NamedTensorInfoMap, 'x'>;
+const DepthToSpace = 'DepthToSpace';
+typedef DepthToSpaceInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 // export interface DepthToSpaceAttrs {
 //   blockSize: number;
 //   dataFormat: 'NHWC'|'NCHW';
@@ -604,8 +604,8 @@ typedef MinInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 const Minimum = 'Minimum';
 typedef MinimumInputs = BinaryInputs;
 
-// export const MirrorPad = 'MirrorPad';
-// export type MirrorPadInputs = Pick<NamedTensorInfoMap, 'x'>;
+const MirrorPad = 'MirrorPad';
+typedef MirrorPadInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 // export interface MirrorPadAttrs {
 //   paddings: Array<[number, number]>;
 //   mode: 'reflect'|'symmetric';
@@ -679,8 +679,8 @@ typedef PackInputs = UnaryInputs; // TODO: TensorInfo[];
 //   axis: number;
 // }
 
-// export const PadV2 = 'PadV2';
-// export type PadV2Inputs = Pick<NamedTensorInfoMap, 'x'>;
+const PadV2 = 'PadV2';
+typedef PadV2Inputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 // export interface PadV2Attrs {
 //   paddings: Array<[number, number]>;
 //   constantValue: number;
@@ -809,8 +809,8 @@ typedef SumInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 //   keepDims: boolean;
 // }
 
-// export const SpaceToBatchND = 'SpaceToBatchND';
-// export type SpaceToBatchNDInputs = Pick<NamedTensorInfoMap, 'x'>;
+const SpaceToBatchND = 'SpaceToBatchND';
+typedef SpaceToBatchNDInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 // export interface SpaceToBatchNDAttrs {
 //   blockShape: number[];
 //   paddings: number[][];
