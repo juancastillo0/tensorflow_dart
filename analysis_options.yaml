@@ -22,7 +22,11 @@ linter:
     unnecessary_this: false
     avoid_function_literals_in_foreach_calls: false
     unnecessary_brace_in_string_interps: false
-# analyzer:
+
+analyzer:
+  errors:
+    unrelated_type_equality_checks: error
+    unnecessary_null_comparison: warning
 #   exclude:
 #     - path/to/excluded/files/**
 
