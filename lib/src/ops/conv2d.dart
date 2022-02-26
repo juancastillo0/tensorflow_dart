@@ -14,18 +14,23 @@
  * limitations under the License.
  * =============================================================================
  */
-import {ENGINE} from '../engine';
-import {Conv2D, Conv2DAttrs, Conv2DInputs} from '../kernel_names';
-import {NamedAttrMap} from '../kernel_registry';
-import {Tensor3D, Tensor4D} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
-import * as util from '../util';
+// import {ENGINE} from '../engine';
+// import {Conv2D, Conv2DAttrs, Conv2DInputs} from '../kernel_names';
+// import {NamedAttrMap} from '../kernel_registry';
+// import {Tensor3D, Tensor4D} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
+// import * as util from '../util';
 
-import * as conv_util from './conv_util';
-import {op} from './operation';
-import {reshape} from './reshape';
+// import * as conv_util from './conv_util';
+// import {op} from './operation';
+// import {reshape} from './reshape';
+
+import '../util_base.dart' as util;
+import '_prelude.dart';
+import 'conv_util.dart' as conv_util;
+import 'reshape.dart';
 
 /**
  * Computes a 2D convolution over the input x.
@@ -59,55 +64,67 @@ import {reshape} from './reshape';
  *
  * @doc {heading: 'Operations', subheading: 'Convolution'}
  */
-function conv2d_<T extends Tensor3D|Tensor4D>(
-    x: T|TensorLike, filter: Tensor4D|TensorLike,
-    strides: [number, number]|number,
-    pad: 'valid'|'same'|number|conv_util.ExplicitPadding,
-    dataFormat: 'NHWC'|'NCHW' = 'NHWC',
-    dilations: [number, number]|number = [1, 1],
-    dimRoundingMode?: 'floor'|'round'|'ceil'): T {
-  const $x = convertToTensor(x, 'x', 'conv2d', 'float32');
-  const $filter = convertToTensor(filter, 'filter', 'conv2d', 'float32');
+T conv2d<
+    T extends Tensor3D
+// |Tensor4D
+    >(
+  T x,
+  Tensor4D filter, {
+  required List<int> strides, // : [number, number]|number,
+  required Object pad, // : 'valid'|'same'|number|conv_util.ExplicitPadding,
+  String dataFormat = 'NHWC', // : 'NHWC'|'NCHW'
+  List<int> dilations = const [1, 1], // : [number, number]|number
+  String? dimRoundingMode, // 'floor'|'round'|'ceil'
+}) {
+  return execOp('conv2d', () {
+    final $x = convertToTensor(x, 'x', 'conv2d', 'float32');
+    final $filter = convertToTensor(filter, 'filter', 'conv2d', 'float32');
 
-  let x4D = $x as Tensor4D;
-  let reshapedTo4D = false;
+    var x4D = $x as Tensor4D;
+    var reshapedTo4D = false;
 
-  if ($x.rank === 3) {
-    reshapedTo4D = true;
-    x4D = reshape($x, [1, $x.shape[0], $x.shape[1], $x.shape[2]]);
-  }
+    if ($x.rank == 3) {
+      reshapedTo4D = true;
+      x4D = reshape($x, [1, $x.shape[0], $x.shape[1], $x.shape[2]]);
+    }
 
-  util.assert(
-      x4D.rank === 4,
-      () => `Error in conv2d: input must be rank 4, but got rank ${x4D.rank}.`);
-  util.assert(
-      $filter.rank === 4,
-      () => `Error in conv2d: filter must be rank 4, but got rank ` +
-          `${$filter.rank}.`);
-  conv_util.checkPadOnDimRoundingMode('conv2d', pad, dimRoundingMode);
-  const inDepth = dataFormat === 'NHWC' ? x4D.shape[3] : x4D.shape[1];
-  util.assert(
-      inDepth === $filter.shape[2],
-      () => `Error in conv2d: depth of input (${inDepth}) must match ` +
-          `input depth for filter ${$filter.shape[2]}.`);
-  util.assert(
-      conv_util.eitherStridesOrDilationsAreOne(strides, dilations),
-      () => 'Error in conv2D: Either strides or dilations must be 1. ' +
-          `Got strides ${strides} and dilations '${dilations}'`);
+    util.assert_(
+        x4D.rank == 4,
+        () =>
+            "Error in conv2d: input must be rank 4, but got rank ${x4D.rank}.");
+    util.assert_(
+        $filter.rank == 4,
+        () =>
+            "Error in conv2d: filter must be rank 4, but got rank " +
+            "${$filter.rank}.");
+    conv_util.checkPadOnDimRoundingMode('conv2d', pad, dimRoundingMode);
+    final inDepth = dataFormat == 'NHWC' ? x4D.shape[3] : x4D.shape[1];
+    util.assert_(
+        inDepth == $filter.shape[2],
+        () =>
+            "Error in conv2d: depth of input (${inDepth}) must match " +
+            "input depth for filter ${$filter.shape[2]}.");
+    util.assert_(
+        conv_util.eitherStridesOrDilationsAreOne(strides, dilations),
+        () =>
+            'Error in conv2D: Either strides or dilations must be 1. ' +
+            "Got strides ${strides} and dilations '${dilations}'");
 
-  const inputs: Conv2DInputs = {x: x4D, filter: $filter};
-  const attrs:
-      Conv2DAttrs = {strides, pad, dataFormat, dilations, dimRoundingMode};
+    final inputs = {'x': x4D, 'filter': $filter}; // Conv2DInputs
+    final attrs = {
+      'strides': strides,
+      'pad': pad,
+      'dataFormat': dataFormat,
+      'dilations': dilations,
+      'dimRoundingMode': dimRoundingMode,
+    }; // Conv2DAttrs
 
-  // tslint:disable-next-line: no-unnecessary-type-assertion
-  const res = ENGINE.runKernel(
-                  Conv2D, inputs as {} as NamedTensorMap,
-                  attrs as {} as NamedAttrMap) as T;
+    // tslint:disable-next-line: no-unnecessary-type-assertion
+    final res = ENGINE.runKernel(Conv2D, inputs, attrs) as T;
 
-  if (reshapedTo4D) {
-    return reshape(res, [res.shape[1], res.shape[2], res.shape[3]]) as T;
-  }
-  return res;
+    if (reshapedTo4D) {
+      return reshape(res, [res.shape[1], res.shape[2], res.shape[3]]) as T;
+    }
+    return res;
+  });
 }
-
-export const conv2d = op({conv2d_});

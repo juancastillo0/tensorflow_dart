@@ -14,18 +14,23 @@
  * limitations under the License.
  * =============================================================================
  */
-import {ENGINE} from '../engine';
-import {DepthwiseConv2dNative, DepthwiseConv2dNativeAttrs, DepthwiseConv2dNativeInputs} from '../kernel_names';
-import {NamedAttrMap} from '../kernel_registry';
-import {Tensor3D, Tensor4D} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
-import * as util from '../util';
+// import {ENGINE} from '../engine';
+// import {DepthwiseConv2dNative, DepthwiseConv2dNativeAttrs, DepthwiseConv2dNativeInputs} from '../kernel_names';
+// import {NamedAttrMap} from '../kernel_registry';
+// import {Tensor3D, Tensor4D} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
+// import * as util from '../util';
 
-import * as conv_util from './conv_util';
-import {op} from './operation';
-import {reshape} from './reshape';
+// import * as conv_util from './conv_util';
+// import {op} from './operation';
+// import {reshape} from './reshape';
+
+import '../util_base.dart' as util;
+import '_prelude.dart';
+import 'conv_util.dart' as conv_util;
+import 'reshape.dart';
 
 /**
  * Depthwise 2D convolution.
@@ -72,50 +77,66 @@ import {reshape} from './reshape';
  *
  * @doc {heading: 'Operations', subheading: 'Convolution'}
  */
-function depthwiseConv2d_<T extends Tensor3D|Tensor4D>(
-    x: T|TensorLike, filter: Tensor4D|TensorLike,
-    strides: [number, number]|number,
-    pad: 'valid'|'same'|number|conv_util.ExplicitPadding,
-    dataFormat: 'NHWC'|'NCHW' = 'NHWC',
-    dilations: [number, number]|number = [1, 1],
-    dimRoundingMode?: 'floor'|'round'|'ceil'): T {
-  const $x = convertToTensor(x, 'x', 'depthwiseConv2d', 'float32');
-  const $filter =
-      convertToTensor(filter, 'filter', 'depthwiseConv2d', 'float32');
+T depthwiseConv2d<
+    T extends Tensor3D
+// |Tensor4D
+    >(
+  T x,
+  Tensor4D filter, {
+  required List<int> strides, // : [number, number]|number,
+  required Object pad, // : 'valid'|'same'|number|conv_util.ExplicitPadding,
+  String dataFormat = 'NHWC', // : 'NHWC'|'NCHW'
+  List<int> dilations = const [1, 1], // : [number, number]|number
+  String? dimRoundingMode, // 'floor'|'round'|'ceil'
+}) {
+  return execOp('depthwiseConv2d', () {
+    final $x = convertToTensor(x, 'x', 'depthwiseConv2d', 'float32');
+    final $filter =
+        convertToTensor(filter, 'filter', 'depthwiseConv2d', 'float32');
 
-  let x4D = $x as Tensor4D;
-  let reshapedTo4D = false;
-  if ($x.rank === 3) {
-    reshapedTo4D = true;
-    x4D = reshape($x, [1, $x.shape[0], $x.shape[1], $x.shape[2]]);
-  }
-  util.assert(
-      x4D.rank === 4,
-      () => `Error in depthwiseConv2d: input must be rank 4, but got ` +
-          `rank ${x4D.rank}.`);
-  util.assert(
-      $filter.rank === 4,
-      () => `Error in depthwiseConv2d: filter must be rank 4, but got rank ` +
-          `${$filter.rank}.`);
-  util.assert(
-      x4D.shape[3] === $filter.shape[2],
-      () => `Error in depthwiseConv2d: number of input channels ` +
-          `(${x4D.shape[3]}) must match the inChannels dimension in ` +
-          `filter ${$filter.shape[2]}.`);
-  conv_util.checkPadOnDimRoundingMode('depthwiseConv2d', pad, dimRoundingMode);
-  const inputs: DepthwiseConv2dNativeInputs = {x: x4D, filter: $filter};
-  const attrs: DepthwiseConv2dNativeAttrs =
-      {strides, pad, dataFormat, dilations, dimRoundingMode};
+    var x4D = $x as Tensor4D;
+    var reshapedTo4D = false;
+    if ($x.rank == 3) {
+      reshapedTo4D = true;
+      x4D = reshape($x, [1, $x.shape[0], $x.shape[1], $x.shape[2]]);
+    }
+    util.assert_(
+        x4D.rank == 4,
+        () =>
+            'Error in depthwiseConv2d: input must be rank 4, but got ' +
+            'rank ${x4D.rank}.');
+    util.assert_(
+        $filter.rank == 4,
+        () =>
+            'Error in depthwiseConv2d: filter must be rank 4, but got rank ' +
+            '${$filter.rank}.');
+    util.assert_(
+        x4D.shape[3] == $filter.shape[2],
+        () =>
+            'Error in depthwiseConv2d: number of input channels ' +
+            '(${x4D.shape[3]}) must match the inChannels dimension in ' +
+            'filter ${$filter.shape[2]}.');
+    conv_util.checkPadOnDimRoundingMode(
+        'depthwiseConv2d', pad, dimRoundingMode);
+    final inputs = {
+      'x': x4D,
+      'filter': $filter
+    }; // : DepthwiseConv2dNativeInputs
+    final attrs = // : DepthwiseConv2dNativeAttrs
+        DepthwiseConv2dNativeAttrs(
+      strides: strides,
+      pad: pad,
+      dataFormat: dataFormat,
+      dilations: dilations,
+      dimRoundingMode: dimRoundingMode,
+    );
 
-  // tslint:disable-next-line: no-unnecessary-type-assertion
-  const res = ENGINE.runKernel(
-                  DepthwiseConv2dNative, inputs as {} as NamedTensorMap,
-                  attrs as {} as NamedAttrMap) as T;
+    // tslint:disable-next-line: no-unnecessary-type-assertion
+    final res = ENGINE.runKernel(DepthwiseConv2dNative, inputs, attrs) as T;
 
-  if (reshapedTo4D) {
-    return reshape(res, [res.shape[1], res.shape[2], res.shape[3]]) as T;
-  }
-  return res;
+    if (reshapedTo4D) {
+      return reshape(res, [res.shape[1], res.shape[2], res.shape[3]]) as T;
+    }
+    return res;
+  });
 }
-
-export const depthwiseConv2d = op({depthwiseConv2d_});

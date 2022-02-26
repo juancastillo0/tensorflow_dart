@@ -14,13 +14,19 @@
  * limitations under the License.
  * =============================================================================
  */
-import {Tensor3D, Tensor4D} from '../tensor';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
+// import {Tensor3D, Tensor4D} from '../tensor';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
 
-import {conv2DBackpropInput} from './conv2d_backprop_input';
-import {ExplicitPadding} from './conv_util';
-import {op} from './operation';
+// import {conv2DBackpropInput} from './conv2d_backprop_input';
+// import {ExplicitPadding} from './conv_util';
+// import {op} from './operation';
+
+import '../util_base.dart' as util;
+import '_prelude.dart';
+import 'conv2d_backprop_input.dart';
+import 'conv_util.dart' as conv_util;
+import 'reshape.dart';
 
 /**
  * Computes the transposed 2D convolution of an image, also known as a
@@ -42,17 +48,30 @@ import {op} from './operation';
  *
  * @doc {heading: 'Operations', subheading: 'Convolution'}
  */
-function conv2dTranspose_<T extends Tensor3D|Tensor4D>(
-    x: T|TensorLike, filter: Tensor4D|TensorLike,
-    outputShape: [number, number, number, number]|[number, number, number],
-    strides: [number, number]|number,
-    pad: 'valid'|'same'|number|ExplicitPadding,
-    dimRoundingMode?: 'floor'|'round'|'ceil'): T {
-  const $x = convertToTensor(x, 'x', 'conv2dTranspose');
-  const $filter = convertToTensor(filter, 'filter', 'conv2dTranspose');
+T conv2dTranspose<
+    T extends Tensor3D
+//|Tensor4D
+    >(
+  T x,
+  Tensor4D filter, {
+  required List<int>
+      outputShape, // : [number, number, number, number]|[number, number, number]
+  required List<int> strides, // : [number, number]|number,
+  required Object pad, // : 'valid'|'same'|number|conv_util.ExplicitPadding,
+  String? dimRoundingMode, // 'floor'|'round'|'ceil'
+}) {
+  return execOp('conv2dTranspose', () {
+    final $x = convertToTensor(x, 'x', 'conv2dTranspose');
+    final $filter = convertToTensor(filter, 'filter', 'conv2dTranspose');
 
-  return conv2DBackpropInput(
-      outputShape, $x, $filter, strides, pad, 'NHWC', dimRoundingMode);
+    return conv2DBackpropInput(
+      outputShape,
+      $x,
+      $filter,
+      strides: strides,
+      pad: pad,
+      dataFormat: 'NHWC',
+      dimRoundingMode: dimRoundingMode,
+    );
+  });
 }
-
-export const conv2dTranspose = op({conv2dTranspose_});

@@ -202,7 +202,7 @@ typedef ConcatInputs = List<TensorInfo>;
 //   axis: number;
 // }
 
-// export const Conv2D = 'Conv2D';
+const Conv2D = 'Conv2D';
 // export type Conv2DInputs = Pick<NamedTensorInfoMap, 'x'|'filter'>;
 // export interface Conv2DAttrs {
 //   strides: [number, number]|number;
@@ -212,7 +212,7 @@ typedef ConcatInputs = List<TensorInfo>;
 //   dimRoundingMode?: 'floor'|'round'|'ceil';
 // }
 
-// export const Conv2DBackpropFilter = 'Conv2DBackpropFilter';
+const Conv2DBackpropFilter = 'Conv2DBackpropFilter';
 // export type Conv2DBackpropFilterInputs = Pick<NamedTensorInfoMap, 'x'|'dy'>;
 // export interface Conv2DBackpropFilterAttrs {
 //   strides: [number, number]|number;
@@ -222,7 +222,7 @@ typedef ConcatInputs = List<TensorInfo>;
 //   filterShape: [number, number, number, number];
 // }
 
-// export const Conv2DBackpropInput = 'Conv2DBackpropInput';
+const Conv2DBackpropInput = 'Conv2DBackpropInput';
 // export type Conv2DBackpropInputInputs = Pick<NamedTensorInfoMap, 'dy'|'filter'>;
 // export interface Conv2DBackpropInputAttrs {
 //   strides: [number, number]|number;
@@ -303,7 +303,7 @@ typedef DepthwiseConv2dNativeInputs
 class DepthwiseConv2dNativeAttrs extends UnmodifiableMapBase<String, Object?>
     implements NamedAttrMap {
   final List<int> strides; //  [number, number]|number
-  final String pad; //  'valid'|'same'|number|ExplicitPadding
+  final Object pad; //  'valid'|'same'|number|ExplicitPadding
   final String dataFormat; //  'NHWC'|'NCHW'
   final List<int> dilations; //  [number, number]|number
   final String? dimRoundingMode; // 'floor'|'round'|'ceil'
@@ -329,8 +329,8 @@ class DepthwiseConv2dNativeAttrs extends UnmodifiableMapBase<String, Object?>
       const ['strides', 'pad', 'dataFormat', 'dilations', 'dimRoundingMode'];
 }
 
-// export const DepthwiseConv2dNativeBackpropFilter =
-//     'DepthwiseConv2dNativeBackpropFilter';
+const DepthwiseConv2dNativeBackpropFilter =
+    'DepthwiseConv2dNativeBackpropFilter';
 // export type DepthwiseConv2dNativeBackpropFilterInputs =
 //     Pick<NamedTensorInfoMap, 'x'|'dy'>;
 // export interface DepthwiseConv2dNativeBackpropFilterAttrs {
@@ -341,8 +341,7 @@ class DepthwiseConv2dNativeAttrs extends UnmodifiableMapBase<String, Object?>
 //   filterShape: [number, number, number, number];
 // }
 
-// export const DepthwiseConv2dNativeBackpropInput =
-//     'DepthwiseConv2dNativeBackpropInput';
+const DepthwiseConv2dNativeBackpropInput = 'DepthwiseConv2dNativeBackpropInput';
 // export type DepthwiseConv2dNativeBackpropInputInputs =
 //     Pick<NamedTensorInfoMap, 'dy'|'filter'>;
 // export interface DepthwiseConv2dNativeBackpropInputAttrs {

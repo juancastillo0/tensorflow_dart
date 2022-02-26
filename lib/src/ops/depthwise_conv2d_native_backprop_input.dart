@@ -14,44 +14,63 @@
  * limitations under the License.
  * =============================================================================
  */
-import {ENGINE} from '../engine';
-import {DepthwiseConv2dNativeBackpropInput, DepthwiseConv2dNativeBackpropInputAttrs, DepthwiseConv2dNativeBackpropInputInputs} from '../kernel_names';
-import {NamedAttrMap} from '../kernel_registry';
-import {Tensor3D, Tensor4D} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
+// import {ENGINE} from '../engine';
+// import {DepthwiseConv2dNativeBackpropInput, DepthwiseConv2dNativeBackpropInputAttrs, DepthwiseConv2dNativeBackpropInputInputs} from '../kernel_names';
+// import {NamedAttrMap} from '../kernel_registry';
+// import {Tensor3D, Tensor4D} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
 
-import {ExplicitPadding} from './conv_util';
-import {op} from './operation';
-import {reshape} from './reshape';
+// import {ExplicitPadding} from './conv_util';
+// import {op} from './operation';
+// import {reshape} from './reshape';
 
-function depthwiseConv2dNativeBackpropInput_<T extends Tensor3D|Tensor4D>(
-    xShape: [number, number, number, number], dy: T, filter: Tensor4D,
-    strides: [number, number]|number,
-    pad: 'valid'|'same'|number|ExplicitPadding,
-    dilations: [number, number]|number = [1, 1],
-    dimRoundingMode?: 'floor'|'round'|'ceil'): T {
-  let dy4D = dy as Tensor4D;
-  let reshapedTo4D = false;
-  if (dy.rank === 3) {
-    reshapedTo4D = true;
-    dy4D = reshape(dy, [1, dy.shape[0], dy.shape[1], dy.shape[2]]);
-  }
+import '../util_base.dart' as util;
+import '_prelude.dart';
+import 'conv_util.dart' as conv_util;
+import 'reshape.dart';
 
-  const inputs: DepthwiseConv2dNativeBackpropInputInputs = {dy: dy4D, filter};
-  const attrs: DepthwiseConv2dNativeBackpropInputAttrs =
-      {strides, pad, dimRoundingMode, dilations, inputShape: xShape};
+T depthwiseConv2dNativeBackpropInput<
+    T extends Tensor3D
+// |Tensor4D
+    >(
+  List<int> xShape, // : [number, number, number, number]
 
-  const res =
-      // tslint:disable-next-line: no-unnecessary-type-assertion
-      ENGINE.runKernel(
-          DepthwiseConv2dNativeBackpropInput, inputs as {} as NamedTensorMap,
-          attrs as {} as NamedAttrMap) as T;
+  T dy,
+  Tensor4D filter, {
+  required List<int> strides, // : [number, number]|number,
+  required Object pad, // : 'valid'|'same'|number|conv_util.ExplicitPadding,
+  List<int> dilations = const [1, 1], // : [number, number]|number
+  String? dimRoundingMode, // 'floor'|'round'|'ceil'
+}) {
+  return execOp('depthwiseConv2dNativeBackpropInput', () {
+    var dy4D = dy as Tensor4D;
+    var reshapedTo4D = false;
+    if (dy.rank == 3) {
+      reshapedTo4D = true;
+      dy4D = reshape(dy, [1, dy.shape[0], dy.shape[1], dy.shape[2]]);
+    }
 
-  if (reshapedTo4D) {
-    return reshape(res, [res.shape[1], res.shape[2], res.shape[3]]) as T;
-  }
-  return res;
+    final inputs = {
+      'dy': dy4D,
+      'filter': filter
+    }; // : DepthwiseConv2dNativeBackpropInputInputs
+    final attrs = // : DepthwiseConv2dNativeBackpropInputAttrs
+        {
+      'strides': strides,
+      'pad': pad,
+      'dimRoundingMode': dimRoundingMode,
+      'dilations': dilations,
+      'inputShape': xShape
+    };
+
+    final res =
+        // tslint:disable-next-line: no-unnecessary-type-assertion
+        ENGINE.runKernel(DepthwiseConv2dNativeBackpropInput, inputs, attrs)
+            as T;
+
+    if (reshapedTo4D) {
+      return reshape(res, [res.shape[1], res.shape[2], res.shape[3]]) as T;
+    }
+    return res;
+  });
 }
-
-export const depthwiseConv2dNativeBackpropInput =
-    op({depthwiseConv2dNativeBackpropInput_});

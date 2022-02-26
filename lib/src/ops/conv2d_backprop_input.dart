@@ -14,16 +14,21 @@
  * limitations under the License.
  * =============================================================================
  */
-import {ENGINE} from '../engine';
-import {Conv2DBackpropInput, Conv2DBackpropInputAttrs, Conv2DBackpropInputInputs} from '../kernel_names';
-import {NamedAttrMap} from '../kernel_registry';
-import {Tensor3D, Tensor4D} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import * as util from '../util';
+// import {ENGINE} from '../engine';
+// import {Conv2DBackpropInput, Conv2DBackpropInputAttrs, Conv2DBackpropInputInputs} from '../kernel_names';
+// import {NamedAttrMap} from '../kernel_registry';
+// import {Tensor3D, Tensor4D} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import * as util from '../util';
 
-import * as conv_util from './conv_util';
-import {op} from './operation';
-import {reshape} from './reshape';
+// import * as conv_util from './conv_util';
+// import {op} from './operation';
+// import {reshape} from './reshape';
+
+import '../util_base.dart' as util;
+import '_prelude.dart';
+import 'conv_util.dart' as conv_util;
+import 'reshape.dart';
 
 /**
  * Computes the derivative of the input of a 2D convolution.
@@ -49,63 +54,79 @@ import {reshape} from './reshape';
  * @param dimRoundingMode A string from: 'ceil', 'round', 'floor'. If none is
  *     provided, it will default to truncate.
  */
-function conv2DBackpropInput_<T extends Tensor3D|Tensor4D>(
-    xShape: [number, number, number, number]|[number, number, number], dy: T,
-    filter: Tensor4D, strides: [number, number]|number,
-    pad: 'valid'|'same'|number|conv_util.ExplicitPadding,
-    dataFormat: 'NHWC'|'NCHW' = 'NHWC',
-    dimRoundingMode?: 'floor'|'round'|'ceil'): T {
-  util.assert(
-      xShape.length === dy.rank,
-      () => `Length of inShape ` +
-          `(${xShape.length}) and rank of dy (${dy.rank}) must match`);
+T conv2DBackpropInput<
+    T extends Tensor3D
+//|Tensor4D
+    >(
+  List<int>
+      xShape, //: [number, number, number, number]|[number, number, number]
+  T dy,
+  Tensor4D filter, {
+  required List<int> strides, // : [number, number]|number,
+  required Object pad, // : 'valid'|'same'|number|conv_util.ExplicitPadding,
+  String dataFormat = 'NHWC', // : 'NHWC'|'NCHW'
+  String? dimRoundingMode, // 'floor'|'round'|'ceil'
+}) {
+  return execOp('conv2DBackpropInput', () {
+    util.assert_(
+        xShape.length == dy.rank,
+        () =>
+            'Length of inShape ' +
+            '(${xShape.length}) and rank of dy (${dy.rank}) must match');
 
-  let xShape4D = xShape as [number, number, number, number];
-  let dy4D = dy as Tensor4D;
-  let reshapedTo4D = false;
-  if (dy.rank === 3) {
-    reshapedTo4D = true;
-    dy4D = reshape(dy, [1, dy.shape[0], dy.shape[1], dy.shape[2]]);
-    xShape4D = [1, xShape[0], xShape[1], xShape[2]];
-  }
+    var xShape4D = xShape;
+    var dy4D = dy as Tensor4D;
+    var reshapedTo4D = false;
+    if (dy.rank == 3) {
+      reshapedTo4D = true;
+      dy4D = reshape(dy, [1, dy.shape[0], dy.shape[1], dy.shape[2]]);
+      xShape4D = [1, xShape[0], xShape[1], xShape[2]];
+    }
 
-  util.assert(
-      xShape4D.length === 4,
-      () =>
-          `Error in conv2dDerInput: inShape must be length 4, but got length ` +
-          `${xShape4D.length}.`);
-  util.assert(
-      dy4D.rank === 4,
-      () => `Error in conv2dDerInput: dy must be rank 4, but got ` +
-          `rank ${dy4D.rank}`);
-  util.assert(
-      filter.rank === 4,
-      () => `Error in conv2dDerInput: filter must be rank 4, but got ` +
-          `rank ${filter.rank}`);
-  const inDepth = dataFormat === 'NHWC' ? xShape4D[3] : xShape4D[1];
-  const outDepth = dataFormat === 'NHWC' ? dy4D.shape[3] : dy4D.shape[1];
-  util.assert(
-      inDepth === filter.shape[2],
-      () => `Error in conv2dDerInput: depth of input (${inDepth}) must ` +
-          `match input depth for filter ${filter.shape[2]}.`);
-  util.assert(
-      outDepth === filter.shape[3],
-      () => `Error in conv2dDerInput: depth of output (${outDepth}) must ` +
-          `match output depth for filter ${filter.shape[3]}.`);
-  conv_util.checkPadOnDimRoundingMode('conv2dDerInput', pad, dimRoundingMode);
-  const inputs: Conv2DBackpropInputInputs = {dy: dy4D, filter};
-  const attrs: Conv2DBackpropInputAttrs =
-      {strides, pad, dataFormat, dimRoundingMode, inputShape: xShape4D};
+    util.assert_(
+        xShape4D.length == 4,
+        () =>
+            'Error in conv2dDerInput: inShape must be length 4, but got length ' +
+            '${xShape4D.length}.');
+    util.assert_(
+        dy4D.rank == 4,
+        () =>
+            'Error in conv2dDerInput: dy must be rank 4, but got ' +
+            'rank ${dy4D.rank}');
+    util.assert_(
+        filter.rank == 4,
+        () =>
+            'Error in conv2dDerInput: filter must be rank 4, but got ' +
+            'rank ${filter.rank}');
+    final inDepth = dataFormat == 'NHWC' ? xShape4D[3] : xShape4D[1];
+    final outDepth = dataFormat == 'NHWC' ? dy4D.shape[3] : dy4D.shape[1];
+    util.assert_(
+        inDepth == filter.shape[2],
+        () =>
+            'Error in conv2dDerInput: depth of input (${inDepth}) must ' +
+            'match input depth for filter ${filter.shape[2]}.');
+    util.assert_(
+        outDepth == filter.shape[3],
+        () =>
+            'Error in conv2dDerInput: depth of output (${outDepth}) must ' +
+            'match output depth for filter ${filter.shape[3]}.');
+    conv_util.checkPadOnDimRoundingMode('conv2dDerInput', pad, dimRoundingMode);
+    final inputs = {'dy': dy4D, 'filter': filter}; // Conv2DBackpropInputInputs
+    final attrs = // Conv2DBackpropInputAttrs
+        {
+      'strides': strides,
+      'pad': pad,
+      'dataFormat': dataFormat,
+      'dimRoundingMode': dimRoundingMode,
+      'inputShape': xShape4D,
+    };
 
-  // tslint:disable-next-line: no-unnecessary-type-assertion
-  const res = ENGINE.runKernel(
-                  Conv2DBackpropInput, inputs as {} as NamedTensorMap,
-                  attrs as {} as NamedAttrMap) as T;
+    // tslint:disable-next-line: no-unnecessary-type-assertion
+    final res = ENGINE.runKernel(Conv2DBackpropInput, inputs, attrs) as T;
 
-  if (reshapedTo4D) {
-    return reshape(res, [res.shape[1], res.shape[2], res.shape[3]]) as T;
-  }
-  return res;
+    if (reshapedTo4D) {
+      return reshape(res, [res.shape[1], res.shape[2], res.shape[3]]) as T;
+    }
+    return res;
+  });
 }
-
-export const conv2DBackpropInput = op({conv2DBackpropInput_});

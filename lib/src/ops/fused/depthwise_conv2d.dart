@@ -42,6 +42,9 @@ import 'package:tensorflow_wasm/tensorflow_wasm.dart';
 import '../_prelude.dart';
 import '../broadcast_util.dart' as broadcast_util;
 import 'package:tensorflow_wasm/src/util_base.dart' as util;
+import '../depthwise_conv2d.dart';
+import '../depthwise_conv2d_native_backprop_filter.dart';
+import '../depthwise_conv2d_native_backprop_input.dart';
 import '../fused_types.dart';
 import '../fused_util.dart';
 import '../conv_util.dart' as conv_util;
@@ -120,8 +123,15 @@ T fusedDepthwiseConv2d<
   double? leakyreluAlpha,
 }) {
   if (shouldFuse(ENGINE.state.gradientDepth, activation) == false) {
-    var result = unfusedDepthwiseConv2d(
-        x, filter, strides, pad, dataFormat, dilations, dimRoundingMode);
+    var result = depthwiseConv2d(
+      x,
+      filter,
+      strides: strides,
+      pad: pad,
+      dataFormat: dataFormat,
+      dilations: dilations,
+      dimRoundingMode: dimRoundingMode,
+    );
     if (bias != null) {
       result = add(result, bias);
     }
@@ -200,21 +210,17 @@ T fusedDepthwiseConv2d<
     final dyActivation = getFusedDyActivation(dy, y, activation) as Tensor4D;
 
     final xDer = depthwiseConv2dNativeBackpropInput(
-        (x4D as Tensor4D).shape,
-        dyActivation,
-        $filter as Tensor4D,
-        strides,
-        pad,
-        dilations,
-        dimRoundingMode);
+        (x4D as Tensor4D).shape, dyActivation, $filter as Tensor4D,
+        strides: strides,
+        pad: pad,
+        dilations: dilations,
+        dimRoundingMode: dimRoundingMode);
     final filterDer = depthwiseConv2dNativeBackpropFilter(
-        x4D as Tensor4D,
-        dyActivation,
-        ($filter as Tensor4D).shape,
-        strides,
-        pad,
-        dilations,
-        dimRoundingMode);
+        x4D as Tensor4D, dyActivation, ($filter as Tensor4D).shape,
+        strides: strides,
+        pad: pad,
+        dilations: dilations,
+        dimRoundingMode: dimRoundingMode);
 
     if (bias != null) {
       final biasDer = getFusedBiasGradient($bias!, dyActivation);

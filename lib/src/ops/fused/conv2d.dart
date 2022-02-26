@@ -42,6 +42,9 @@ import 'package:tensorflow_wasm/tensorflow_wasm.dart';
 import '../_prelude.dart';
 import '../broadcast_util.dart' as broadcast_util;
 import 'package:tensorflow_wasm/src/util_base.dart' as util;
+import '../conv2d.dart';
+import '../conv2d_backprop_filter.dart';
+import '../conv2d_backprop_input.dart';
 import '../fused_types.dart';
 import '../fused_util.dart';
 import '../conv_util.dart' as conv_util;
@@ -124,8 +127,15 @@ T fusedConv2d<
     Tensor? preluActivationWeights,
     double? leakyreluAlpha}) {
   if (shouldFuse(ENGINE.state.gradientDepth, activation) == false) {
-    var result = unfusedConv2d(
-        x, filter, strides, pad, dataFormat, dilations, dimRoundingMode);
+    var result = conv2d(
+      x,
+      filter,
+      strides: strides,
+      pad: pad,
+      dataFormat: dataFormat,
+      dilations: dilations,
+      dimRoundingMode: dimRoundingMode,
+    );
     if (bias != null) {
       result = add(result, bias);
     }
@@ -204,10 +214,10 @@ T fusedConv2d<
             "dilation rates greater than 1 " +
             "are not yet supported in gradients. Got dilations '${dilations}'");
 
-    final xDer =
-        conv2DBackpropInput(x4D.shape, dyActivation, $filter, strides, pad);
-    final filterDer =
-        conv2DBackpropFilter(x4D, dyActivation, $filter.shape, strides, pad);
+    final xDer = conv2DBackpropInput(x4D.shape, dyActivation, $filter,
+        strides: strides, pad: pad);
+    final filterDer = conv2DBackpropFilter(x4D, dyActivation, $filter.shape,
+        strides: strides, pad: pad);
     final List<Tensor> der = [xDer, filterDer];
 
     if ($bias != null) {

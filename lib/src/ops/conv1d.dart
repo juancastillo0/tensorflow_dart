@@ -14,15 +14,21 @@
  * limitations under the License.
  * =============================================================================
  */
-import {Tensor2D, Tensor3D, Tensor4D} from '../tensor';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
-import * as util from '../util';
+// import {Tensor2D, Tensor3D, Tensor4D} from '../tensor';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
+// import * as util from '../util';
 
-import {conv2d} from './conv2d';
-import * as conv_util from './conv_util';
-import {op} from './operation';
-import {reshape} from './reshape';
+// import {conv2d} from './conv2d';
+// import * as conv_util from './conv_util';
+// import {op} from './operation';
+// import {reshape} from './reshape';
+
+import '../util_base.dart' as util;
+import '_prelude.dart';
+import 'conv2d.dart';
+import 'conv_util.dart' as conv_util;
+import 'reshape.dart';
 
 /**
  * Computes a 1D convolution over the input x.
@@ -52,59 +58,76 @@ import {reshape} from './reshape';
  *
  * @doc {heading: 'Operations', subheading: 'Convolution'}
  */
-function conv1d_<T extends Tensor2D|Tensor3D>(
-    x: T|TensorLike, filter: Tensor3D|TensorLike, stride: number,
-    pad: 'valid'|'same'|number|conv_util.ExplicitPadding,
-    dataFormat: 'NWC'|'NCW' = 'NWC', dilation = 1,
-    dimRoundingMode?: 'floor'|'round'|'ceil'): T {
-  const $x = convertToTensor(x, 'x', 'conv1d');
-  const $filter = convertToTensor(filter, 'filter', 'conv1d');
+T conv1d<
+    T extends Tensor2D
+// |Tensor3D
+    >(
+  T x,
+  Tensor3D filter, {
+  required int stride,
+  required Object pad, // : 'valid'|'same'|number|conv_util.ExplicitPadding,
+  String dataFormat = 'NWC', // : 'NWC'|'NCW'
+  int dilation = 1,
+  String? dimRoundingMode, //: 'floor'|'round'|'ceil',
+}) {
+  return execOp('conv1d', () {
+    final $x = convertToTensor(x, 'x', 'conv1d');
+    final $filter = convertToTensor(filter, 'filter', 'conv1d');
 
-  let x3D = $x as Tensor3D;
-  let reshapedTo3D = false;
-  if ($x.rank === 2) {
-    reshapedTo3D = true;
-    x3D = reshape($x, [1, $x.shape[0], $x.shape[1]]);
-  }
+    var x3D = $x as Tensor3D;
+    var reshapedTo3D = false;
+    if ($x.rank == 2) {
+      reshapedTo3D = true;
+      x3D = reshape($x, [1, $x.shape[0], $x.shape[1]]);
+    }
 
-  util.assert(
-      x3D.rank === 3,
-      () => `Error in conv1d: input must be rank 3, but got rank ${x3D.rank}.`);
-  util.assert(
-      $filter.rank === 3,
-      () => `Error in conv1d: filter must be rank 3, but got rank ` +
-          `${$filter.rank}.`);
-  conv_util.checkPadOnDimRoundingMode('conv1d', pad, dimRoundingMode);
-  util.assert(
-      x3D.shape[2] === $filter.shape[1],
-      () => `Error in conv1d: depth of input (${x3D.shape[2]}) must match ` +
-          `input depth for filter ${$filter.shape[1]}.`);
-  util.assert(
-      conv_util.eitherStridesOrDilationsAreOne(stride, dilation),
-      () => 'Error in conv1D: Either stride or dilation must be 1. ' +
-          `Got stride ${stride} and dilation '${dilation}'`);
-  util.assert(
-      dataFormat === 'NWC',
-      () => `Error in conv1d: got dataFormat of ${
-          dataFormat} but only NWC is currently supported.`);
+    util.assert_(
+        x3D.rank == 3,
+        () =>
+            "Error in conv1d: input must be rank 3, but got rank ${x3D.rank}.");
+    util.assert_(
+        $filter.rank == 3,
+        () =>
+            "Error in conv1d: filter must be rank 3, but got rank " +
+            "${$filter.rank}.");
+    conv_util.checkPadOnDimRoundingMode('conv1d', pad, dimRoundingMode);
+    util.assert_(
+        x3D.shape[2] == $filter.shape[1],
+        () =>
+            "Error in conv1d: depth of input (${x3D.shape[2]}) must match " +
+            "input depth for filter ${$filter.shape[1]}.");
+    util.assert_(
+        conv_util.eitherStridesOrDilationsAreOne([stride], [dilation]),
+        () =>
+            'Error in conv1D: Either stride or dilation must be 1. ' +
+            "Got stride ${stride} and dilation '${dilation}'");
+    util.assert_(
+        dataFormat == 'NWC',
+        () =>
+            "Error in conv1d: got dataFormat of ${dataFormat} but only NWC is currently supported.");
 
-  const filter4D = reshape(
-      $filter, [1, $filter.shape[0], $filter.shape[1], $filter.shape[2]]);
-  const input4D = reshape(x3D, [x3D.shape[0], 1, x3D.shape[1], x3D.shape[2]]);
-  const strides: [number, number] = [1, stride];
-  const dilations: [number, number] = [1, dilation];
+    final filter4D = reshape(
+        $filter, [1, $filter.shape[0], $filter.shape[1], $filter.shape[2]]);
+    final input4D = reshape(x3D, [x3D.shape[0], 1, x3D.shape[1], x3D.shape[2]]);
+    final strides = [1, stride];
+    final dilations = [1, dilation];
 
-  const conv2dDataFormat = 'NHWC';
+    final conv2dDataFormat = 'NHWC';
 
-  const res = conv2d(
-      (input4D as Tensor4D), (filter4D as Tensor4D), strides, pad,
-      conv2dDataFormat, dilations, dimRoundingMode);
+    final res = conv2d(
+      (input4D as Tensor4D),
+      (filter4D as Tensor4D),
+      strides: strides,
+      pad: pad,
+      dataFormat: conv2dDataFormat,
+      dilations: dilations,
+      dimRoundingMode: dimRoundingMode,
+    );
 
-  if (reshapedTo3D) {
-    return reshape(res, [res.shape[2], res.shape[3]]) as T;
-  }
+    if (reshapedTo3D) {
+      return reshape(res, [res.shape[2], res.shape[3]]) as T;
+    }
 
-  return reshape(res, [res.shape[0], res.shape[2], res.shape[3]]) as T;
+    return reshape(res, [res.shape[0], res.shape[2], res.shape[3]]) as T;
+  });
 }
-
-export const conv1d = op({conv1d_});

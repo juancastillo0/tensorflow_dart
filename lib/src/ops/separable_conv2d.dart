@@ -14,15 +14,21 @@
  * limitations under the License.
  * =============================================================================
  */
-import {Tensor3D, Tensor4D} from '../tensor';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
-import * as util from '../util';
+// import {Tensor3D, Tensor4D} from '../tensor';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
+// import * as util from '../util';
 
-import {conv2d} from './conv2d';
-import {depthwiseConv2d} from './depthwise_conv2d';
-import {op} from './operation';
-import {reshape} from './reshape';
+// import {conv2d} from './conv2d';
+// import {depthwiseConv2d} from './depthwise_conv2d';
+// import {op} from './operation';
+// import {reshape} from './reshape';
+
+import '../util_base.dart' as util;
+import '_prelude.dart';
+import 'conv2d.dart';
+import 'depthwise_conv2d.dart';
+import 'reshape.dart';
 
 /**
  * 2-D convolution with separable filters.
@@ -69,71 +75,91 @@ import {reshape} from './reshape';
  *
  * @doc {heading: 'Operations', subheading: 'Convolution'}
  */
-function separableConv2d_<T extends Tensor3D|Tensor4D>(
-    x: T|TensorLike, depthwiseFilter: Tensor4D|TensorLike,
-    pointwiseFilter: Tensor4D|TensorLike, strides: [number, number]|number,
-    pad: 'valid'|'same', dilation: [number, number]|number = [1, 1],
-    dataFormat: 'NHWC'|'NCHW' = 'NHWC'): T {
-  const $x = convertToTensor(x, 'x', 'separableConv2d');
-  const $depthwiseFilter =
-      convertToTensor(depthwiseFilter, 'depthwiseFilter', 'separableConv2d');
-  const $pointwiseFilter =
-      convertToTensor(pointwiseFilter, 'pointwiseFilter', 'separableConv2d');
+T separableConv2d<
+    T extends Tensor3D
+// |Tensor4D
+    >(
+  T x, {
+  required Tensor4D depthwiseFilter,
+  required Tensor4D pointwiseFilter,
+  required List<int> strides, // : [number, number]|number
+  required String pad, // : 'valid'|'same'
+  List<int> dilation // : [number, number]|number
+  = const [1, 1],
+  String dataFormat = 'NHWC', // : 'NHWC'|'NCHW'
+}) {
+  return execOp('separableConv2d', () {
+    final $x = convertToTensor(x, 'x', 'separableConv2d');
+    final $depthwiseFilter =
+        convertToTensor(depthwiseFilter, 'depthwiseFilter', 'separableConv2d');
+    final $pointwiseFilter =
+        convertToTensor(pointwiseFilter, 'pointwiseFilter', 'separableConv2d');
 
-  let x4D = $x as Tensor4D;
-  let reshapedTo4D = false;
-  if ($x.rank === 3) {
-    reshapedTo4D = true;
-    x4D = reshape($x, [1, $x.shape[0], $x.shape[1], $x.shape[2]]);
-  }
+    var x4D = $x as Tensor4D;
+    var reshapedTo4D = false;
+    if ($x.rank == 3) {
+      reshapedTo4D = true;
+      x4D = reshape($x, [1, $x.shape[0], $x.shape[1], $x.shape[2]]);
+    }
 
-  if (dataFormat === 'NCHW') {
-    throw new Error(
-        'separableConv2d currently does not support dataFormat NCHW; only ' +
-        'NHWC is supported');
-  }
+    if (dataFormat == 'NCHW') {
+      throw Exception(
+          'separableConv2d currently does not support dataFormat NCHW; only ' +
+              'NHWC is supported');
+    }
 
-  util.assert(
-      x4D.rank === 4,
-      () => `Error in separableConv2d: input must be rank 4, but got ` +
-          `rank ${x4D.rank}.`);
-  util.assert(
-      $depthwiseFilter.rank === 4,
-      () => `Error in separableConv2d: depthwise filter must be rank 4, but ` +
-          `got rank ${$depthwiseFilter.rank}.`);
-  util.assert(
-      $pointwiseFilter.rank === 4,
-      () => `Error in separableConv2d: pointwise filter must be rank 4, but ` +
-          `got rank ${$depthwiseFilter.rank}.`);
-  util.assert(
-      $pointwiseFilter.shape[0] === 1,
-      () =>
-          `Error in separableConv2d: the first dimension of pointwise filter ` +
-          ` must be 1, but got ${$pointwiseFilter.shape[0]}.`);
-  util.assert(
-      $pointwiseFilter.shape[1] === 1,
-      () => `Error in separableConv2d: the second dimension of pointwise ` +
-          `filter must be 1, but got ${$pointwiseFilter.shape[1]}.`);
+    util.assert_(
+        x4D.rank == 4,
+        () =>
+            'Error in separableConv2d: input must be rank 4, but got ' +
+            'rank ${x4D.rank}.');
+    util.assert_(
+        $depthwiseFilter.rank == 4,
+        () =>
+            'Error in separableConv2d: depthwise filter must be rank 4, but ' +
+            'got rank ${$depthwiseFilter.rank}.');
+    util.assert_(
+        $pointwiseFilter.rank == 4,
+        () =>
+            'Error in separableConv2d: pointwise filter must be rank 4, but ' +
+            'got rank ${$depthwiseFilter.rank}.');
+    util.assert_(
+        $pointwiseFilter.shape[0] == 1,
+        () =>
+            'Error in separableConv2d: the first dimension of pointwise filter ' +
+            ' must be 1, but got ${$pointwiseFilter.shape[0]}.');
+    util.assert_(
+        $pointwiseFilter.shape[1] == 1,
+        () =>
+            'Error in separableConv2d: the second dimension of pointwise ' +
+            'filter must be 1, but got ${$pointwiseFilter.shape[1]}.');
 
-  const inChannels = $depthwiseFilter.shape[2];
-  const channelMultiplier = $depthwiseFilter.shape[3];
-  util.assert(
-      $pointwiseFilter.shape[2] === inChannels * channelMultiplier,
-      () =>
-          `Error in separableConv2d: the third dimension of pointwise filter ` +
-          `must be ${inChannels * channelMultiplier}, ` +
-          `but got ${$pointwiseFilter.shape[2]}.`);
+    final inChannels = $depthwiseFilter.shape[2];
+    final channelMultiplier = $depthwiseFilter.shape[3];
+    util.assert_(
+        $pointwiseFilter.shape[2] == inChannels * channelMultiplier,
+        () =>
+            'Error in separableConv2d: the third dimension of pointwise filter ' +
+            'must be ${inChannels * channelMultiplier}, ' +
+            'but got ${$pointwiseFilter.shape[2]}.');
 
-  const depthwise = depthwiseConv2d(
-      x4D, $depthwiseFilter, strides, pad, dataFormat, dilation);
-  const pointwiseStride = 1;
-  const res =
-      conv2d(depthwise, $pointwiseFilter, pointwiseStride, 'valid', dataFormat);
+    final depthwise = depthwiseConv2d(
+      x4D,
+      $depthwiseFilter,
+      strides: strides,
+      pad: pad,
+      dataFormat: dataFormat,
+      dilations: dilation,
+    );
+    final pointwiseStride = 1;
+    final res = conv2d(depthwise, $pointwiseFilter,
+        strides: [pointwiseStride, pointwiseStride],
+        pad: 'valid',
+        dataFormat: dataFormat);
 
-  if (reshapedTo4D) {
-    return reshape(res, [res.shape[1], res.shape[2], res.shape[3]]) as T;
-  }
-  return res as T;
+    if (reshapedTo4D) {
+      return reshape(res, [res.shape[1], res.shape[2], res.shape[3]]) as T;
+    }
+    return res as T;
+  });
 }
-
-export const separableConv2d = op({separableConv2d_});
