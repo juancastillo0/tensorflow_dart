@@ -209,7 +209,7 @@ class TensorArray {
         indices.add(i);
       }
     } else {
-      indices = indices.slice(0, this.size());
+      indices = indices.sublistRelaxed(0, this.size());
     }
 
     if (indices!.length == 0) {

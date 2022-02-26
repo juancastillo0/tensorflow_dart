@@ -155,7 +155,7 @@ class ScatterUtil {
     final safeSliceDim = (sliceRank < 1) ? 1 : sliceRank;
     final numUpdates = sizeFromShape(indices.shape) ~/ safeSliceDim;
 
-    final strides = [...computeStrides(shape.slice(0, sliceRank)), 1];
+    final strides = [...computeStrides(shape.sublistRelaxed(0, sliceRank)), 1];
     final outputSize = sizeFromShape(shape);
     return ScatterShapeInfo(
       sliceRank: sliceRank,

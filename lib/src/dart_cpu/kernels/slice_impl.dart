@@ -18,7 +18,7 @@ BackendValues sliceImplCPU(
     final flatOffset = slice_util.computeFlatOffset(begin, xStrides);
 
     if (dtype == 'string') {
-      return (vals as List<Uint8List>).slice(flatOffset, flatOffset + length);
+      return (vals as List<Uint8List>).sublistRelaxed(flatOffset, flatOffset + length);
     }
 
     return (vals as TypedArray).subarray(flatOffset, flatOffset + length);

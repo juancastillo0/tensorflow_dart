@@ -95,7 +95,7 @@ List<Tensor> executeOp(
           'usually used for debugging, which slows down performance.');
       util.log.info(message);
       for (int i = 0; i < data.length; i++) {
-        util.log.info(data[i].dataSync().slice(0, summarize));
+        util.log.info(data[i].dataSync().sublistRelaxed(0, summarize));
       }
       return [input];
 

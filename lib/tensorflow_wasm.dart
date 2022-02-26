@@ -16,7 +16,7 @@ extension MapGetSet<K, V> on Map<K, V> {
 }
 
 extension SliceList<T> on List<T> {
-  List<T> slice(int begin, [int? end]) {
+  List<T> sublistRelaxed(int begin, [int? end]) {
     return sublist(
       begin < 0 ? length + begin : begin,
       end == null

@@ -45,7 +45,7 @@ class EncodedWeights {
 
 extension ByteBufferSlice on ByteBuffer {
   ByteBuffer slice(int start, [int? end]) {
-    final l = asUint8List().slice(start, end) as Uint8List;
+    final l = asUint8List().sublistRelaxed(start, end) as Uint8List;
     return l.buffer;
   }
 }

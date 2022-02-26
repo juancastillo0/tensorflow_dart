@@ -108,7 +108,7 @@ T spaceToBatchND<T extends Tensor>(
           }
           return a;
         }),
-        () => 'input spatial dimensions ${$x.shape.slice(1)} with paddings '
+        () => 'input spatial dimensions ${$x.shape.sublistRelaxed(1)} with paddings '
             '${paddings.toString()} must be divisible by blockShapes ${blockShape.toString()}');
 
     final inputs = {'x': $x}; // : SpaceToBatchNDInputs

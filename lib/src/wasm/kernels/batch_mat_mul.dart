@@ -74,14 +74,14 @@ TensorInfo batchMatMul({
   final outerShapeA = transposeA ? a.shape[aRank - 1] : a.shape[aRank - 2];
   final outerShapeB = transposeB ? b.shape[bRank - 2] : b.shape[bRank - 1];
 
-  final outerDimsA = a.shape.slice(0, -2);
-  final outerDimsB = b.shape.slice(0, -2);
+  final outerDimsA = a.shape.sublistRelaxed(0, -2);
+  final outerDimsB = b.shape.sublistRelaxed(0, -2);
 
   final batchDimA = util.sizeFromShape(outerDimsA);
   final batchDimB = util.sizeFromShape(outerDimsB);
 
   final outShapeOuterDims = broadcast_util.assertAndGetBroadcastShape(
-      a.shape.slice(0, -2), b.shape.slice(0, -2));
+      a.shape.sublistRelaxed(0, -2), b.shape.sublistRelaxed(0, -2));
   final outShape = [...outShapeOuterDims, outerShapeA, outerShapeB];
 
   util.assert_(

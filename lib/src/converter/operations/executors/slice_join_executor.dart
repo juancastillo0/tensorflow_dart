@@ -42,7 +42,7 @@ List<Tensor> executeOp(
         final axis = getParamValue('axis', node, tensorMap, context) as int;
         var inputs =
             getParamValue('tensors', node, tensorMap, context) as List<Tensor>;
-        inputs = inputs.slice(0, n);
+        inputs = inputs.sublistRelaxed(0, n);
         return [tfOps.concat(inputs, axis)];
       }
     case 'Gather':

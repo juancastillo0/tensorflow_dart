@@ -61,7 +61,7 @@ TensorInfo argmax({
     }
   }
 
-  final outShape = input.shape.slice(0, -1);
+  final outShape = input.shape.sublistRelaxed(0, -1);
   final out = backend.makeOutput(outShape, 'int32');
   final outId = backend.dataIdMap.get(out.dataId)!.id;
   final outerSize = util.sizeFromShape(out.shape);

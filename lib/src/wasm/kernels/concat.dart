@@ -68,7 +68,7 @@ TensorInfo concat({
     // concatenate the resulting matrices across the axis 1, finally reshaping
     // the result to have the proper shape.
     final inputs2D = $inputs.map((t) {
-      final innerSize = util.sizeFromShape(t.shape.slice(axis));
+      final innerSize = util.sizeFromShape(t.shape.sublistRelaxed(axis));
       final shape = [-1, innerSize];
       return reshape(
           inputs: {'x': t}, backend: backend, attrs: {'shape': shape});
@@ -105,10 +105,10 @@ TensorInfo concat({
     );
   }
 
-  final batchDim = util.sizeFromShape($inputs[0].shape.slice(0, axis));
+  final batchDim = util.sizeFromShape($inputs[0].shape.sublistRelaxed(0, axis));
   int sumInnerDims = 0;
   final innerDims = $inputs.map((input) {
-    final innerDim = util.sizeFromShape(input.shape.slice(axis));
+    final innerDim = util.sizeFromShape(input.shape.sublistRelaxed(axis));
     sumInnerDims += innerDim;
     return innerDim;
   }).toList();

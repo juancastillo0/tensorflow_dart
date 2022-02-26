@@ -99,7 +99,7 @@ class GatherUtil {
     final strides = [
       ...computeStrides(tensor.shape).map((stride) => stride ~/ sliceSize),
       1
-    ].slice(0, sliceRank);
+    ].sublistRelaxed(0, sliceRank);
 
     return GatherIndicesInfo(
       resultShape: resultShape,

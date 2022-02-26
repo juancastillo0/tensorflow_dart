@@ -274,7 +274,7 @@ class TensorListContainer {
 
     // When indices is greater than the size of the list, indices beyond the
     // size of the list are ignored.
-    indices = indices.slice(0, this.size());
+    indices = indices.sublistRelaxed(0, this.size());
     final outputElementShape =
         inferElementShape(this.elementShape, this.tensors, elementShape);
     if (indices.length == 0) {
@@ -335,7 +335,7 @@ TensorListContainer fromTensor(
     throw Exception(
         "Invalid data types; op elements ${tensor.dtype}, but list elements ${elementDtype}");
   }
-  final tensorElementShape = tensor.shape.slice(1);
+  final tensorElementShape = tensor.shape.sublistRelaxed(1);
   assertShapesMatchAllowUndefinedSize(
       tensorElementShape, elementShape, 'TensorList shape mismatch: ');
   final List<Tensor> tensorList = unstack(tensor);
@@ -407,7 +407,7 @@ TensorListContainer split(
         " but sum of lengths is ${totalLength}, and tensor's shape is: ${tensor.shape}");
   }
 
-  final shapeWithoutFirstDim = tensor.shape.slice(1);
+  final shapeWithoutFirstDim = tensor.shape.sublistRelaxed(1);
   final outputElementShape =
       mergeElementShape(shapeWithoutFirstDim, elementShape);
   final elementPerRow = totalLength == 0 ? 0 : tensor.size ~/ totalLength;

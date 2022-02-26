@@ -98,7 +98,7 @@ TensorInfo fusedBatchMatMul(
   final leftDim = transposeA ? a.shape[2] : a.shape[1];
   final rightDim = transposeB ? b.shape[1] : b.shape[2];
   final batchDims = broadcast_util.assertAndGetBroadcastShape(
-      a.shape.slice(0, -2), b.shape.slice(0, -2));
+      a.shape.sublistRelaxed(0, -2), b.shape.sublistRelaxed(0, -2));
 
   final out = backend.makeOutput([...batchDims, leftDim, rightDim], a.dtype);
   final outId = backend.dataIdMap.get(out.dataId)!.id;

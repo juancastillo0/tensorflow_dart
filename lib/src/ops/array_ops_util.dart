@@ -34,9 +34,9 @@ List<int> getReshaped(
 }) {
   List<int> reshaped = [];
   if (batchToSpace) {
-    reshaped = [...reshaped, ...blockShape.slice(0)];
+    reshaped = [...reshaped, ...blockShape.sublistRelaxed(0)];
     reshaped.add(inputShape[0] ~/ prod);
-    reshaped = [...reshaped, ...inputShape.slice(1)];
+    reshaped = [...reshaped, ...inputShape.sublistRelaxed(1)];
   } else {
     reshaped = [...reshaped, inputShape[0]];
     final spatialLength = blockShape.length;
@@ -47,7 +47,7 @@ List<int> getReshaped(
         blockShape[i]
       ];
     }
-    reshaped = [...reshaped, ...inputShape.slice(spatialLength + 1)];
+    reshaped = [...reshaped, ...inputShape.sublistRelaxed(spatialLength + 1)];
   }
   return reshaped;
 }
@@ -159,7 +159,7 @@ List<int> getSliceBeginCoords(List<List<int>> crops, int blockShape) {
  */
 List<int> getSliceSize(
     List<int> uncroppedShape, List<List<int>> crops, int blockShape) {
-  final sliceSize = uncroppedShape.slice(0, 1);
+  final sliceSize = uncroppedShape.sublistRelaxed(0, 1);
   for (int i = 0; i < blockShape; ++i) {
     sliceSize.add(uncroppedShape[i + 1] - crops[i][0] - crops[i][1]);
   }
