@@ -14,10 +14,12 @@
  * limitations under the License.
  * =============================================================================
  */
-import {whereImpl} from '../backends/where_impl';
-import {Tensor, Tensor2D} from '../tensor';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
+// import {whereImpl} from '../backends/where_impl';
+// import {Tensor, Tensor2D} from '../tensor';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
+
+import '_prelude.dart';
 
 /**
  * Returns the coordinates of true elements of condition.
@@ -39,15 +41,13 @@ import {TensorLike} from '../types';
  *
  * @doc {heading: 'Operations', subheading: 'Logical'}
  */
-async function whereAsync_(condition: Tensor|TensorLike): Promise<Tensor2D> {
-  const $condition =
+Future<Tensor2D> whereAsync(Tensor condition) async {
+  final $condition =
       convertToTensor(condition, 'condition', 'whereAsync', 'bool');
-  const vals = await $condition.data();
-  const res = whereImpl($condition.shape, vals);
-  if (condition !== $condition) {
+  final vals = await $condition.data();
+  final res = whereImpl($condition.shape, vals);
+  if (condition != $condition) {
     $condition.dispose();
   }
   return res;
 }
-
-export const whereAsync = whereAsync_;

@@ -14,14 +14,19 @@
  * limitations under the License.
  * =============================================================================
  */
-import {nonMaxSuppressionV4Impl} from '../../backends/non_max_suppression_impl';
-import {Tensor1D, Tensor2D} from '../../tensor';
-import {NamedTensorMap} from '../../tensor_types';
-import {convertToTensor} from '../../tensor_util_env';
-import {TensorLike} from '../../types';
-import {nonMaxSuppSanityCheck} from '../nonmax_util';
-import {scalar} from '../scalar';
-import {tensor1d} from '../tensor1d';
+// import {nonMaxSuppressionV4Impl} from '../../backends/non_max_suppression_impl';
+// import {Tensor1D, Tensor2D} from '../../tensor';
+// import {NamedTensorMap} from '../../tensor_types';
+// import {convertToTensor} from '../../tensor_util_env';
+// import {TensorLike} from '../../types';
+// import {nonMaxSuppSanityCheck} from '../nonmax_util';
+// import {scalar} from '../scalar';
+// import {tensor1d} from '../tensor1d';
+
+import '../_prelude.dart';
+import '../scalar.dart';
+import '../tensor.dart';
+import 'non_max_util.dart';
 
 /**
  * Asynchronously performs non maximum suppression of bounding boxes based on
@@ -46,42 +51,40 @@ import {tensor1d} from '../tensor1d';
  *
  * @doc {heading: 'Operations', subheading: 'Images', namespace: 'image'}
  */
-async function nonMaxSuppressionPaddedAsync_(
-    boxes: Tensor2D|TensorLike, scores: Tensor1D|TensorLike,
-    maxOutputSize: number, iouThreshold = 0.5,
-    scoreThreshold = Number.NEGATIVE_INFINITY,
-    padToMaxOutputSize = false): Promise<NamedTensorMap> {
-  const $boxes = convertToTensor(boxes, 'boxes', 'nonMaxSuppressionAsync');
-  const $scores = convertToTensor(scores, 'scores', 'nonMaxSuppressionAsync');
+Future<NamedTensorMap> nonMaxSuppressionPaddedAsync(
+    Tensor2D boxes, Tensor1D scores,
+    int maxOutputSize, {double iouThreshold = 0.5,
+    double  scoreThreshold = double.negativeInfinity,
+    bool padToMaxOutputSize = false,}) async{
+  final $boxes = convertToTensor(boxes, 'boxes', 'nonMaxSuppressionAsync');
+  final $scores = convertToTensor(scores, 'scores', 'nonMaxSuppressionAsync');
 
-  const params = nonMaxSuppSanityCheck(
+  final params = nonMaxSuppSanityCheck(
       $boxes, $scores, maxOutputSize, iouThreshold, scoreThreshold,
       null /* softNmsSigma */);
-  const $maxOutputSize = params.maxOutputSize;
-  const $iouThreshold = params.iouThreshold;
-  const $scoreThreshold = params.scoreThreshold;
+  final $maxOutputSize = params.maxOutputSize;
+  final $iouThreshold = params.iouThreshold;
+  final $scoreThreshold = params.scoreThreshold;
 
-  const [boxesVals, scoresVals] =
-      await Promise.all([$boxes.data(), $scores.data()]);
+  final vals =
+      await Future.wait([$boxes.data(), $scores.data()]);
 
   // We call a cpu based impl directly with the typedarray data here rather
   // than a kernel because all kernels are synchronous (and thus cannot await
   // .data()).
   const {selectedIndices, validOutputs} = nonMaxSuppressionV4Impl(
-      boxesVals, scoresVals, $maxOutputSize, $iouThreshold, $scoreThreshold,
+      vals[0], vals[1], $maxOutputSize, $iouThreshold, $scoreThreshold,
       padToMaxOutputSize);
 
-  if ($boxes !== boxes) {
+  if ($boxes != boxes) {
     $boxes.dispose();
   }
-  if ($scores !== scores) {
+  if ($scores != scores) {
     $scores.dispose();
   }
 
   return {
-    selectedIndices: tensor1d(selectedIndices, 'int32'),
-    validOutputs: scalar(validOutputs, 'int32')
+    'selectedIndices': tensor1d(selectedIndices, 'int32'),
+    'validOutputs': scalar(validOutputs, 'int32')
   };
 }
-
-export const nonMaxSuppressionPaddedAsync = nonMaxSuppressionPaddedAsync_;

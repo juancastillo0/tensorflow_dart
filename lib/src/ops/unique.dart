@@ -15,16 +15,18 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../engine';
-import {Unique, UniqueAttrs, UniqueInputs} from '../kernel_names';
-import {NamedAttrMap} from '../kernel_registry';
-import {Tensor, Tensor1D} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
-import {assert} from '../util';
+// import {ENGINE} from '../engine';
+// import {Unique, UniqueAttrs, UniqueInputs} from '../kernel_names';
+// import {NamedAttrMap} from '../kernel_registry';
+// import {Tensor, Tensor1D} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
+// import {assert} from '../util';
 
-import {op} from './operation';
+// import {op} from './operation';
+
+import '_prelude.dart';
 
 /**
  * Finds unique elements along an axis of a tensor.
@@ -75,17 +77,24 @@ import {op} from './operation';
  *
  * @doc {heading: 'Operations', subheading: 'Evaluation'}
  */
-function unique_<T extends Tensor>(
-    x: T|TensorLike, axis = 0): {values: T, indices: Tensor1D} {
-  const $x = convertToTensor(x, 'x', 'unique', 'string_or_numeric');
-  assert($x.rank > 0, () => 'The input tensor must be at least 1D');
+UniqueValues<T> unique<T extends Tensor>(T x, [int axis = 0]) {
+  return execOp('unique', () {
+    final $x = convertToTensor(x, 'x', 'unique', 'string_or_numeric');
+    assert($x.rank > 0, () => 'The input tensor must be at least 1D');
 
-  const inputs: UniqueInputs = {x: $x};
-  const attrs: UniqueAttrs = {axis};
-  const [values, indices] = ENGINE.runKernel(
-                                Unique, inputs as {} as NamedTensorMap,
-                                attrs as {} as NamedAttrMap) as [T, Tensor1D];
-  return {values, indices};
+    final inputs = {'x': $x}; // : UniqueInputs
+    final attrs = {'axis': axis}; // : UniqueAttrs
+    final result = ENGINE.runKernel(Unique, inputs, attrs) as TensorList;
+    return UniqueValues(values: result[0] as T, indices: result[1] as T);
+  });
 }
 
-export const unique = op({unique_});
+class UniqueValues<T extends Tensor> {
+  final T values;
+  final Tensor1D indices;
+
+  UniqueValues({
+    required this.values,
+    required this.indices,
+  });
+}

@@ -952,8 +952,8 @@ typedef TransposeInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 //   perm: number[];
 // }
 
-// export const Unique = 'Unique';
-// export type UniqueInputs = Pick<NamedTensorInfoMap, 'x'>;
+const Unique = 'Unique';
+typedef UniqueInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 // export interface UniqueAttrs {
 //   axis: number;
 // }

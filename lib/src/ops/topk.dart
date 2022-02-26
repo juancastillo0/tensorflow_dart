@@ -15,15 +15,17 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../engine';
-import {TopK, TopKAttrs, TopKInputs} from '../kernel_names';
-import {NamedAttrMap} from '../kernel_registry';
-import {Tensor} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
+// import {ENGINE} from '../engine';
+// import {TopK, TopKAttrs, TopKInputs} from '../kernel_names';
+// import {NamedAttrMap} from '../kernel_registry';
+// import {Tensor} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
 
-import {op} from './operation';
+// import {op} from './operation';
+
+import '_prelude.dart';
 
 /**
  * Finds the values and indices of the `k` largest entries along the last
@@ -49,31 +51,39 @@ import {op} from './operation';
  *
  * @doc {heading: 'Operations', subheading: 'Evaluation'}
  */
-function topk_<T extends Tensor>(
-    x: T|TensorLike, k = 1, sorted = true): {values: T, indices: T} {
-  const $x = convertToTensor(x, 'x', 'topk');
-  if ($x.rank === 0) {
-    throw new Error('topk() expects the input to be of rank 1 or higher');
-  }
-  const lastDim = $x.shape[$x.shape.length - 1];
+TopKValues<T> topk<T extends Tensor>(T x, {int k = 1, bool sorted = true}) {
+  return execOp('topk', () {
+    final $x = convertToTensor(x, 'x', 'topk');
+    if ($x.rank == 0) {
+      throw Exception('topk() expects the input to be of rank 1 or higher');
+    }
+    final lastDim = $x.shape[$x.shape.length - 1];
 
-  if (k < 0) {
-    throw new Error(`'k' passed to topk() must be >= 0 but got ${k}`);
-  }
+    if (k < 0) {
+      throw Exception("'k' passed to topk() must be >= 0 but got ${k}");
+    }
 
-  if (k > lastDim) {
-    throw new Error(
-        `'k' passed to topk() must be <= the last dimension (${lastDim}) ` +
-        `but got ${k}`);
-  }
+    if (k > lastDim) {
+      throw Exception(
+          "'k' passed to topk() must be <= the last dimension (${lastDim}) " +
+              "but got ${k}");
+    }
 
-  const inputs: TopKInputs = {x: $x};
-  const attrs: TopKAttrs = {k, sorted};
+    final inputs = {'x': $x}; // : TopKInputs
+    final attrs = {'k': k, 'sorted': sorted}; // : TopKAttrs
 
-  const [values, indices] = ENGINE.runKernel(
-      TopK, inputs as {} as NamedTensorMap, attrs as {} as NamedAttrMap);
+    final result = ENGINE.runKernel(TopK, inputs, attrs) as TensorList;
 
-  return {values, indices} as {values: T, indices: T};
+    return TopKValues(values: result[0] as T, indices: result[1] as T);
+  });
 }
 
-export const topk = op({topk_});
+class TopKValues<T extends Tensor> {
+  final T values;
+  final T indices;
+
+  TopKValues({
+    required this.values,
+    required this.indices,
+  });
+}
