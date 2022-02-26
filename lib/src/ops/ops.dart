@@ -18,6 +18,8 @@ export 'div_no_nan.dart';
 export 'squared_difference.dart';
 export 'mat_mul.dart';
 export 'step.dart';
+export 'dot.dart';
+export 'outer_product.dart';
 //
 export 'cast.dart';
 export 'concat.dart';
@@ -54,3 +56,12 @@ export 'creation_ops.dart';
 export 'creation_rand_ops.dart';
 export 'fused/fused.dart';
 export 'image/image.dart';
+//
+export 'conv1d.dart';
+export 'conv2d.dart';
+export 'conv2d_transpose.dart';
+export 'depthwise_conv2d.dart';
+export 'separable_conv2d.dart';
+export 'max_pool.dart';
+export 'avg_pool.dart';
+// confusion_matrix

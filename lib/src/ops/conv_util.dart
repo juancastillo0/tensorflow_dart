@@ -488,8 +488,8 @@ List<int> parseTupleParam(
         param)
 // : [number, number, number]
 {
-  if (param is int) {
-    final _p = param as int;
+  if (param is int || param.length == 1) {
+    final _p = param is int ? param as int : param[0];
     return [_p, _p, _p];
   }
   if (param.length == 2) {

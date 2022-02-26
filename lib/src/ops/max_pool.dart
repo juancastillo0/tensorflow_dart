@@ -15,18 +15,23 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../engine';
-import {MaxPool, MaxPoolAttrs, MaxPoolInputs} from '../kernel_names';
-import {NamedAttrMap} from '../kernel_registry';
-import {Tensor3D, Tensor4D} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
-import * as util from '../util';
+// import {ENGINE} from '../engine';
+// import {MaxPool, MaxPoolAttrs, MaxPoolInputs} from '../kernel_names';
+// import {NamedAttrMap} from '../kernel_registry';
+// import {Tensor3D, Tensor4D} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
+// import * as util from '../util';
 
-import * as conv_util from './conv_util';
-import {op} from './operation';
-import {reshape} from './reshape';
+// import * as conv_util from './conv_util';
+// import {op} from './operation';
+// import {reshape} from './reshape';
+
+import '../util_base.dart' as util;
+import '_prelude.dart';
+import 'conv_util.dart' as conv_util;
+import 'reshape.dart';
 
 /**
  * Computes the 2D max pooling of an image.
@@ -53,41 +58,55 @@ import {reshape} from './reshape';
  * @param dimRoundingMode A string from: 'ceil', 'round', 'floor'. If none is
  *     provided, it will default to truncate.
  */
-function maxPool_<T extends Tensor3D|Tensor4D>(
-    x: T|TensorLike, filterSize: [number, number]|number,
-    strides: [number, number]|number,
-    pad: 'valid'|'same'|number|conv_util.ExplicitPadding,
-    dimRoundingMode?: 'floor'|'round'|'ceil'): T {
-  const $x = convertToTensor(x, 'x', 'maxPool');
-  const dilations = 1;
+T maxPool_<
+    T extends Tensor3D
+// |Tensor4D
+    >(
+  T x, {
+  // : [number, number]|number,
+  required List<int> filterSize,
+  // : [number, number]|number,
+  required List<int> strides,
+  // : 'valid'|'same'|number| conv_util.ExplicitPadding
+  required Object pad,
+  // ?: 'floor'|'round'|'ceil'
+  String? dimRoundingMode,
+}) {
+  return execOp('maxPool', () {
+    final $x = convertToTensor(x, 'x', 'maxPool');
+    final dilations = 1;
 
-  let x4D = $x as Tensor4D;
-  let reshapedTo4D = false;
-  if ($x.rank === 3) {
-    reshapedTo4D = true;
-    x4D = reshape($x, [1, $x.shape[0], $x.shape[1], $x.shape[2]]);
-  }
+    var x4D = $x as Tensor4D;
+    var reshapedTo4D = false;
+    if ($x.rank == 3) {
+      reshapedTo4D = true;
+      x4D = reshape($x, [1, $x.shape[0], $x.shape[1], $x.shape[2]]);
+    }
 
-  util.assert(
-      x4D.rank === 4,
-      () => `Error in maxPool: input must be rank 4 but got rank ${x4D.rank}.`);
-  util.assert(
-      conv_util.eitherStridesOrDilationsAreOne(strides, dilations),
-      () => 'Error in maxPool: Either strides or dilations must be 1. ' +
-          `Got strides ${strides} and dilations '${dilations}'`);
-  conv_util.checkPadOnDimRoundingMode('maxPool', pad, dimRoundingMode);
-  const inputs: MaxPoolInputs = {x: x4D};
-  const attrs: MaxPoolAttrs = {filterSize, strides, pad, dimRoundingMode};
+    util.assert_(
+        x4D.rank == 4,
+        () =>
+            "Error in maxPool: input must be rank 4 but got rank ${x4D.rank}.");
+    util.assert_(
+        conv_util.eitherStridesOrDilationsAreOne(strides, [dilations]),
+        () =>
+            'Error in maxPool: Either strides or dilations must be 1. ' +
+            "Got strides ${strides} and dilations '${dilations}'");
+    conv_util.checkPadOnDimRoundingMode('maxPool', pad, dimRoundingMode);
+    final inputs = {'x': x4D}; // : MaxPoolInputs
+    final attrs = {
+      'filterSize': filterSize,
+      'strides': strides,
+      'pad': pad,
+      'dimRoundingMode': dimRoundingMode,
+    }; // : MaxPoolAttrs
 
-  // tslint:disable-next-line: no-unnecessary-type-assertion
-  const res = ENGINE.runKernel(
-                  MaxPool, inputs as {} as NamedTensorMap,
-                  attrs as {} as NamedAttrMap) as T;
+    // tslint:disable-next-line: no-unnecessary-type-assertion
+    final res = ENGINE.runKernel(MaxPool, inputs, attrs) as T;
 
-  if (reshapedTo4D) {
-    return reshape(res, [res.shape[1], res.shape[2], res.shape[3]]) as T;
-  }
-  return res;
+    if (reshapedTo4D) {
+      return reshape(res, [res.shape[1], res.shape[2], res.shape[3]]) as T;
+    }
+    return res;
+  });
 }
-
-export const maxPool = op({maxPool_});

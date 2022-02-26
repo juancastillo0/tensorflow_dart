@@ -15,16 +15,23 @@
  * =============================================================================
  */
 
-import {Tensor1D, Tensor2D} from '../tensor';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
-import * as util from '../util';
+// import {Tensor1D, Tensor2D} from '../tensor';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
+// import * as util from '../util';
 
-import {cast} from './cast';
-import {matMul} from './mat_mul';
-import {oneHot} from './one_hot';
-import {op} from './operation';
-import {transpose} from './transpose';
+// import {cast} from './cast';
+// import {matMul} from './mat_mul';
+// import {oneHot} from './one_hot';
+// import {op} from './operation';
+// import {transpose} from './transpose';
+
+import '../util_base.dart' as util;
+import '_prelude.dart';
+import 'cast.dart';
+import 'creation_ops.dart';
+import 'mat_mul.dart';
+import 'transpose.dart';
 
 /**
  * Computes the confusion matrix from true labels and predicted labels.
@@ -55,42 +62,47 @@ import {transpose} from './transpose';
  *
  * @doc {heading: 'Operations', subheading: 'Evaluation'}
  */
-export function confusionMatrix_(
-    labels: Tensor1D|TensorLike, predictions: Tensor1D|TensorLike,
-    numClasses: number): Tensor2D {
-  const $labels = convertToTensor(labels, 'labels', 'confusionMatrix');
-  const $predictions =
-      convertToTensor(predictions, 'predictions', 'confusionMatrix');
+Tensor2D confusionMatrix(
+  Tensor1D labels,
+  Tensor1D predictions,
+  int numClasses,
+) {
+  return execOp('confusionMatrix', () {
+    final $labels = convertToTensor(labels, 'labels', 'confusionMatrix');
+    final $predictions =
+        convertToTensor(predictions, 'predictions', 'confusionMatrix');
 
-  util.assert(
-      numClasses == null || numClasses > 0 && Number.isInteger(numClasses),
-      () => `If provided, numClasses must be a positive integer, ` +
-          `but got ${numClasses}`);
-  util.assert(
-      $labels.rank === 1,
-      () => `Expected the rank of labels to be 1, but got ${$labels.rank}`);
-  util.assert(
-      $predictions.rank === 1,
-      () => `Expected the rank of predictions to be 1, ` +
-          `but got ${$predictions.rank}`);
-  util.assert(
-      $labels.shape[0] === $predictions.shape[0],
-      () => `Mismatch in the number of examples: ` +
-          `${$labels.shape[0]} vs. ${$predictions.shape[0]}. ` +
-          `Labels and predictions should have the same number of elements.`);
-  util.assert(
-      numClasses > 0 && Number.isInteger(numClasses),
-      () => `numClasses is required to be a positive integer, but got ` +
-          `${numClasses}`);
-  // TODO(cais): In the future, if oneHot supports tensors inputs for
-  //   `numClasses`, `confusionMatrix` can make `numClasses` optional.
+    util.assert_(
+        numClasses == null || numClasses > 0 && numClasses is int,
+        () =>
+            'If provided, numClasses must be a positive integer, ' +
+            'but got ${numClasses}');
+    util.assert_($labels.rank == 1,
+        () => 'Expected the rank of labels to be 1, but got ${$labels.rank}');
+    util.assert_(
+        $predictions.rank == 1,
+        () =>
+            'Expected the rank of predictions to be 1, ' +
+            'but got ${$predictions.rank}');
+    util.assert_(
+        $labels.shape[0] == $predictions.shape[0],
+        () =>
+            'Mismatch in the number of examples: ' +
+            '${$labels.shape[0]} vs. ${$predictions.shape[0]}. ' +
+            'Labels and predictions should have the same number of elements.');
+    util.assert_(
+        numClasses > 0 && numClasses is int,
+        () =>
+            'numClasses is required to be a positive integer, but got ' +
+            '${numClasses}');
+    // TODO(cais): In the future, if oneHot supports tensors inputs for
+    //   `numClasses`, `confusionMatrix` can make `numClasses` optional.
 
-  const oneHotLabels = oneHot(cast($labels, 'int32'), numClasses) as Tensor2D;
-  const oneHotPredictions =
-      oneHot(cast($predictions, 'int32'), numClasses) as Tensor2D;
-  const oneHotLabelsT: Tensor2D = transpose(oneHotLabels);
-  const product: Tensor2D = matMul(oneHotLabelsT, oneHotPredictions);
-  return cast(product, 'int32');
+    final oneHotLabels = oneHot(cast($labels, 'int32'), numClasses) as Tensor2D;
+    final oneHotPredictions =
+        oneHot(cast($predictions, 'int32'), numClasses) as Tensor2D;
+    final oneHotLabelsT = transpose(oneHotLabels) as Tensor2D;
+    final product = matMul(oneHotLabelsT, oneHotPredictions) as Tensor2D;
+    return cast(product, 'int32');
+  });
 }
-
-export const confusionMatrix = op({confusionMatrix_});

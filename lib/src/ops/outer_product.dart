@@ -14,14 +14,19 @@
  * limitations under the License.
  * =============================================================================
  */
-import {Tensor1D, Tensor2D} from '../tensor';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
-import * as util from '../util';
+// import {Tensor1D, Tensor2D} from '../tensor';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
+// import * as util from '../util';
 
-import {matMul} from './mat_mul';
-import {op} from './operation';
-import {reshape} from './reshape';
+// import {matMul} from './mat_mul';
+// import {op} from './operation';
+// import {reshape} from './reshape';
+
+import '../util_base.dart' as util;
+import '_prelude.dart';
+import 'mat_mul.dart';
+import 'reshape.dart';
 
 /**
  * Computes the outer product of two vectors, `v1` and `v2`.
@@ -37,19 +42,19 @@ import {reshape} from './reshape';
  *
  * @doc {heading: 'Operations', subheading: 'Matrices'}
  */
-function outerProduct_(
-    v1: Tensor1D|TensorLike, v2: Tensor1D|TensorLike): Tensor2D {
-  const $v1 = convertToTensor(v1, 'v1', 'outerProduct');
-  const $v2 = convertToTensor(v2, 'v2', 'outerProduct');
+Tensor2D outerProduct_(Tensor1D v1, Tensor1D v2) {
+  return execOp('outerProduct', () {
+    final $v1 = convertToTensor(v1, 'v1', 'outerProduct');
+    final $v2 = convertToTensor(v2, 'v2', 'outerProduct');
 
-  util.assert(
-      $v1.rank === 1 && $v2.rank === 1,
-      () => `Error in outerProduct: inputs must be rank 1, but got ranks ` +
-          `${$v1.rank} and ${$v2.rank}.`);
+    util.assert_(
+        $v1.rank == 1 && $v2.rank == 1,
+        () =>
+            'Error in outerProduct: inputs must be rank 1, but got ranks ' +
+            '${$v1.rank} and ${$v2.rank}.');
 
-  const v12D = reshape($v1, [-1, 1]);
-  const v22D = reshape($v2, [1, -1]);
-  return matMul(v12D, v22D);
+    final v12D = reshape($v1, [-1, 1]);
+    final v22D = reshape($v2, [1, -1]);
+    return matMul(v12D, v22D);
+  });
 }
-
-export const outerProduct = op({outerProduct_});

@@ -96,8 +96,8 @@ typedef AtanhInputs = UnaryInputs;
 const Atan2 = 'Atan2';
 typedef Atan2Inputs = BinaryInputs;
 
-// export const AvgPool = 'AvgPool';
-// export type AvgPoolInputs = Pick<NamedTensorInfoMap, 'x'>;
+const AvgPool = 'AvgPool';
+typedef AvgPoolInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 // export interface AvgPoolAttrs {
 //   filterSize: [number, number]|number;
 //   strides: [number, number]|number;
@@ -539,8 +539,8 @@ typedef MaxInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 const Maximum = 'Maximum';
 typedef MaximumInputs = BinaryInputs;
 
-// export const MaxPool = 'MaxPool';
-// export type MaxPoolInputs = Pick<NamedTensorInfoMap, 'x'>;
+const MaxPool = 'MaxPool';
+typedef MaxPoolInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 // export interface MaxPoolAttrs {
 //   filterSize: [number, number]|number;
 //   strides: [number, number]|number;

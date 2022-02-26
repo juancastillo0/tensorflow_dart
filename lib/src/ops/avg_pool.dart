@@ -15,19 +15,25 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../engine';
-import {AvgPool, AvgPoolAttrs, AvgPoolInputs} from '../kernel_names';
-import {NamedAttrMap} from '../kernel_registry';
-import {Tensor3D, Tensor4D} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
-import * as util from '../util';
+// import {ENGINE} from '../engine';
+// import {AvgPool, AvgPoolAttrs, AvgPoolInputs} from '../kernel_names';
+// import {NamedAttrMap} from '../kernel_registry';
+// import {Tensor3D, Tensor4D} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
+// import * as util from '../util';
 
-import {cast} from './cast';
-import * as conv_util from './conv_util';
-import {op} from './operation';
-import {reshape} from './reshape';
+// import {cast} from './cast';
+// import * as conv_util from './conv_util';
+// import {op} from './operation';
+// import {reshape} from './reshape';
+
+import '../util_base.dart' as util;
+import '_prelude.dart';
+import 'cast.dart';
+import 'conv_util.dart' as conv_util;
+import 'reshape.dart';
 
 /**
  * Computes the 2D average pooling of an image.
@@ -49,37 +55,49 @@ import {reshape} from './reshape';
  * @param dimRoundingMode A string from: 'ceil', 'round', 'floor'. If none is
  *     provided, it will default to truncate.
  */
-function avgPool_<T extends Tensor3D|Tensor4D>(
-    x: T|TensorLike, filterSize: [number, number]|number,
-    strides: [number, number]|number,
-    pad: 'valid'|'same'|number|conv_util.ExplicitPadding,
-    dimRoundingMode?: 'floor'|'round'|'ceil'): T {
-  const $x = convertToTensor(x, 'x', 'avgPool', 'float32');
-  const dilations = 1;
+T avgPool_<
+    T extends Tensor3D
+// |Tensor4D
+    >(
+  T x, {
+  // : [number, number]|number,
+  required List<int> filterSize,
+  // : [number, number]|number,
+  required List<int> strides,
+  // : 'valid'|'same'|number| conv_util.ExplicitPadding
+  required Object pad,
+  // ?: 'floor'|'round'|'ceil'
+  String? dimRoundingMode,
+}) {
+  final $x = convertToTensor(x, 'x', 'avgPool', 'float32');
+  final dilations = 1;
 
-  util.assert(
-      conv_util.eitherStridesOrDilationsAreOne(strides, dilations),
-      () => 'Error in avgPool: Either strides or dilations must be 1. ' +
-          `Got strides ${strides} and dilations '${dilations}'`);
+  util.assert_(
+      conv_util.eitherStridesOrDilationsAreOne(strides, [dilations]),
+      () =>
+          'Error in avgPool: Either strides or dilations must be 1. ' +
+          "Got strides ${strides} and dilations '${dilations}'");
 
-  let x4D = $x as Tensor4D;
-  let reshapedTo4D = false;
-  if ($x.rank === 3) {
+  var x4D = $x as Tensor4D;
+  var reshapedTo4D = false;
+  if ($x.rank == 3) {
     reshapedTo4D = true;
     x4D = reshape($x, [1, $x.shape[0], $x.shape[1], $x.shape[2]]);
   }
 
-  util.assert(
-      x4D.rank === 4,
-      () => `Error in avgPool: x must be rank 4 but got rank ${x4D.rank}.`);
+  util.assert_(x4D.rank == 4,
+      () => 'Error in avgPool: x must be rank 4 but got rank ${x4D.rank}.');
   conv_util.checkPadOnDimRoundingMode('avgPool', pad, dimRoundingMode);
-  const inputs: AvgPoolInputs = {x: x4D};
-  const attrs: AvgPoolAttrs = {filterSize, strides, pad, dimRoundingMode};
+  final inputs = {'x': x4D}; // : AvgPoolInputs
+  final attrs = {
+    'filterSize': filterSize,
+    'strides': strides,
+    'pad': pad,
+    'dimRoundingMode': dimRoundingMode,
+  }; // : AvgPoolAttrs
 
   // tslint:disable-next-line: no-unnecessary-type-assertion
-  let res = ENGINE.runKernel(
-                AvgPool, inputs as {} as NamedTensorMap,
-                attrs as {} as NamedAttrMap) as T;
+  var res = ENGINE.runKernel(AvgPool, inputs, attrs) as T;
 
   res = cast(res, $x.dtype);
 
@@ -89,5 +107,3 @@ function avgPool_<T extends Tensor3D|Tensor4D>(
 
   return res;
 }
-
-export const avgPool = op({avgPool_});

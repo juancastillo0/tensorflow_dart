@@ -15,14 +15,19 @@
  * =============================================================================
  */
 
-import {Tensor,} from '../tensor';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
-import * as util from '../util';
+// import {Tensor,} from '../tensor';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
+// import * as util from '../util';
 
-import {matMul} from './mat_mul';
-import {op} from './operation';
-import {reshape} from './reshape';
+// import {matMul} from './mat_mul';
+// import {op} from './operation';
+// import {reshape} from './reshape';
+
+import '../util_base.dart' as util;
+import '_prelude.dart';
+import 'mat_mul.dart';
+import 'reshape.dart';
 
 /**
  * Computes the dot product of two matrices and/or vectors, `t1` and `t2`.
@@ -41,42 +46,44 @@ import {reshape} from './reshape';
  *
  * @doc {heading: 'Operations', subheading: 'Matrices'}
  */
-function dot_(t1: Tensor|TensorLike, t2: Tensor|TensorLike): Tensor {
-  const $t1 = convertToTensor(t1, 't1', 'dot');
-  const $t2 = convertToTensor(t2, 't2', 'dot');
+Tensor dot(Tensor t1, Tensor t2) {
+  return execOp('dot', () {
+    final $t1 = convertToTensor(t1, 't1', 'dot');
+    final $t2 = convertToTensor(t2, 't2', 'dot');
 
-  util.assert(
-      ($t1.rank === 1 || $t1.rank === 2) && ($t2.rank === 1 || $t2.rank === 2),
-      () => `Error in dot: inputs must all be rank 1 or 2, but got ranks ` +
-          `${$t1.rank} and ${$t2.rank}.`);
+    util.assert_(
+        ($t1.rank == 1 || $t1.rank == 2) && ($t2.rank == 1 || $t2.rank == 2),
+        () =>
+            'Error in dot: inputs must all be rank 1 or 2, but got ranks ' +
+            '${$t1.rank} and ${$t2.rank}.');
 
-  const t1Inner = ($t1.rank === 1 ? $t1.size : $t1.shape[1]);
-  const t2Inner = ($t2.rank === 1 ? $t2.size : $t2.shape[0]);
+    final t1Inner = ($t1.rank == 1 ? $t1.size : $t1.shape[1]);
+    final t2Inner = ($t2.rank == 1 ? $t2.size : $t2.shape[0]);
 
-  util.assert(
-      t1Inner === t2Inner,
-      () => `Error in dot: inner dimensions of inputs must match, but got ` +
-          `${t1Inner} and ${t2Inner}.`);
+    util.assert_(
+        t1Inner == t2Inner,
+        () =>
+            'Error in dot: inner dimensions of inputs must match, but got ' +
+            '${t1Inner} and ${t2Inner}.');
 
-  if ($t1.rank === 1 && $t2.rank === 1) {
-    const t12D = reshape($t1, [1, -1]);
-    const t22D = reshape($t2, [-1, 1]);
-    const t1t2 = matMul(t12D, t22D);
-    return reshape(t1t2, []);
-  } else if ($t1.rank === 1 && $t2.rank === 2) {
-    const t12D = reshape($t1, [1, -1]);
-    const t22D = reshape($t2, [$t2.shape[0], $t2.shape[1]]);
-    const t1t2 = matMul(t12D, t22D);
-    return reshape(t1t2, [t1t2.size]);
-  } else if ($t1.rank === 2 && $t2.rank === 1) {
-    const t22D = reshape($t2, [-1, 1]);
-    const t1t2 = matMul($t1, t22D);
-    return reshape(t1t2, [t1t2.size]);
-  } else {
-    const t22D = reshape($t2, [$t2.shape[0], $t2.shape[1]]);
-    const t1t2 = matMul($t1, t22D);
-    return t1t2;
-  }
+    if ($t1.rank == 1 && $t2.rank == 1) {
+      final t12D = reshape($t1, [1, -1]);
+      final t22D = reshape($t2, [-1, 1]);
+      final t1t2 = matMul(t12D, t22D);
+      return reshape(t1t2, []);
+    } else if ($t1.rank == 1 && $t2.rank == 2) {
+      final t12D = reshape($t1, [1, -1]);
+      final t22D = reshape($t2, [$t2.shape[0], $t2.shape[1]]);
+      final t1t2 = matMul(t12D, t22D);
+      return reshape(t1t2, [t1t2.size]);
+    } else if ($t1.rank == 2 && $t2.rank == 1) {
+      final t22D = reshape($t2, [-1, 1]);
+      final t1t2 = matMul($t1, t22D);
+      return reshape(t1t2, [t1t2.size]);
+    } else {
+      final t22D = reshape($t2, [$t2.shape[0], $t2.shape[1]]);
+      final t1t2 = matMul($t1, t22D);
+      return t1t2;
+    }
+  });
 }
-
-export const dot = op({dot_});
