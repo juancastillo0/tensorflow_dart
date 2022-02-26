@@ -1,5 +1,3 @@
-import 'package:tensorflow_wasm/tensorflow_wasm.dart';
-
 /**
  * @license
  * Copyright 2019 Google LLC. All Rights Reserved.
@@ -32,6 +30,7 @@ import 'package:tensorflow_wasm/tensorflow_wasm.dart';
 // import {step} from './step';
 // import {sum} from './sum';
 
+import 'package:tensorflow_wasm/tensorflow_wasm.dart';
 import 'broadcast_util.dart' as broadcast_util;
 import 'fused_types.dart';
 

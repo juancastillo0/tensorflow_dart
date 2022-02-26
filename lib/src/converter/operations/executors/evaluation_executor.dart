@@ -40,7 +40,7 @@ List<Tensor> executeOp(
         final k = getParamValue('k', node, tensorMap, context) as int;
         final sorted =
             getParamValue('sorted', node, tensorMap, context) as bool;
-        final result = tfOps.topk(x, k, sorted);
+        final result = tfOps.topk(x, k: k, sorted: sorted);
         return [result.values, result.indices];
       }
     case 'Unique':

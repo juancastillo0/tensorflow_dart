@@ -15,15 +15,17 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../engine';
-import {Step, StepAttrs, StepInputs} from '../kernel_names';
-import {NamedAttrMap} from '../kernel_registry';
-import {Tensor} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
+// import {ENGINE} from '../engine';
+// import {Step, StepAttrs, StepInputs} from '../kernel_names';
+// import {NamedAttrMap} from '../kernel_registry';
+// import {Tensor} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
 
-import {op} from './operation';
+// import {op} from './operation';
+
+import '_prelude.dart';
 
 /**
  * Computes step of the input `tf.Tensor` element-wise: `x > 0 ? 1 : alpha * x`
@@ -38,13 +40,13 @@ import {op} from './operation';
  *
  * @doc {heading: 'Operations', subheading: 'Basic math'}
  */
-function step_<T extends Tensor>(x: T|TensorLike, alpha = 0.0): T {
-  const $x = convertToTensor(x, 'x', 'step');
+T step<T extends Tensor>(T x, [double alpha = 0.0]) {
+  return execOp('step', () {
+    final $x = convertToTensor(x, 'x', 'step');
 
-  const inputs: StepInputs = {x: $x};
-  const attrs: StepAttrs = {alpha};
+    final inputs = {'x': $x}; // : StepInputs
+    final attrs = {'alpha': alpha}; // : StepAttrs
 
-  return ENGINE.runKernel(
-      Step, inputs as {} as NamedTensorMap, attrs as {} as NamedAttrMap);
+    return ENGINE.runKernel(Step, inputs, attrs) as T;
+  });
 }
-export const step = op({step_});

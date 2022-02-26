@@ -17,6 +17,7 @@ export 'floor_div.dart';
 export 'div_no_nan.dart';
 export 'squared_difference.dart';
 export 'mat_mul.dart';
+export 'step.dart';
 //
 export 'cast.dart';
 export 'concat.dart';

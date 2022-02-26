@@ -980,8 +980,8 @@ const ZerosLike = 'ZerosLike';
 // /**
 //  * TensorFlow.js-only kernels
 //  */
-// export const Step = 'Step';
-// export type StepInputs = UnaryInputs;
+const Step = 'Step';
+typedef StepInputs = UnaryInputs;
 // export interface StepAttrs {
 //   alpha: number;
 // }
