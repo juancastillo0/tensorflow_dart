@@ -15,11 +15,19 @@
  * =============================================================================
  */
 
-import {Tensor} from '../tensor';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
-import {assert, assertShapesMatch, getTypedArrayFromDType} from '../util';
-import {tensor} from './tensor';
+// import {Tensor} from '../tensor';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
+// import {assert, assertShapesMatch, getTypedArrayFromDType} from '../util';
+// import {tensor} from './tensor';
+
+// import 'package:tensorflow_wasm/tensorflow_wasm.dart';
+
+import 'package:collection/collection.dart';
+import 'package:tensorflow_wasm/tensorflow_wasm.dart';
+
+import '../util_base.dart';
+import '_prelude.dart';
 
 /**
  * Returns whether the targets are in the top K predictions.
@@ -38,61 +46,69 @@ import {tensor} from './tensor';
  *
  * @doc {heading: 'Operations', subheading: 'Evaluation'}
  */
-async function inTopKAsync_<T extends Tensor, U extends Tensor>(
-    predictions: T|TensorLike, targets: U|TensorLike, k = 1): Promise<U> {
-  const $predictions = convertToTensor(predictions, 'predictions', 'inTopK');
-  const $targets = convertToTensor(targets, 'targets', 'inTopK');
+Future<U> inTopKAsync<T extends Tensor, U extends Tensor>(
+  T predictions,
+  U targets, {
+  int k = 1,
+}) async {
+  final $predictions = convertToTensor(predictions, 'predictions', 'inTopK');
+  final $targets = convertToTensor(targets, 'targets', 'inTopK');
 
-  assert(
+  assert_(
       $predictions.rank > 1,
-      () => 'inTopK() expects the predictions to be of rank 2 or higher, ' +
-          `but got ${$predictions.rank}`);
-  assert(
-      $predictions.rank - 1 === $targets.rank,
-      () => `predictions rank should be 1 larger than ` +
-          `targets rank, but got predictions rank ` +
-          `${$predictions.rank} and targets rank ${$targets.rank}`);
+      () =>
+          'inTopK() expects the predictions to be of rank 2 or higher, ' +
+          "but got ${$predictions.rank}");
+  assert_(
+      $predictions.rank - 1 == $targets.rank,
+      () =>
+          "predictions rank should be 1 larger than " +
+          "targets rank, but got predictions rank " +
+          "${$predictions.rank} and targets rank ${$targets.rank}");
   assertShapesMatch(
-      $predictions.shape.slice(0, $predictions.shape.length - 1),
+      $predictions.shape.sublistRelaxed(0, $predictions.shape.length - 1),
       $targets.shape,
-      `predictions's shape should be align with the targets' shape, ` +
+      "predictions's shape should be align with the targets' shape, " +
           'except the last dimension.');
-  const lastDim = $predictions.shape[$predictions.shape.length - 1];
+  final lastDim = $predictions.shape[$predictions.shape.length - 1];
   assert(
       k > 0 && k <= lastDim,
-      () => `'k' passed to inTopK() must be > 0 && <= the predictions last ` +
-          `dimension (${lastDim}), but got ${k}`);
+      () =>
+          "'k' passed to inTopK() must be > 0 && <= the predictions last " +
+          "dimension (${lastDim}), but got ${k}");
 
-  const predictionsVals = await $predictions.data();
-  const targetsVals = await $targets.data();
+  final predictionsVals = await $predictions.data();
+  final targetsVals = await $targets.data();
 
   // Reshape predictionsVals into a 2d tensor [batch, lastDim]
   // and look up topK along lastDim.
-  const [batch, size] = [predictionsVals.length / lastDim, lastDim];
-  const precision = getTypedArrayFromDType('bool', batch);
+  final batch = predictionsVals.length ~/ lastDim;
+  final size = lastDim;
 
-  for (let b = 0; b < batch; b++) {
-    const offset = b * size;
-    const vals = predictionsVals.subarray(offset, offset + size);
-    const valAndInd: Array<{value: number, index: number}> = [];
-    for (let i = 0; i < vals.length; i++) {
-      valAndInd.push({value: vals[i], index: i});
+  final precision = getTypedArrayFromDType('bool', batch);
+
+  for (int b = 0; b < batch; b++) {
+    final offset = b * size;
+    final vals = predictionsVals.slice(offset, offset + size);
+    final List<IndexedValue<int>> valAndInd = [];
+    for (int i = 0; i < vals.length; i++) {
+      valAndInd.add(IndexedValue(value: vals[i], index: i));
     }
     valAndInd.sort((a, b) => b.value - a.value);
 
     precision[b] = 0;
-    for (let i = 0; i < k; i++) {
-      if (valAndInd[i].index === targetsVals[b]) {
+    for (int i = 0; i < k; i++) {
+      if (valAndInd[i].index == targetsVals[b]) {
         precision[b] = 1;
         break;
       }
     }
   }
 
-  if (predictions !== $predictions) {
+  if (predictions != $predictions) {
     $predictions.dispose();
   }
-  if (targets !== $targets) {
+  if (targets != $targets) {
     $targets.dispose();
   }
 
@@ -100,4 +116,11 @@ async function inTopKAsync_<T extends Tensor, U extends Tensor>(
   return tensor(precision, $targets.shape, 'bool') as U;
 }
 
-export const inTopKAsync = inTopKAsync_;
+class IndexedValue<V> {
+  final int index;
+  final V value;
+  IndexedValue({
+    required this.index,
+    required this.value,
+  });
+}

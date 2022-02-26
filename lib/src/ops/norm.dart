@@ -15,22 +15,28 @@
  * =============================================================================
  */
 
-import {Tensor} from '../tensor';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
-import {parseAxisParam} from '../util';
+// import {Tensor} from '../tensor';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
+// import {parseAxisParam} from '../util';
 
-import {abs} from './abs';
-import * as axis_util from './axis_util';
-import {max} from './max';
-import {min} from './min';
-import {op} from './operation';
-import {pow} from './pow';
-import {reshape} from './reshape';
-import {scalar} from './scalar';
-import {sqrt} from './sqrt';
-import {square} from './square';
-import {sum} from './sum';
+// import {abs} from './abs';
+// import * as axis_util from './axis_util';
+// import {max} from './max';
+// import {min} from './min';
+// import {op} from './operation';
+// import {pow} from './pow';
+// import {reshape} from './reshape';
+// import {scalar} from './scalar';
+// import {sqrt} from './sqrt';
+// import {square} from './square';
+// import {sum} from './sum';
+
+import 'package:tensorflow_wasm/tensorflow_wasm.dart';
+
+import 'axis_util.dart' as axis_util;
+import '../util_base.dart';
+import '_prelude.dart';
 
 /**
  * Computes the norm of scalar, vectors, and matrices.
@@ -70,71 +76,82 @@ import {sum} from './sum';
  *
  * @doc {heading: 'Operations', subheading: 'Matrices'}
  */
-function norm_(
-    x: Tensor|TensorLike, ord: number|'euclidean'|'fro' = 'euclidean',
-    axis: number|number[] = null, keepDims = false): Tensor {
-  x = convertToTensor(x, 'x', 'norm');
+Tensor norm(
+  Tensor x, {
+  // : number|'euclidean'|'fro'
+  Object ord = 'euclidean',
+  // : number|number[]
+  List<int>? axis,
+  bool keepDims = false,
+}) {
+  return execOp('norm', () {
+    x = convertToTensor(x, 'x', 'norm');
 
-  const norm = normImpl(x, ord, axis);
-  let keepDimsShape = norm.shape;
-  if (keepDims) {
-    const axes = parseAxisParam(axis, x.shape);
-    keepDimsShape = axis_util.expandShapeToKeepDim(norm.shape, axes);
-  }
-  return reshape(norm, keepDimsShape);
+    final norm = _normImpl(x, ord, axis);
+    var keepDimsShape = norm.shape;
+    if (keepDims) {
+      final axes = parseAxisParam(
+        axis ?? List.generate(x.shape.length, (index) => index),
+        x.shape,
+      );
+      keepDimsShape = axis_util.expandShapeToKeepDim(norm.shape, axes);
+    }
+    return reshape(norm, keepDimsShape);
+  });
 }
 
-function normImpl(
-    x: Tensor, p: number|string, axis: number|number[] = null): Tensor {
-  if (x.rank === 0) {
+Tensor _normImpl(
+  Tensor x,
+  // : number|string
+  Object p, [
+  List<int>? axis,
+]) {
+  if (x.rank == 0) {
     return abs(x);
   }
 
   // consider vector when no axis is specified
-  if (x.rank !== 1 && axis === null) {
-    return normImpl(reshape(x, [-1]), p, axis);
+  if (x.rank != 1 && axis == null) {
+    return _normImpl(reshape(x, [-1]), p, axis);
   }
 
   // vector
-  if (x.rank === 1 || typeof axis === 'number' ||
-      Array.isArray(axis) && axis.length === 1) {
-    if (p === 1) {
+  if (x.rank == 1 || axis is int || axis is List<int> && axis.length == 1) {
+    if (p == 1) {
       return sum(abs(x), axis);
     }
-    if (p === Infinity) {
+    if (p == double.infinity) {
       return max(abs(x), axis);
     }
-    if (p === -Infinity) {
+    if (p == double.negativeInfinity) {
       return min(abs(x), axis);
     }
-    if (p === 'euclidean' || p === 2) {
+    if (p == 'euclidean' || p == 2) {
       // norm(x, 2) = sum(abs(xi) ^ 2) ^ 1/2
       return sqrt(sum(pow(abs(x), scalar(2, 'int32')), axis));
     }
 
-    throw new Error(`Error in norm: invalid ord value: ${p}`);
+    throw Exception("Error in norm: invalid ord value: ${p}");
   }
 
   // matrix (assumption axis[0] < axis[1])
-  if (Array.isArray(axis) && axis.length === 2) {
-    if (p === 1) {
-      return max(sum(abs(x), axis[0]), axis[1] - 1);
+  if (axis is List<int> && axis.length == 2) {
+    if (p == 1) {
+      return max(sum(abs(x), [axis[0]]), [axis[1] - 1]);
     }
-    if (p === Infinity) {
-      return max(sum(abs(x), axis[1]), axis[0]);
+    if (p == double.infinity) {
+      return max(sum(abs(x), [axis[1]]), [axis[0]]);
     }
-    if (p === -Infinity) {
-      return min(sum(abs(x), axis[1]), axis[0]);
+    if (p == double.negativeInfinity) {
+      return min(sum(abs(x), [axis[1]]), [axis[0]]);
     }
-    if (p === 'fro' || p === 'euclidean') {
+    if (p == 'fro' || p == 'euclidean') {
       // norm(x) = sqrt(sum(pow(x, 2)))
       return sqrt(sum(square(x), axis));
     }
 
-    throw new Error(`Error in norm: invalid ord value: ${p}`);
+    throw Exception("Error in norm: invalid ord value: ${p}");
   }
 
-  throw new Error(`Error in norm: invalid axis: ${axis}`);
+  throw Exception("Error in norm: invalid axis: ${axis}");
 }
-
-export const norm = op({norm_});

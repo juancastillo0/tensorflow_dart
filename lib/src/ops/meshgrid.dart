@@ -15,13 +15,19 @@
  * =============================================================================
  */
 
-import {matMul} from './mat_mul';
-import {ones} from './ones';
-import {reshape} from './reshape';
-import {Tensor} from '../tensor';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
-import {sizeFromShape} from '../util_base';
+// import {matMul} from './mat_mul';
+// import {ones} from './ones';
+// import {reshape} from './reshape';
+// import {Tensor} from '../tensor';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
+// import {sizeFromShape} from '../util_base';
+
+import '../util_base.dart';
+import '_prelude.dart';
+import 'creation_ops.dart';
+import 'mat_mul.dart';
+import 'reshape.dart';
 
 /**
  * Broadcasts parameters for evaluation on an N-D grid.
@@ -54,28 +60,30 @@ import {sizeFromShape} from '../util_base';
  *
  * @doc {heading: 'Operations', subheading: 'Slicing and Joining'}
  */
-export function meshgrid<T extends Tensor>(
-    x?: T|TensorLike, y?: T|TensorLike, {indexing = 'xy'} = {}): T[] {
-  if (indexing !== 'xy' && indexing !== 'ij') {
-    throw new TypeError(
-        `${indexing} is not a valid third argument to meshgrid`);
+List<T> meshgrid<T extends Tensor>({
+  T? x,
+  T? y,
+  String indexing = 'xy',
+}) {
+  if (indexing != 'xy' && indexing != 'ij') {
+    throw Exception('${indexing} is not a valid third argument to meshgrid');
   }
-  if (x === undefined) {
+  if (x == null) {
     return [];
   }
-  let $x = convertToTensor(
-      x, 'x', 'meshgrid', x instanceof Tensor ? x.dtype : 'float32');
+  var $x =
+      convertToTensor(x, 'x', 'meshgrid', x is Tensor ? x.dtype : 'float32');
 
-  if (y === undefined) {
+  if (y == null) {
     return [$x];
   }
-  let $y = convertToTensor(
-      y, 'y', 'meshgrid', y instanceof Tensor ? y.dtype : 'float32');
+  var $y =
+      convertToTensor(y, 'y', 'meshgrid', y is Tensor ? y.dtype : 'float32');
 
-  const w = sizeFromShape($x.shape);
-  const h = sizeFromShape($y.shape);
+  final w = sizeFromShape($x.shape);
+  final h = sizeFromShape($y.shape);
 
-  if (indexing === 'xy') {
+  if (indexing == 'xy') {
     $x = reshape($x, [1, -1]) as T;
     $y = reshape($y, [-1, 1]) as T;
     return [

@@ -20,6 +20,7 @@ export 'mat_mul.dart';
 export 'step.dart';
 export 'dot.dart';
 export 'outer_product.dart';
+export 'norm.dart';
 //
 export 'cast.dart';
 export 'concat.dart';
@@ -38,6 +39,7 @@ export 'depth_to_space.dart';
 export 'space_to_batch.dart';
 export 'broadcast_args.dart';
 export 'batch_to_space.dart';
+export 'meshgrid.dart';
 //
 export 'maximum.dart';
 export 'minimum.dart';
@@ -46,6 +48,7 @@ export 'logical_binary.dart';
 export 'where.dart';
 export 'where_async.dart';
 export 'topk.dart';
+export 'in_top_k.dart';
 export 'unique.dart';
 //
 export 'round_ops.dart';
