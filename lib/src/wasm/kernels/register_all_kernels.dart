@@ -7,6 +7,7 @@ import 'package:tensorflow_wasm/src/wasm/kernels/base_kernels.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/batch_mat_mul.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/batch_to_space_nd.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/concat.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/crop_and_resize.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/cumsum.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/depth_to_space.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/depthwise_conv2d_native.dart';
@@ -21,12 +22,17 @@ import 'package:tensorflow_wasm/src/wasm/kernels/gather_v2.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/identity.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/max.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/mirror_pad.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/non_max_suppression_v3.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/non_max_suppression_v4.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/non_max_suppression_v5.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/one_hot.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/ones_like.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/pack.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/pad_v2.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/range.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/reshape.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/resize_bilinear.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/rotate_with_offset.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/scatter_nd.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/select.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/sigmoid.dart';
@@ -37,6 +43,7 @@ import 'package:tensorflow_wasm/src/wasm/kernels/split_v.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/sum.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/tile.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/top_k.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/transform.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/transpose.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/unpack.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/zeros_like.dart';
@@ -120,6 +127,13 @@ void registerAllKernels() {
     mirrorPadConfig,
     padV2Config,
     spaceToBatchNDConfig,
+    cropAndResizeConfig,
+    nonMaxSuppressionV3Config,
+    nonMaxSuppressionV4Config,
+    nonMaxSuppressionV5Config,
+    resizeBilinearConfig,
+    rotateWithOffsetConfig,
+    transformConfig,
     //
     depthwiseConv2dNativeConfig,
     // Mean
