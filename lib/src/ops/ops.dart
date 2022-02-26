@@ -41,6 +41,9 @@ export 'minimum.dart';
 export 'logical.dart';
 export 'logical_binary.dart';
 export 'where.dart';
+export 'where_async.dart';
+export 'topk.dart';
+export 'unique.dart';
 //
 export 'round_ops.dart';
 export 'mul_ops.dart';

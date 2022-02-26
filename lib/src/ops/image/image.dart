@@ -2,6 +2,8 @@ import 'non_max_suppression.dart' as non_max_suppression;
 import 'non_max_suppression_async.dart' as non_max_suppression_async;
 import 'non_max_suppression_padded.dart' as non_max_suppression_padded;
 import 'non_max_suppression_with_score.dart' as non_max_suppression_with_score;
+import 'non_max_suppression_padded_async.dart' as non_max_suppression_padded_async;
+import 'non_max_suppression_with_score_async.dart' as non_max_suppression_with_score_async;
 
 import 'crop_and_resize.dart' as crop_and_resize;
 import 'resize_bilinear.dart' as resize_bilinear;
@@ -19,6 +21,8 @@ class image {
   static const transform = transform_.transform;
 
   static const nonMaxSuppression = non_max_suppression.nonMaxSuppression;
+  static const nonMaxSuppressionWithScoreAsync = non_max_suppression_with_score_async.nonMaxSuppressionWithScoreAsync;
+  static const nonMaxSuppressionPaddedAsync = non_max_suppression_padded_async.nonMaxSuppressionPaddedAsync;
   static const nonMaxSuppressionAsync =
       non_max_suppression_async.nonMaxSuppressionAsync;
   static const nonMaxSuppressionPadded =
