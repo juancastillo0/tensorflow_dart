@@ -58,7 +58,7 @@ import 'reshape.dart';
  * @param dimRoundingMode A string from: 'ceil', 'round', 'floor'. If none is
  *     provided, it will default to truncate.
  */
-T maxPool_<
+T maxPool<
     T extends Tensor3D
 // |Tensor4D
     >(

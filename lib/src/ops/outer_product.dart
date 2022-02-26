@@ -42,7 +42,7 @@ import 'reshape.dart';
  *
  * @doc {heading: 'Operations', subheading: 'Matrices'}
  */
-Tensor2D outerProduct_(Tensor1D v1, Tensor1D v2) {
+Tensor2D outerProduct(Tensor1D v1, Tensor1D v2) {
   return execOp('outerProduct', () {
     final $v1 = convertToTensor(v1, 'v1', 'outerProduct');
     final $v2 = convertToTensor(v2, 'v2', 'outerProduct');

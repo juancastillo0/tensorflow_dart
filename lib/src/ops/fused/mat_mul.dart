@@ -105,8 +105,8 @@ Tensor fusedMatMul({
   final outerShapeB =
       transposeB ? $b.shape[$b.rank - 2] : $b.shape[$b.rank - 1];
 
-  final outerDimsA = $a.shape.slice(0, -2);
-  final outerDimsB = $b.shape.slice(0, -2);
+  final outerDimsA = $a.shape.sublistRelaxed(0, -2);
+  final outerDimsB = $b.shape.sublistRelaxed(0, -2);
   final batchDimA = util.sizeFromShape(outerDimsA);
   final batchDimB = util.sizeFromShape(outerDimsB);
 
@@ -119,7 +119,7 @@ Tensor fusedMatMul({
           ' and transposeB=${transposeB} must match.');
 
   final outShapeOuterDims = broadcast_util.assertAndGetBroadcastShape(
-      $a.shape.slice(0, -2), $b.shape.slice(0, -2));
+      $a.shape.sublistRelaxed(0, -2), $b.shape.sublistRelaxed(0, -2));
   final outShape = [...outShapeOuterDims, outerShapeA, outerShapeB];
 
   final Tensor3D a3D = transposeA

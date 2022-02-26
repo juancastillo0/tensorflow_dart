@@ -130,7 +130,7 @@ class ExecutionContext {
   void _generateCurrentContextIds() {
     final names = <String>[];
     for (int i = 0; i < this._contexts.length - 1; i++) {
-      final contexts = this._contexts.slice(0, this._contexts.length - i);
+      final contexts = this._contexts.sublistRelaxed(0, this._contexts.length - i);
       names.add(this._contextIdforContexts(contexts));
     }
     names.add('');
