@@ -58,7 +58,7 @@ List<Tensor> executeOp(
     case 'Transpose':
       return [
         tfOps.transpose(getParamValue('x', node, tensorMap, context) as Tensor,
-            getParamValue('perm', node, tensorMap, context) as List<int>)
+            perm: getParamValue('perm', node, tensorMap, context) as List<int>)
       ];
 
     case '_FusedMatMul':

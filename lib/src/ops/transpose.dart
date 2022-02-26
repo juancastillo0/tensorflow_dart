@@ -49,7 +49,7 @@ import 'package:collection/collection.dart';
  *
  * @doc {heading: 'Operations', subheading: 'Matrices'}
  */
-T transpose<T extends Tensor>(T x, List<int>? perm) {
+T transpose<T extends Tensor>(T x, {List<int>? perm}) {
   return execOp('transpose', () {
     final $x = convertToTensor(x, 'x', 'transpose');
 
