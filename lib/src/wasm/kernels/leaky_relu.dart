@@ -15,46 +15,52 @@
  * =============================================================================
  */
 
-import {KernelConfig, KernelFunc, LeakyRelu, LeakyReluAttrs, LeakyReluInputs, TensorInfo, util} from '@tensorflow/tfjs-core';
+// import {KernelConfig, KernelFunc, LeakyRelu, LeakyReluAttrs, LeakyReluInputs, TensorInfo, util} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-import {CppDType} from './types';
+// import {CppDType} from './types';
 
-let wasmFunc: (
-    xId: number, dtype: number, leakyreluAlpha: number, outId: number) => void;
+import '_prelude.dart';
+import '../../util_base.dart' as util;
 
-function setupFunc(backend: BackendWasm): void {
-  wasmFunc = backend.wasm.cwrap(LeakyRelu, null /* void */, [
-    'number',  // x_id
-    'number',  // dtype
-    'number',  // leakyrelu_alpha
-    'number',  // out_id
+late final Function(List) _wasmFunc;
+// : (
+//     xId: number, dtype: number, leakyreluAlpha: number, outId: number) => void;
+
+void _setupFunc(BackendWasm backend) {
+  _wasmFunc = backend.wasm.cwrap(LeakyRelu, null /* void */, [
+    'number', // x_id
+    'number', // dtype
+    'number', // leakyrelu_alpha
+    'number', // out_id
   ]);
 }
 
-export function leakyRelu(
-    args:
-        {inputs: LeakyReluInputs, attrs: LeakyReluAttrs, backend: BackendWasm}):
-    TensorInfo {
-  const {inputs: {x}, attrs: {alpha}, backend} = args;
+TensorInfo leakyRelu({
+  required NamedTensorInfoMap inputs,
+  required BackendWasm backend,
+  NamedAttrMap? attrs,
+}) {
+  final x = inputs['x']!;
+  final alpha = attrs!['alpha'] as double;
 
-  const xId = backend.dataIdMap.get(x.dataId).id;
+  final xId = backend.dataIdMap.get(x.dataId)!.id;
   // According to TF API, LeakyRelu returns float32 when input is either float32
   // or int32.
-  const out = backend.makeOutput(x.shape, 'float32');
+  final out = backend.makeOutput(x.shape, 'float32');
 
-  if (util.sizeFromShape(x.shape) !== 0) {
-    const outId = backend.dataIdMap.get(out.dataId).id;
-    wasmFunc(xId, CppDType[x.dtype], alpha, outId);
+  if (util.sizeFromShape(x.shape) != 0) {
+    final outId = backend.dataIdMap.get(out.dataId)!.id;
+    _wasmFunc([xId, CppDType.values.byName(x.dtype).index, alpha, outId]);
   }
 
   return out;
 }
 
-export const leakyReluConfig: KernelConfig = {
+final leakyReluConfig = KernelConfigG(
   kernelName: LeakyRelu,
   backendName: 'wasm',
-  setupFunc,
-  kernelFunc: leakyRelu as {} as KernelFunc,
-};
+  setupFunc: _setupFunc,
+  kernelFunc: leakyRelu,
+);

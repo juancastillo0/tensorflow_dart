@@ -15,39 +15,43 @@
  * =============================================================================
  */
 
-import {ClipByValue, ClipByValueAttrs, ClipByValueInputs, KernelConfig, KernelFunc} from '@tensorflow/tfjs-core';
+// import {ClipByValue, ClipByValueAttrs, ClipByValueInputs, KernelConfig, KernelFunc} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-let wasmClip: (xId: number, min: number, max: number, outId: number) => void;
+import '_prelude.dart';
 
-function setup(backend: BackendWasm) {
-  wasmClip = backend.wasm.cwrap(ClipByValue, null /* void */, [
-    'number',  // x_id
-    'number',  // min
-    'number',  // max
-    'number'   // out_id
+late final Function(List) _wasmClip;
+// : (xId: number, min: number, max: number, outId: number) => void;
+
+void _setup(BackendWasm backend) {
+  _wasmClip = backend.wasm.cwrap(ClipByValue, null /* void */, [
+    'number', // x_id
+    'number', // min
+    'number', // max
+    'number' // out_id
   ]);
 }
 
-function clip(args: {
-  inputs: ClipByValueInputs,
-  backend: BackendWasm,
-  attrs: ClipByValueAttrs
+TensorInfo clip({
+  required NamedTensorInfoMap inputs,
+  required BackendWasm backend,
+  NamedAttrMap? attrs,
 }) {
-  const {inputs, backend, attrs} = args;
-  const {x} = inputs;
-  const {clipValueMin, clipValueMax} = attrs;
-  const xId = backend.dataIdMap.get(x.dataId).id;
-  const out = backend.makeOutput(x.shape, x.dtype);
-  const outId = backend.dataIdMap.get(out.dataId).id;
-  wasmClip(xId, clipValueMin, clipValueMax, outId);
+  final x = inputs['x']!;
+  final clipValueMin = attrs!['clipValueMin'] as double;
+  final clipValueMax = attrs['clipValueMax'] as double;
+
+  final xId = backend.dataIdMap.get(x.dataId)!.id;
+  final out = backend.makeOutput(x.shape, x.dtype);
+  final outId = backend.dataIdMap.get(out.dataId)!.id;
+  _wasmClip([xId, clipValueMin, clipValueMax, outId]);
   return out;
 }
 
-export const clipByValueConfig: KernelConfig = {
+final clipByValueConfig = KernelConfigG(
   kernelName: ClipByValue,
   backendName: 'wasm',
-  setupFunc: setup,
-  kernelFunc: clip as {} as KernelFunc
-};
+  setupFunc: _setup,
+  kernelFunc: clip,
+);

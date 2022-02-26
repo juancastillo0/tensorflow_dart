@@ -21,6 +21,7 @@ import 'package:tensorflow_wasm/src/wasm/kernels/fused_mat_mul_.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/gather_nd.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/gather_v2.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/identity.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/leaky_relu.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/max.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/mirror_pad.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/non_max_suppression_v3.dart';
@@ -30,9 +31,11 @@ import 'package:tensorflow_wasm/src/wasm/kernels/one_hot.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/ones_like.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/pack.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/pad_v2.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/prelu.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/range.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/reshape.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/resize_bilinear.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/reverse.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/rotate_with_offset.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/scatter_nd.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/select.dart';
@@ -41,6 +44,7 @@ import 'package:tensorflow_wasm/src/wasm/kernels/slice.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/softmax.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/space_to_batch_nd.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/split_v.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/step.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/sum.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/tile.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/top_k.dart';
@@ -138,14 +142,13 @@ void registerAllKernels() {
     transformConfig,
     //
     depthwiseConv2dNativeConfig,
+    leakyReluConfig,
+    preluConfig,
+    reverseConfig,
+    stepConfig,
     // Mean
     // AvgPool
     // MaxPool
-
-    // LeakyRelu
-    // Prelu
-    // Reverse
-    // Step
 
     // Conv2D
     // Conv2DBackpropInput

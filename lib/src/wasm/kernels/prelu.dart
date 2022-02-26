@@ -15,49 +15,59 @@
  * =============================================================================
  */
 
-import {KernelConfig, KernelFunc, Prelu, PreluInputs} from '@tensorflow/tfjs-core';
+// import {KernelConfig, KernelFunc, Prelu, PreluInputs} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-import {cast} from './Cast';
+// import {cast} from './Cast';
 
-let wasmPrelu: (xId: number, weightsId: number, outId: number) => void;
+import '_prelude.dart';
+import 'cast.dart';
 
-function setup(backend: BackendWasm) {
-  wasmPrelu = backend.wasm.cwrap(Prelu, null /* void */, [
-    'number',  // x_id
-    'number',  // weights_id
-    'number'   // out_id
+late final Function(List) _wasmPrelu;
+//: (xId: number, weightsId: number, outId: number) => void;
+
+void _setup(BackendWasm backend) {
+  _wasmPrelu = backend.wasm.cwrap(Prelu, null /* void */, [
+    'number', // x_id
+    'number', // weights_id
+    'number' // out_id
   ]);
 }
 
-function prelu(args: {inputs: PreluInputs, backend: BackendWasm}) {
-  const {inputs, backend} = args;
-  const {x, alpha} = inputs;
-  const xId = backend.dataIdMap.get(x.dataId).id;
-  const weightsId = backend.dataIdMap.get(alpha.dataId).id;
+TensorInfo prelu({
+  required NamedTensorInfoMap inputs,
+  required BackendWasm backend,
+  NamedAttrMap? attrs,
+}) {
+  final x = inputs['x']!;
+  final alpha = inputs['alpha']!;
 
-  let inputId = xId;
-  const input = x;
-  let castedInput = input;
-  if (input.dtype !== 'float32') {
-    castedInput = cast({backend, inputs: {x}, attrs: {dtype: 'float32'}});
-    inputId = backend.dataIdMap.get(castedInput.dataId).id;
+  final xId = backend.dataIdMap.get(x.dataId)!.id;
+  final weightsId = backend.dataIdMap.get(alpha.dataId)!.id;
+
+  var inputId = xId;
+  final input = x;
+  var castedInput = input;
+  if (input.dtype != 'float32') {
+    castedInput =
+        cast(backend: backend, inputs: {'x': x}, attrs: {'dtype': 'float32'});
+    inputId = backend.dataIdMap.get(castedInput.dataId)!.id;
   }
 
-  const out = backend.makeOutput(x.shape, 'float32');
-  const outId = backend.dataIdMap.get(out.dataId).id;
-  wasmPrelu(inputId, weightsId, outId);
+  final out = backend.makeOutput(x.shape, 'float32');
+  final outId = backend.dataIdMap.get(out.dataId)!.id;
+  _wasmPrelu([inputId, weightsId, outId]);
 
-  if (input.dtype !== 'float32') {
+  if (input.dtype != 'float32') {
     backend.disposeData(castedInput.dataId);
   }
   return out;
 }
 
-export const preluConfig: KernelConfig = {
+final preluConfig = KernelConfigG(
   kernelName: Prelu,
   backendName: 'wasm',
-  setupFunc: setup,
-  kernelFunc: prelu as {} as KernelFunc
-};
+  setupFunc: _setup,
+  kernelFunc: prelu,
+);

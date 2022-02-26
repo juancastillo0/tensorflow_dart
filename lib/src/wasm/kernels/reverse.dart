@@ -15,61 +15,73 @@
  * =============================================================================
  */
 
-import {KernelConfig, KernelFunc, Reverse, ReverseAttrs, ReverseInputs, TensorInfo, util} from '@tensorflow/tfjs-core';
+// import {KernelConfig, KernelFunc, Reverse, ReverseAttrs, ReverseInputs, TensorInfo, util} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-import {identity} from './Identity';
-import {reshape} from './Reshape';
+// import {identity} from './Identity';
+// import {reshape} from './Reshape';
 
-let wasmReverse: (
-    xId: number, axes: Uint8Array, axesLength: number, outShape: Uint8Array,
-    outShapeLength: number, outId: number) => void;
+import 'dart:typed_data';
 
-function setup(backend: BackendWasm) {
-  wasmReverse = backend.wasm.cwrap(Reverse, null, [
-    'number',  // x_id
-    'array',   // axes
-    'number',  // axes_length
-    'array',   // out_shape
-    'number',  // out_shape_length
-    'number'   // out_id
+import '_prelude.dart';
+import '../../util_base.dart' as util;
+import 'identity.dart';
+import 'reshape.dart';
+
+late final Function(List) _wasmReverse;
+// : (
+//     xId: number, axes: Uint8Array, axesLength: number, outShape: Uint8Array,
+//     outShapeLength: number, outId: number) => void;
+
+void _setup(BackendWasm backend) {
+  _wasmReverse = backend.wasm.cwrap(Reverse, null, [
+    'number', // x_id
+    'array', // axes
+    'number', // axes_length
+    'array', // out_shape
+    'number', // out_shape_length
+    'number' // out_id
   ]);
 }
 
-export function reverse(
-    args: {inputs: ReverseInputs, backend: BackendWasm, attrs: ReverseAttrs}):
-    TensorInfo {
-  const {inputs, backend, attrs} = args;
-  const {x} = inputs;
-  const {dims} = attrs;
+TensorInfo reverse({
+  required NamedTensorInfoMap inputs,
+  required BackendWasm backend,
+  NamedAttrMap? attrs,
+}) {
+  final x = inputs['x']!;
+  final dims = attrs!['dims'] as List<int>;
 
-  const axes = util.parseAxisParam(dims, x.shape);
+  final axes = util.parseAxisParam(dims, x.shape);
 
-  if (x.shape.length === 0) {
-    return identity({inputs: {x}, backend});
+  if (x.shape.length == 0) {
+    return identity(inputs: {'x': x}, backend: backend);
   }
 
-  const out = backend.makeOutput(x.shape, x.dtype);
-  const xId = backend.dataIdMap.get(x.dataId).id;
-  const outId = backend.dataIdMap.get(out.dataId).id;
+  final out = backend.makeOutput(x.shape, x.dtype);
+  final xId = backend.dataIdMap.get(x.dataId)!.id;
+  final outId = backend.dataIdMap.get(out.dataId)!.id;
 
-  const axesBytes = new Uint8Array(new Int32Array(axes).buffer);
-  const outShapeBytes = new Uint8Array(new Int32Array(x.shape).buffer);
+  final axesBytes = Uint8List.view(Int32List.fromList(axes).buffer);
+  final outShapeBytes = Uint8List.view(Int32List.fromList(x.shape).buffer);
 
-  wasmReverse(
-      xId, axesBytes, axes.length, outShapeBytes, x.shape.length, outId);
+  _wasmReverse(
+      [xId, axesBytes, axes.length, outShapeBytes, x.shape.length, outId]);
 
-  const reshaped =
-      reshape({inputs: {x: out}, attrs: {shape: x.shape}, backend});
+  final reshaped = reshape(
+    inputs: {'x': out},
+    attrs: {'shape': x.shape},
+    backend: backend,
+  );
 
   backend.disposeData(out.dataId);
   return reshaped;
 }
 
-export const reverseConfig: KernelConfig = {
+final reverseConfig = KernelConfigG(
   kernelName: Reverse,
   backendName: 'wasm',
-  kernelFunc: reverse as {} as KernelFunc,
-  setupFunc: setup
-};
+  kernelFunc: reverse,
+  setupFunc: _setup,
+);

@@ -15,41 +15,46 @@
  * =============================================================================
  */
 
-import {KernelConfig, KernelFunc, Step, StepAttrs, StepInputs, TensorInfo} from '@tensorflow/tfjs-core';
+// import {KernelConfig, KernelFunc, Step, StepAttrs, StepInputs, TensorInfo} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-import {CppDType} from './types';
+// import {CppDType} from './types';
 
-let wasmStep: (xId: number, alpha: number, dtype: number, outId: number) =>
-    void;
+import '_prelude.dart';
 
-function setup(backend: BackendWasm): void {
-  wasmStep = backend.wasm.cwrap(Step, null /*void*/, [
-    'number',  // x_id
-    'number',  // alpha
-    'number',  // dtype
-    'number',  // out_id
+late final Function(List) _wasmStep;
+// : (xId: number, alpha: number, dtype: number, outId: number) =>
+//     void;
+
+void _setup(BackendWasm backend) {
+  _wasmStep = backend.wasm.cwrap(Step, null /*void*/, [
+    'number', // x_id
+    'number', // alpha
+    'number', // dtype
+    'number', // out_id
   ]);
 }
 
-function step(
-    args: {backend: BackendWasm, inputs: StepInputs, attrs: StepAttrs}):
-    TensorInfo {
-  const {backend, inputs, attrs} = args;
-  const {alpha} = attrs;
-  const {x} = inputs;
-  const xId = backend.dataIdMap.get(x.dataId).id;
+TensorInfo step({
+  required NamedTensorInfoMap inputs,
+  required BackendWasm backend,
+  NamedAttrMap? attrs,
+}) {
+  final x = inputs['x']!;
+  final alpha = attrs!['alpha'] as double;
 
-  const out = backend.makeOutput(x.shape, x.dtype);
-  const outId = backend.dataIdMap.get(out.dataId).id;
-  wasmStep(xId, alpha, CppDType[x.dtype], outId);
+  final xId = backend.dataIdMap.get(x.dataId)!.id;
+
+  final out = backend.makeOutput(x.shape, x.dtype);
+  final outId = backend.dataIdMap.get(out.dataId)!.id;
+  _wasmStep([xId, alpha, CppDType.values.byName(x.dtype).index, outId]);
   return out;
 }
 
-export const stepConfig: KernelConfig = {
+final stepConfig = KernelConfigG(
   kernelName: Step,
   backendName: 'wasm',
-  setupFunc: setup,
-  kernelFunc: step as {} as KernelFunc
-};
+  setupFunc: _setup,
+  kernelFunc: step,
+);
