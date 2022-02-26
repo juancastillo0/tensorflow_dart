@@ -415,7 +415,7 @@ const Fill = 'Fill';
 //   dtype: DataType;
 // }
 
-// export const FlipLeftRight = 'FlipLeftRight';
+const FlipLeftRight = 'FlipLeftRight';
 // export type FlipLeftRightInputs = Pick<NamedTensorInfoMap, 'image'>;
 
 const Floor = 'Floor';
@@ -995,7 +995,7 @@ const ZerosLike = 'ZerosLike';
 //   numChannels: number;
 // }
 
-// export const RotateWithOffset = 'RotateWithOffset';
+const RotateWithOffset = 'RotateWithOffset';
 // export type RotateWithOffsetInputs = Pick<NamedTensorInfoMap, 'image'>;
 // export interface RotateWithOffsetAttrs {
 //   radians: number;

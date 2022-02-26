@@ -6,6 +6,7 @@ import 'package:tensorflow_wasm/src/wasm/kernels/arg_max.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/base_kernels.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/batch_mat_mul.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/batch_to_space_nd.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/clip_by_value.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/concat.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/crop_and_resize.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/cumsum.dart';
@@ -133,41 +134,26 @@ void registerAllKernels() {
     nonMaxSuppressionV5Config,
     resizeBilinearConfig,
     rotateWithOffsetConfig,
+    clipByValueConfig,
     transformConfig,
     //
     depthwiseConv2dNativeConfig,
     // Mean
     // AvgPool
-    
-    // BatchToSpaceND
-    // DepthToSpace
-    // MirrorPad
-    // PadV2
-    // SpaceToBatchND
+    // MaxPool
 
-    // AvgPool
-    // ClipByValue
+    // LeakyRelu
+    // Prelu
+    // Reverse
+    // Step
+
     // Conv2D
     // Conv2DBackpropInput
-    // CropAndResize
-    // FlipLeftRight
-    // LeakyRelu
-    // MaxPool
-    // NonMaxSuppressionV3.ts
-    // NonMaxSuppressionV4.ts
-    // NonMaxSuppressionV5.ts
-    // NonMaxSuppression_util.ts
-    // Prelu
-    // ResizeBilinear
-    // Reverse
-    // RotateWithOffset
     // SparseFillEmptyRows
     // SparseReshape
     // SparseSegmentMean
     // SparseSegmentReduction
     // SparseSegmentSum
-    // Step
-    // Transform
   ];
 
   for (final config in configs) {

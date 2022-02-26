@@ -15,13 +15,17 @@
  * =============================================================================
  */
 
-import {Tensor2D, Tensor3D, Tensor4D, Tensor5D, Tensor6D} from '../../tensor';
-import {convertToTensor} from '../../tensor_util_env';
-import {TensorLike} from '../../types';
-import * as util from '../../util';
+// import {Tensor2D, Tensor3D, Tensor4D, Tensor5D, Tensor6D} from '../../tensor';
+// import {convertToTensor} from '../../tensor_util_env';
+// import {TensorLike} from '../../types';
+// import * as util from '../../util';
 
-import {op} from '../operation';
-import {tile} from '../tile';
+// import {op} from '../operation';
+// import {tile} from '../tile';
+
+import '../_prelude.dart';
+import '../../util_base.dart' as util;
+import '../tile.dart';
 
 /**
  * Converts images from grayscale to RGB format.
@@ -31,29 +35,31 @@ import {tile} from '../tile';
  *
  * @doc {heading: 'Operations', subheading: 'Images', namespace: 'image'}
  */
-function grayscaleToRGB_<T extends Tensor2D|Tensor3D|Tensor4D|Tensor5D|
-                         Tensor6D>(image: T|TensorLike): T {
-  const $image = convertToTensor(image, 'image', 'grayscaleToRGB');
+T grayscaleToRGB<
+    T extends Tensor2D
+//|Tensor3D|Tensor4D|Tensor5D| Tensor6D
+    >(T image) {
+  return execOp('grayscaleToRGB', () {
+    final $image = convertToTensor(image, 'image', 'grayscaleToRGB');
 
-  const lastDimsIdx = $image.rank - 1;
-  const lastDims = $image.shape[lastDimsIdx];
+    final lastDimsIdx = $image.rank - 1;
+    final lastDims = $image.shape[lastDimsIdx];
 
-  util.assert(
-      $image.rank >= 2,
-      () => 'Error in grayscaleToRGB: images must be at least rank 2, ' +
-          `but got rank ${$image.rank}.`);
+    util.assert_(
+        $image.rank >= 2,
+        () =>
+            'Error in grayscaleToRGB: images must be at least rank 2, ' +
+            'but got rank ${$image.rank}.');
 
-  util.assert(
-      lastDims === 1,
-      () => 'Error in grayscaleToRGB: last dimension of a grayscale image ' +
-          `should be size 1, but got size ${lastDims}.`);
+    util.assert_(
+        lastDims == 1,
+        () =>
+            'Error in grayscaleToRGB: last dimension of a grayscale image ' +
+            'should be size 1, but got size ${lastDims}.');
 
-  const reps = new Array($image.rank);
+    final reps = List.filled($image.rank, 1);
+    reps[lastDimsIdx] = 3;
 
-  reps.fill(1, 0, lastDimsIdx);
-  reps[lastDimsIdx] = 3;
-
-  return tile($image, reps);
+    return tile($image, reps);
+  });
 }
-
-export const grayscaleToRGB = op({grayscaleToRGB_});

@@ -15,67 +15,88 @@
  * =============================================================================
  */
 
-import {KernelConfig, KernelFunc, RotateWithOffset, RotateWithOffsetAttrs, RotateWithOffsetInputs, TensorInfo} from '@tensorflow/tfjs-core';
-import {backend_util} from '@tensorflow/tfjs-core';
+// import {KernelConfig, KernelFunc, RotateWithOffset, RotateWithOffsetAttrs, RotateWithOffsetInputs, TensorInfo} from '@tensorflow/tfjs-core';
+// import {backend_util} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-let wasmRotate: (
-    xId: number, batch: number, imageHeight: number, imageWidth: number,
-    numChannels: number, radians: number, centerX: number, centerY: number,
-    fillBytes: Uint8Array, fillLength: number, outId: number) => void;
+import 'dart:typed_data';
 
-function setup(backend: BackendWasm) {
-  wasmRotate = backend.wasm.cwrap(RotateWithOffset, null /* void */, [
-    'number',  // xId
-    'number',  // batch
-    'number',  // imageHeight
-    'number',  // imageWidth
-    'number',  // numChannels
-    'number',  // radians
-    'number',  // centerX
-    'number',  // centerY
-    'array',   // fillBytes
-    'number',  // fillLength
-    'number',  // outId
+import '_prelude.dart';
+import 'package:tensorflow_wasm/backend_util.dart' as backend_util;
+
+late final Function(List) _wasmRotate;
+// : (
+//     xId: number, batch: number, imageHeight: number, imageWidth: number,
+//     numChannels: number, radians: number, centerX: number, centerY: number,
+//     fillBytes: Uint8Array, fillLength: number, outId: number) => void;
+
+void _setup(BackendWasm backend) {
+  _wasmRotate = backend.wasm.cwrap(RotateWithOffset, null /* void */, [
+    'number', // xId
+    'number', // batch
+    'number', // imageHeight
+    'number', // imageWidth
+    'number', // numChannels
+    'number', // radians
+    'number', // centerX
+    'number', // centerY
+    'array', // fillBytes
+    'number', // fillLength
+    'number', // outId
   ]);
 }
 
-export function rotateWithOffset(args: {
-  inputs: RotateWithOffsetInputs,
-  backend: BackendWasm,
-  attrs: RotateWithOffsetAttrs
-}): TensorInfo {
-  const {inputs, backend, attrs} = args;
-  const {image} = inputs;
-  const {radians, fillValue, center} = attrs;
+TensorInfo rotateWithOffset({
+  required NamedTensorInfoMap inputs,
+  required BackendWasm backend,
+  NamedAttrMap? attrs,
+}) {
+  final image = inputs['image']!;
 
-  const out = backend.makeOutput(image.shape, image.dtype);
-  const imageId = backend.dataIdMap.get(image.dataId).id;
-  const outId = backend.dataIdMap.get(out.dataId).id;
+  final radians = attrs!['radians'] as double;
+  final fillValue = attrs['fillValue'] as List<int>;
+  final center = attrs['center'] as List<double>;
 
-  const [batch, imageHeight, imageWidth, numChannels] = image.shape;
+  final out = backend.makeOutput(image.shape, image.dtype);
+  final imageId = backend.dataIdMap.get(image.dataId)!.id;
+  final outId = backend.dataIdMap.get(out.dataId)!.id;
 
-  const [centerX, centerY] =
-      backend_util.getImageCenter(center, imageHeight, imageWidth);
+  final batch = image.shape[0];
+  final imageHeight = image.shape[1];
+  final imageWidth = image.shape[2];
+  final numChannels = image.shape[3];
 
-  const fillIsBlack = fillValue === 0;
-  const fullOpacityValue = 255;
+  final _center = [center[0] * imageWidth, center[1] * imageHeight];
 
-  const fillValues = typeof fillValue === 'number' ?
-      [fillValue, fillValue, fillValue, fillIsBlack ? 0 : fullOpacityValue] :
-      [...fillValue, fullOpacityValue];
-  const fillBytes = new Uint8Array(new Int32Array(fillValues).buffer);
+  final fillIsBlack = fillValue.every((element) => element == 0);
+  final fullOpacityValue = 255;
 
-  wasmRotate(
-      imageId, batch, imageHeight, imageWidth, numChannels, radians, centerX,
-      centerY, fillBytes, fillValues.length, outId);
+  final fillValues = fillValue is int
+      ? [fillValue, fillValue, fillValue, fillIsBlack ? 0 : fullOpacityValue]
+          as List<int>
+      : [...fillValue, fullOpacityValue];
+  final fillBytes = Uint8List.view(Int32List.fromList(fillValues).buffer);
+
+  _wasmRotate([
+    imageId,
+    batch,
+    imageHeight,
+    imageWidth,
+    numChannels,
+    radians,
+    _center[0],
+    _center[1],
+    fillBytes,
+    fillValues.length,
+    outId
+  ]);
   return out;
 }
 
-export const rotateWithOffsetConfig: KernelConfig = {
+final rotateWithOffsetConfig = KernelConfigG(
   kernelName: RotateWithOffset,
   backendName: 'wasm',
-  kernelFunc: rotateWithOffset as {} as KernelFunc,
-  setupFunc: setup
-};
+  kernelFunc: rotateWithOffset,
+  setupFunc: _setup,
+);
