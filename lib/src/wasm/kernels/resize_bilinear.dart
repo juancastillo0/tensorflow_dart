@@ -15,64 +15,85 @@
  * =============================================================================
  */
 
-import {KernelConfig, KernelFunc, ResizeBilinear, ResizeBilinearAttrs, ResizeBilinearInputs, TensorInfo, util} from '@tensorflow/tfjs-core';
+// import {KernelConfig, KernelFunc, ResizeBilinear, ResizeBilinearAttrs, ResizeBilinearInputs, TensorInfo, util} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-import {cast} from './Cast';
+// import {cast} from './Cast';
 
-let wasmResizeBilinear: (
-    xId: number, batch: number, oldHeight: number, oldWidth: number,
-    numChannels: number, newHeight: number, newWidth: number,
-    alignCorners: number, halfPixelCenters: number, outId: number) => void;
+import '../../util_base.dart' as util;
+import '_prelude.dart';
+import 'cast.dart';
 
-function setup(backend: BackendWasm): void {
-  wasmResizeBilinear = backend.wasm.cwrap(ResizeBilinear, null /*void*/, [
-    'number',  // xId
-    'number',  // batch
-    'number',  // oldHeight
-    'number',  // oldWidth
-    'number',  // numChannels
-    'number',  // newHeight
-    'number',  // newWidth
-    'number',  // alignCorners
-    'number',  // halfPixelCenters
-    'number'   // outId
+late final Function(List) _wasmResizeBilinear;
+// : (
+//     xId: number, batch: number, oldHeight: number, oldWidth: number,
+//     numChannels: number, newHeight: number, newWidth: number,
+//     alignCorners: number, halfPixelCenters: number, outId: number) => void;
+
+void _setup(BackendWasm backend) {
+  _wasmResizeBilinear = backend.wasm.cwrap(ResizeBilinear, null /*void*/, [
+    'number', // xId
+    'number', // batch
+    'number', // oldHeight
+    'number', // oldWidth
+    'number', // numChannels
+    'number', // newHeight
+    'number', // newWidth
+    'number', // alignCorners
+    'number', // halfPixelCenters
+    'number' // outId
   ]);
 }
 
-function resizeBilinear(args: {
-  backend: BackendWasm,
-  inputs: ResizeBilinearInputs,
-  attrs: ResizeBilinearAttrs
-}): TensorInfo {
-  const {backend, inputs, attrs} = args;
+TensorInfo resizeBilinear({
+  required NamedTensorInfoMap inputs,
+  required BackendWasm backend,
+  NamedAttrMap? attrs,
+}) {
+  final images = inputs['images']!;
 
-  const {images} = inputs;
-  const {alignCorners, halfPixelCenters, size} = attrs;
-  const [newHeight, newWidth] = size;
+  final halfPixelCenters = attrs!['halfPixelCenters'] as bool;
+  final alignCorners = attrs['alignCorners'] as bool;
+  final size = attrs['size'] as List<int>;
 
-  const [batch, oldHeight, oldWidth, numChannels] = images.shape;
-  const outShape = [batch, newHeight, newWidth, numChannels];
+  final batch = images.shape[0];
+  final oldHeight = images.shape[1];
+  final oldWidth = images.shape[2];
+  final numChannels = images.shape[3];
 
-  let xData = backend.dataIdMap.get(images.dataId);
-  let castedData;
-  if (xData.dtype !== 'float32') {
-    castedData =
-        cast({backend, inputs: {x: images}, attrs: {dtype: 'float32'}});
-    xData = backend.dataIdMap.get(castedData.dataId);
+  final newHeight = size[0];
+  final newWidth = size[1];
+
+  final outShape = [batch, newHeight, newWidth, numChannels];
+
+  var xData = backend.dataIdMap.get(images.dataId)!;
+  TensorInfo? castedData;
+  if (xData.dtype != 'float32') {
+    castedData = cast(
+        backend: backend, inputs: {'x': images}, attrs: {'dtype': 'float32'});
+    xData = backend.dataIdMap.get(castedData.dataId)!;
   }
-  const xId = xData.id;
+  final xId = xData.id;
 
-  const out = backend.makeOutput(outShape, 'float32');
-  if (util.sizeFromShape(images.shape) === 0) {
+  final out = backend.makeOutput(outShape, 'float32');
+  if (util.sizeFromShape(images.shape) == 0) {
     return out;
   }
-  const outId = backend.dataIdMap.get(out.dataId).id;
+  final outId = backend.dataIdMap.get(out.dataId)!.id;
 
-  wasmResizeBilinear(
-      xId, batch, oldHeight, oldWidth, numChannels, newHeight, newWidth,
-      alignCorners ? 1 : 0, halfPixelCenters ? 1 : 0, outId);
+  _wasmResizeBilinear([
+    xId,
+    batch,
+    oldHeight,
+    oldWidth,
+    numChannels,
+    newHeight,
+    newWidth,
+    alignCorners ? 1 : 0,
+    halfPixelCenters ? 1 : 0,
+    outId
+  ]);
 
   if (castedData != null) {
     backend.disposeData(castedData.dataId);
@@ -81,9 +102,9 @@ function resizeBilinear(args: {
   return out;
 }
 
-export const resizeBilinearConfig: KernelConfig = {
+final resizeBilinearConfig = KernelConfigG(
   kernelName: ResizeBilinear,
   backendName: 'wasm',
-  setupFunc: setup,
-  kernelFunc: resizeBilinear as {} as KernelFunc
-};
+  setupFunc: _setup,
+  kernelFunc: resizeBilinear,
+);

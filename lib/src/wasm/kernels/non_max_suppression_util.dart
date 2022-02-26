@@ -15,27 +15,44 @@
  * =============================================================================
  */
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
+
+import 'dart:typed_data';
+
+import '../../backend_wasm.dart';
 
 // Analogous to `struct Result` in `non_max_suppression_impl.h`.
-interface Result {
-  pSelectedIndices: number;
-  selectedSize: number;
-  pSelectedScores: number;
-  pValidOutputs: number;
+class Result {
+  final int pSelectedIndices;
+  final int selectedSize;
+  final int pSelectedScores;
+  final int pValidOutputs;
+
+  Result({
+    required this.pSelectedIndices,
+    required this.selectedSize,
+    required this.pSelectedScores,
+    required this.pValidOutputs,
+  });
 }
+
 /**
  * Parse the result of the c++ method, which has the shape equivalent to
  * `Result`.
  */
-export function parseResultStruct(
-    backend: BackendWasm, resOffset: number): Result {
-  const result = new Int32Array(backend.wasm.HEAPU8.buffer, resOffset, 4);
-  const pSelectedIndices = result[0];
-  const selectedSize = result[1];
-  const pSelectedScores = result[2];
-  const pValidOutputs = result[3];
+Result parseResultStruct(BackendWasm backend, int resOffset) {
+  final result = Int32List.view(backend.wasm.HEAPU8.buffer, resOffset, 4);
+  final pSelectedIndices = result[0];
+  final selectedSize = result[1];
+  final pSelectedScores = result[2];
+  final pValidOutputs = result[3];
   // Since the result was allocated on the heap, we have to delete it.
-  backend.wasm._free(resOffset);
-  return {pSelectedIndices, selectedSize, pSelectedScores, pValidOutputs};
+  backend.wasm.free(resOffset);
+
+  return Result(
+    pSelectedIndices: pSelectedIndices,
+    selectedSize: selectedSize,
+    pSelectedScores: pSelectedScores,
+    pValidOutputs: pValidOutputs,
+  );
 }

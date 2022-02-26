@@ -15,65 +15,75 @@
  * =============================================================================
  */
 
-import {KernelConfig, KernelFunc, NonMaxSuppressionV5, NonMaxSuppressionV5Attrs, NonMaxSuppressionV5Inputs, TensorInfo} from '@tensorflow/tfjs-core';
+import '_prelude.dart';
 
-import {BackendWasm} from '../backend_wasm';
+import 'non_max_suppression_util.dart';
 
-import {parseResultStruct} from './NonMaxSuppression_util';
+// import {KernelConfig, KernelFunc, NonMaxSuppressionV5, NonMaxSuppressionV5Attrs, NonMaxSuppressionV5Inputs, TensorInfo} from '@tensorflow/tfjs-core';
 
-let wasmFunc:
-    (boxesId: number, scoresId: number, maxOutputSize: number,
-     iouThreshold: number, scoreThreshold: number, softNmsSigma: number) =>
-        number;
+// import {BackendWasm} from '../backend_wasm';
 
-function setup(backend: BackendWasm): void {
-  wasmFunc = backend.wasm.cwrap(
-      NonMaxSuppressionV5,
-      'number',  // Result*
+// import {parseResultStruct} from './NonMaxSuppression_util';
+
+late final Function(List) _wasmFunc;
+// (boxesId: number, scoresId: number, maxOutputSize: number,
+//  iouThreshold: number, scoreThreshold: number, softNmsSigma: number) =>
+//     number;
+
+void _setup(BackendWasm backend) {
+  _wasmFunc = backend.wasm.cwrap(NonMaxSuppressionV5, 'number', // Result*
       [
-        'number',  // boxesId
-        'number',  // scoresId
-        'number',  // maxOutputSize
-        'number',  // iouThreshold
-        'number',  // scoreThreshold
-        'number',  // softNmsSigma
+        'number', // boxesId
+        'number', // scoresId
+        'number', // maxOutputSize
+        'number', // iouThreshold
+        'number', // scoreThreshold
+        'number', // softNmsSigma
       ]);
 }
 
-function kernelFunc(args: {
-  backend: BackendWasm,
-  inputs: NonMaxSuppressionV5Inputs,
-  attrs: NonMaxSuppressionV5Attrs
-}): TensorInfo[] {
-  const {backend, inputs, attrs} = args;
-  const {iouThreshold, maxOutputSize, scoreThreshold, softNmsSigma} = attrs;
-  const {boxes, scores} = inputs;
+TensorInfoList _kernelFunc({
+  required NamedTensorInfoMap inputs,
+  required BackendWasm backend,
+  NamedAttrMap? attrs,
+}) {
+  final scores = inputs['scores']!;
+  final boxes = inputs['boxes']!;
 
-  const boxesId = backend.dataIdMap.get(boxes.dataId).id;
-  const scoresId = backend.dataIdMap.get(scores.dataId).id;
+  final maxOutputSize = attrs!['maxOutputSize'] as int;
+  final scoreThreshold = attrs['scoreThreshold'] as double;
+  final iouThreshold = attrs['iouThreshold'] as double;
+  final softNmsSigma = attrs['softNmsSigma'] as double;
 
-  const resOffset = wasmFunc(
-      boxesId, scoresId, maxOutputSize, iouThreshold, scoreThreshold,
-      softNmsSigma);
+  final boxesId = backend.dataIdMap.get(boxes.dataId)!.id;
+  final scoresId = backend.dataIdMap.get(scores.dataId)!.id;
 
-  const {pSelectedIndices, selectedSize, pSelectedScores, pValidOutputs} =
-      parseResultStruct(backend, resOffset);
+  final resOffset = _wasmFunc([
+    boxesId,
+    scoresId,
+    maxOutputSize,
+    iouThreshold,
+    scoreThreshold,
+    softNmsSigma
+  ]);
+
+  final result = parseResultStruct(backend, resOffset);
 
   // Since we are not using validOutputs for V5, we have to delete it from the
   // heap.
-  backend.wasm._free(pValidOutputs);
+  backend.wasm.free(result.pValidOutputs);
 
-  const selectedIndicesTensor =
-      backend.makeOutput([selectedSize], 'int32', pSelectedIndices);
-  const selectedScoresTensor =
-      backend.makeOutput([selectedSize], 'float32', pSelectedScores);
+  final selectedIndicesTensor = backend
+      .makeOutput([result.selectedSize], 'int32', result.pSelectedIndices);
+  final selectedScoresTensor = backend
+      .makeOutput([result.selectedSize], 'float32', result.pSelectedScores);
 
-  return [selectedIndicesTensor, selectedScoresTensor];
+  return TensorInfoList([selectedIndicesTensor, selectedScoresTensor]);
 }
 
-export const nonMaxSuppressionV5Config: KernelConfig = {
+final nonMaxSuppressionV5Config = KernelConfigG(
   kernelName: NonMaxSuppressionV5,
   backendName: 'wasm',
-  setupFunc: setup,
-  kernelFunc: kernelFunc as {} as KernelFunc,
-};
+  setupFunc: _setup,
+  kernelFunc: _kernelFunc,
+);

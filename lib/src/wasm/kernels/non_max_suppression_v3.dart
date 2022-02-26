@@ -15,60 +15,64 @@
  * =============================================================================
  */
 
-import {KernelConfig, KernelFunc, NonMaxSuppressionV3, NonMaxSuppressionV3Attrs, NonMaxSuppressionV3Inputs, TensorInfo} from '@tensorflow/tfjs-core';
+// import {KernelConfig, KernelFunc, NonMaxSuppressionV3, NonMaxSuppressionV3Attrs, NonMaxSuppressionV3Inputs, TensorInfo} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-import {parseResultStruct} from './NonMaxSuppression_util';
+// import {parseResultStruct} from './NonMaxSuppression_util';
 
-let wasmFunc: (
-    boxesId: number, scoresId: number, maxOutputSize: number,
-    iouThreshold: number, scoreThreshold: number) => number;
+import '_prelude.dart';
+import 'non_max_suppression_util.dart';
 
-function setup(backend: BackendWasm): void {
-  wasmFunc = backend.wasm.cwrap(
-      NonMaxSuppressionV3,
-      'number',  // Result*
+late final Function(List) _wasmFunc;
+// : (
+//     boxesId: number, scoresId: number, maxOutputSize: number,
+//     iouThreshold: number, scoreThreshold: number) => number;
+
+void _setup(BackendWasm backend) {
+  _wasmFunc = backend.wasm.cwrap(NonMaxSuppressionV3, 'number', // Result*
       [
-        'number',  // boxesId
-        'number',  // scoresId
-        'number',  // maxOutputSize
-        'number',  // iouThreshold
-        'number',  // scoreThreshold
+        'number', // boxesId
+        'number', // scoresId
+        'number', // maxOutputSize
+        'number', // iouThreshold
+        'number', // scoreThreshold
       ]);
 }
 
-function kernelFunc(args: {
-  backend: BackendWasm,
-  inputs: NonMaxSuppressionV3Inputs,
-  attrs: NonMaxSuppressionV3Attrs
-}): TensorInfo {
-  const {backend, inputs, attrs} = args;
-  const {iouThreshold, maxOutputSize, scoreThreshold} = attrs;
-  const {boxes, scores} = inputs;
+TensorInfo _kernelFunc({
+  required NamedTensorInfoMap inputs,
+  required BackendWasm backend,
+  NamedAttrMap? attrs,
+}) {
+  final scores = inputs['scores']!;
+  final boxes = inputs['boxes']!;
 
-  const boxesId = backend.dataIdMap.get(boxes.dataId).id;
-  const scoresId = backend.dataIdMap.get(scores.dataId).id;
+  final maxOutputSize = attrs!['maxOutputSize'] as int;
+  final scoreThreshold = attrs['scoreThreshold'] as double;
+  final iouThreshold = attrs['iouThreshold'] as double;
 
-  const resOffset =
-      wasmFunc(boxesId, scoresId, maxOutputSize, iouThreshold, scoreThreshold);
+  final boxesId = backend.dataIdMap.get(boxes.dataId)!.id;
+  final scoresId = backend.dataIdMap.get(scores.dataId)!.id;
 
-  const {pSelectedIndices, selectedSize, pSelectedScores, pValidOutputs} =
-      parseResultStruct(backend, resOffset);
+  final resOffset = _wasmFunc(
+      [boxesId, scoresId, maxOutputSize, iouThreshold, scoreThreshold]);
+
+  final result = parseResultStruct(backend, resOffset);
 
   // Since we are not using scores for V3, we have to delete it from the heap.
-  backend.wasm._free(pSelectedScores);
-  backend.wasm._free(pValidOutputs);
+  backend.wasm.free(result.pSelectedScores);
+  backend.wasm.free(result.pValidOutputs);
 
-  const selectedIndicesTensor =
-      backend.makeOutput([selectedSize], 'int32', pSelectedIndices);
+  final selectedIndicesTensor = backend
+      .makeOutput([result.selectedSize], 'int32', result.pSelectedIndices);
 
   return selectedIndicesTensor;
 }
 
-export const nonMaxSuppressionV3Config: KernelConfig = {
+final nonMaxSuppressionV3Config = KernelConfigG(
   kernelName: NonMaxSuppressionV3,
   backendName: 'wasm',
-  setupFunc: setup,
-  kernelFunc: kernelFunc as {} as KernelFunc,
-};
+  setupFunc: _setup,
+  kernelFunc: _kernelFunc,
+);

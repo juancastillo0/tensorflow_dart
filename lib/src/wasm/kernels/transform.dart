@@ -15,65 +15,77 @@
  * =============================================================================
  */
 
-import {KernelConfig, KernelFunc, TensorInfo, Transform, TransformAttrs, TransformInputs, util} from '@tensorflow/tfjs-core';
+// import {KernelConfig, KernelFunc, TensorInfo, Transform, TransformAttrs, TransformInputs, util} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-let wasmTransform: (
-    imageId: number, transformsId: number, isBatchTransform: boolean,
-    batch: number, outHeight: number, outWidth: number, numChannels: number,
-    imageWidth: number, imageHeight: number, strides: Uint8Array,
-    stridesLength: number, interpolationModeId: number, fillModeId: number,
-    fillValue: number, outId: number) => void;
+import 'dart:typed_data';
 
-function setup(backend: BackendWasm): void {
-  wasmTransform = backend.wasm.cwrap(Transform, null /*void*/, [
-    'number',  // imageId
-    'number',  // transformsId
-    'bool',    // isBatchTransform
-    'number',  // batch
-    'number',  // outHeight
-    'number',  // outWidth
-    'number',  // numChannels
-    'number',  // imageWidth
-    'number',  // imageHeight
-    'array',   // strides
-    'number',  // stridesLength
-    'number',  // interpolationModeId
-    'number',  // fillModeId
-    'number',  // fillValue
-    'number'   // outId
+import '_prelude.dart';
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
+
+late final Function(List) _wasmTransform;
+// : (
+//     imageId: number, transformsId: number, isBatchTransform: boolean,
+//     batch: number, outHeight: number, outWidth: number, numChannels: number,
+//     imageWidth: number, imageHeight: number, strides: Uint8Array,
+//     stridesLength: number, interpolationModeId: number, fillModeId: number,
+//     fillValue: number, outId: number) => void;
+
+void _setup(BackendWasm backend) {
+  _wasmTransform = backend.wasm.cwrap(Transform, null /*void*/, [
+    'number', // imageId
+    'number', // transformsId
+    'bool', // isBatchTransform
+    'number', // batch
+    'number', // outHeight
+    'number', // outWidth
+    'number', // numChannels
+    'number', // imageWidth
+    'number', // imageHeight
+    'array', // strides
+    'number', // stridesLength
+    'number', // interpolationModeId
+    'number', // fillModeId
+    'number', // fillValue
+    'number' // outId
   ]);
 }
 
-function transform(
-    args:
-        {backend: BackendWasm, inputs: TransformInputs, attrs: TransformAttrs}):
-    TensorInfo {
-  const {backend, inputs, attrs} = args;
-  const {image, transforms} = inputs;
-  const {interpolation, fillMode, fillValue, outputShape} = attrs;
+TensorInfo transform({
+  required NamedTensorInfoMap inputs,
+  required BackendWasm backend,
+  NamedAttrMap? attrs,
+}) {
+  final image = inputs['image']!;
+  final transforms = inputs['transforms']!;
+  final interpolation = attrs!['interpolation'] as String;
+  final fillMode = attrs['fillMode'] as String;
+  final fillValue = attrs['fillValue'] as double;
+  final outputShape = attrs['outputShape'] as List<int>?;
 
-  const [batch, imageHeight, imageWidth, numChannels] = image.shape;
-  const [outHeight, outWidth] =
-      outputShape != null ? outputShape : [imageHeight, imageWidth];
-  const outShape =
-      [batch, outHeight, outWidth,
-       numChannels] as [number, number, number, number];
-  const strides =
-      new Uint8Array(new Int32Array(util.computeStrides(image.shape)).buffer);
+  final batch = image.shape[0];
+  final imageHeight = image.shape[1];
+  final imageWidth = image.shape[2];
+  final numChannels = image.shape[3];
 
-  const out = backend.makeOutput(outShape, image.dtype);
-  const outId = backend.dataIdMap.get(out.dataId).id;
+  final outHeight = outputShape?[0] ?? imageHeight;
+  final outWidth = outputShape?[1] ?? imageWidth;
+  final outShape = [batch, outHeight, outWidth, numChannels];
+  final strides = Uint8List.view(
+      Int32List.fromList(util.computeStrides(image.shape)).buffer);
 
-  const imageData = backend.dataIdMap.get(image.dataId);
-  const imageId = imageData.id;
+  final out = backend.makeOutput(outShape, image.dtype);
+  final outId = backend.dataIdMap.get(out.dataId)!.id;
 
-  const transformsData = backend.dataIdMap.get(transforms.dataId);
-  const transformsId = transformsData.id;
+  final imageData = backend.dataIdMap.get(image.dataId)!;
+  final imageId = imageData.id;
 
-  const interpolationModeId = interpolation === 'nearest' ? 1 : 2;
-  let fillModeId;
+  final transformsData = backend.dataIdMap.get(transforms.dataId)!;
+  final transformsId = transformsData.id;
+
+  final interpolationModeId = interpolation == 'nearest' ? 1 : 2;
+  final int fillModeId;
   switch (fillMode) {
     case 'constant':
       fillModeId = 1;
@@ -92,18 +104,30 @@ function transform(
       break;
   }
 
-  wasmTransform(
-      imageId, transformsId, (transforms.shape[0] > 1), batch, outHeight,
-      outWidth, numChannels, imageWidth, imageHeight, strides,
-      image.shape.length - 1, interpolationModeId, fillModeId, fillValue,
-      outId);
+  _wasmTransform([
+    imageId,
+    transformsId,
+    (transforms.shape[0] > 1),
+    batch,
+    outHeight,
+    outWidth,
+    numChannels,
+    imageWidth,
+    imageHeight,
+    strides,
+    image.shape.length - 1,
+    interpolationModeId,
+    fillModeId,
+    fillValue,
+    outId
+  ]);
 
   return out;
 }
 
-export const transformConfig: KernelConfig = {
+final transformConfig = KernelConfigG(
   kernelName: Transform,
   backendName: 'wasm',
-  setupFunc: setup,
-  kernelFunc: transform as {} as KernelFunc
-};
+  setupFunc: _setup,
+  kernelFunc: transform,
+);

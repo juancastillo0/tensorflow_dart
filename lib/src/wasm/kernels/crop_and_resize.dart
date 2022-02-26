@@ -15,73 +15,93 @@
  * =============================================================================
  */
 
-import {CropAndResize, CropAndResizeAttrs, CropAndResizeInputs, KernelConfig, KernelFunc, TensorInfo} from '@tensorflow/tfjs-core';
+// import {CropAndResize, CropAndResizeAttrs, CropAndResizeInputs, KernelConfig, KernelFunc, TensorInfo} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-import {cast} from './Cast';
+// import {cast} from './Cast';
+
+import 'dart:typed_data';
+
+import '_prelude.dart';
+import 'cast.dart';
 
 // Must match enum in CropAndResize.cc
 enum InterpolationMethod {
-  bilinear = 0,
-  nearest = 1
+  bilinear,
+  nearest,
 }
 
-let wasmCropAndResize: (
-    imagesId: number, boxesId: number, boxIndId: number, numBoxes: number,
-    imagesShape: Uint8Array, cropHeight: number, cropWidth: number,
-    method: number, extrapolationValue: number, outId: number) => void;
+late final Function(List) _wasmCropAndResize;
+// : (
+//     imagesId: number, boxesId: number, boxIndId: number, numBoxes: number,
+//     imagesShape: Uint8Array, cropHeight: number, cropWidth: number,
+//     method: number, extrapolationValue: number, outId: number) => void;
 
-function setup(backend: BackendWasm): void {
-  wasmCropAndResize = backend.wasm.cwrap(CropAndResize, null /*void*/, [
-    'number',  // imagesId
-    'number',  // boxesId
-    'number',  // boxIndId
-    'number',  // numBoxes
-    'array',   // images shape
-    'number',  // cropHeight
-    'number',  // cropWidth
-    'number',  // method
-    'number',  // extrapolation value
-    'number'   // out id
+void _setup(BackendWasm backend) {
+  _wasmCropAndResize = backend.wasm.cwrap(CropAndResize, null /*void*/, [
+    'number', // imagesId
+    'number', // boxesId
+    'number', // boxIndId
+    'number', // numBoxes
+    'array', // images shape
+    'number', // cropHeight
+    'number', // cropWidth
+    'number', // method
+    'number', // extrapolation value
+    'number' // out id
   ]);
 }
 
-function cropAndResize(args: {
-  backend: BackendWasm,
-  inputs: CropAndResizeInputs,
-  attrs: CropAndResizeAttrs
-}): TensorInfo {
-  const {backend, inputs, attrs} = args;
-  const {method, extrapolationValue, cropSize} = attrs;
-  const {image, boxes, boxInd} = inputs;
+TensorInfo cropAndResize({
+  required NamedTensorInfoMap inputs,
+  required BackendWasm backend,
+  NamedAttrMap? attrs,
+}) {
+  final image = inputs['image']!;
+  final boxes = inputs['boxes']!;
+  final boxInd = inputs['boxInd']!;
 
-  const numBoxes = boxes.shape[0];
+  final cropSize = attrs!['cropSize'] as List<int>;
+  final extrapolationValue = attrs['extrapolationValue'] as double;
+  final method = attrs['method'] as String;
 
-  const [cropHeight, cropWidth] = cropSize as [number, number];
-  const outShape = [numBoxes, cropHeight, cropWidth, image.shape[3]];
+  final numBoxes = boxes.shape[0];
 
-  let imagesData = backend.dataIdMap.get(image.dataId);
-  let castedData;
-  if (image.dtype !== 'float32') {
-    castedData = cast({backend, inputs: {x: image}, attrs: {dtype: 'float32'}});
-    imagesData = backend.dataIdMap.get(castedData.dataId);
+  final cropHeight = cropSize[0];
+  final cropWidth = cropSize[1];
+  final outShape = [numBoxes, cropHeight, cropWidth, image.shape[3]];
+
+  var imagesData = backend.dataIdMap.get(image.dataId)!;
+  TensorInfo? castedData;
+  if (image.dtype != 'float32') {
+    castedData = cast(
+        backend: backend, inputs: {'x': image}, attrs: {'dtype': 'float32'});
+    imagesData = backend.dataIdMap.get(castedData.dataId)!;
   }
 
-  const imagesId = imagesData.id;
-  const boxesId = backend.dataIdMap.get(boxes.dataId).id;
-  const boxIndId = backend.dataIdMap.get(boxInd.dataId).id;
+  final imagesId = imagesData.id;
+  final boxesId = backend.dataIdMap.get(boxes.dataId)!.id;
+  final boxIndId = backend.dataIdMap.get(boxInd.dataId)!.id;
 
-  const out = backend.makeOutput(outShape, 'float32');
-  const outId = backend.dataIdMap.get(out.dataId).id;
+  final out = backend.makeOutput(outShape, 'float32');
+  final outId = backend.dataIdMap.get(out.dataId)!.id;
 
-  const imagesShapeBytes = new Uint8Array(new Int32Array(image.shape).buffer);
+  final imagesShapeBytes =
+      Uint8List.view(Int32List.fromList(image.shape).buffer);
 
-  wasmCropAndResize(
-      imagesId, boxesId, boxIndId, numBoxes, imagesShapeBytes, cropHeight,
-      cropWidth,
-      InterpolationMethod[method as {} as keyof typeof InterpolationMethod],
-      extrapolationValue, outId);
+  _wasmCropAndResize([
+    imagesId,
+    boxesId,
+    boxIndId,
+    numBoxes,
+    imagesShapeBytes,
+    cropHeight,
+    cropWidth,
+    InterpolationMethod.values.byName(method).index,
+    extrapolationValue,
+    outId
+  ]);
 
   if (castedData != null) {
     backend.disposeData(castedData.dataId);
@@ -90,9 +110,9 @@ function cropAndResize(args: {
   return out;
 }
 
-export const cropAndResizeConfig: KernelConfig = {
+final cropAndResizeConfig = KernelConfigG(
   kernelName: CropAndResize,
   backendName: 'wasm',
-  setupFunc: setup,
-  kernelFunc: cropAndResize as {} as KernelFunc
-};
+  setupFunc: _setup,
+  kernelFunc: cropAndResize,
+);
