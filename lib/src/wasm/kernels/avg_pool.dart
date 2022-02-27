@@ -15,81 +15,101 @@
  * =============================================================================
  */
 
-import {AvgPool, AvgPoolAttrs, AvgPoolInputs, backend_util, KernelConfig, KernelFunc, Tensor4D} from '@tensorflow/tfjs-core';
+import '_prelude.dart';
+import 'package:tensorflow_wasm/backend_util.dart' as backend_util;
 
-import {BackendWasm} from '../backend_wasm';
+// import {AvgPool, AvgPoolAttrs, AvgPoolInputs, backend_util, KernelConfig, KernelFunc, Tensor4D} from '@tensorflow/tfjs-core';
 
-let wasmAvgPool: (
-    xId: number, batchSize: number, inputHeight: number, inputWidth: number,
-    filterHeight: number, filterWidth: number, padTop: number, padRight: number,
-    padBottom: number, padLeft: number, strideHeight: number,
-    strideWidth: number, channels: number, outId: number) => void;
+// import {BackendWasm} from '../backend_wasm';
 
-function setup(backend: BackendWasm) {
-  wasmAvgPool = backend.wasm.cwrap(AvgPool, null /* void */, [
-    'number',  // xId
-    'number',  // batchSize
-    'number',  // inputHeight
-    'number',  // inputWidth
-    'number',  // filterHeight
-    'number',  // filterWidth
-    'number',  // padTop
-    'number',  // padRight
-    'number',  // padBottom
-    'number',  // padLeft
-    'number',  // strideHeight
-    'number',  // strideWidth
-    'number',  // channels
-    'number',  // outId
+late final Function(List) _wasmAvgPool;
+// : (
+//     xId: number, batchSize: number, inputHeight: number, inputWidth: number,
+//     filterHeight: number, filterWidth: number, padTop: number, padRight: number,
+//     padBottom: number, padLeft: number, strideHeight: number,
+//     strideWidth: number, channels: number, outId: number) => void;
+
+void _setup(BackendWasm backend) {
+  _wasmAvgPool = backend.wasm.cwrap(AvgPool, null /* void */, [
+    'number', // xId
+    'number', // batchSize
+    'number', // inputHeight
+    'number', // inputWidth
+    'number', // filterHeight
+    'number', // filterWidth
+    'number', // padTop
+    'number', // padRight
+    'number', // padBottom
+    'number', // padLeft
+    'number', // strideHeight
+    'number', // strideWidth
+    'number', // channels
+    'number', // outId
   ]);
 }
 
-function avgPool(
-    args: {inputs: AvgPoolInputs, backend: BackendWasm, attrs: AvgPoolAttrs}) {
-  const {inputs, attrs, backend} = args;
+TensorInfo avgPool({
+  required NamedTensorInfoMap inputs,
+  required BackendWasm backend,
+  NamedAttrMap? attrs,
+}) {
+  final x = inputs['x']! as Tensor4D;
+  final xId = backend.dataIdMap.get(x.dataId)!.id;
 
-  const x = inputs.x as Tensor4D;
-  const xId = backend.dataIdMap.get(x.dataId).id;
+  final filterSize = attrs!['filterSize'] as List<int>;
+  final strides = attrs['strides'] as List<int>;
+  final pad = attrs['pad'] as Object;
+  final dimRoundingMode = attrs['dimRoundingMode'] as String?;
 
-  const {filterSize, strides, pad, dimRoundingMode} = attrs;
-  const convInfo = backend_util.computePool2DInfo(
-      x.shape, filterSize, strides, 1 /* dilations */, pad, dimRoundingMode);
+  final convInfo = backend_util.computePool2DInfo(x.shape, filterSize, strides,
+      [1, 1] /* dilations */, pad, dimRoundingMode);
 
-  const filterHeight = convInfo.filterHeight;
-  const filterWidth = convInfo.filterWidth;
-  const padTop = convInfo.padInfo.top;
-  const padRight = convInfo.padInfo.right;
-  const padBottom = convInfo.padInfo.bottom;
-  const padLeft = convInfo.padInfo.left;
-  const strideHeight = convInfo.strideHeight;
-  const strideWidth = convInfo.strideWidth;
-  const channels = convInfo.inChannels;
+  final filterHeight = convInfo.filterHeight;
+  final filterWidth = convInfo.filterWidth;
+  final padTop = convInfo.padInfo.top;
+  final padRight = convInfo.padInfo.right;
+  final padBottom = convInfo.padInfo.bottom;
+  final padLeft = convInfo.padInfo.left;
+  final strideHeight = convInfo.strideHeight;
+  final strideWidth = convInfo.strideWidth;
+  final channels = convInfo.inChannels;
 
-  if (convInfo.dataFormat !== 'channelsLast') {
-    throw new Error(
-        `wasm backend does not support dataFormat:'` +
-        `${convInfo.dataFormat}'. Please use 'channelsLast'.`);
+  if (convInfo.dataFormat != 'channelsLast') {
+    throw Exception("wasm backend does not support dataFormat:'" +
+        "${convInfo.dataFormat}'. Please use 'channelsLast'.");
   }
 
-  if (convInfo.dilationWidth !== 1 || convInfo.dilationHeight !== 1) {
-    throw new Error(
-        `was backend only supports average pooling with dilation = [1, 1], ` +
-        `got [${convInfo.dilationHeight}, ${convInfo.dilationWidth}].`);
+  if (convInfo.dilationWidth != 1 || convInfo.dilationHeight != 1) {
+    throw Exception(
+        "was backend only supports average pooling with dilation = [1, 1], " +
+            "got [${convInfo.dilationHeight}, ${convInfo.dilationWidth}].");
   }
 
-  const out = backend.makeOutput(convInfo.outShape, 'float32');
-  const outId = backend.dataIdMap.get(out.dataId).id;
+  final out = backend.makeOutput(convInfo.outShape, 'float32');
+  final outId = backend.dataIdMap.get(out.dataId)!.id;
 
-  wasmAvgPool(
-      xId, x.shape[0], x.shape[1], x.shape[2], filterHeight, filterWidth,
-      padTop, padRight, padBottom, padLeft, strideHeight, strideWidth, channels,
-      outId);
+  _wasmAvgPool([
+    xId,
+    x.shape[0],
+    x.shape[1],
+    x.shape[2],
+    filterHeight,
+    filterWidth,
+    padTop,
+    padRight,
+    padBottom,
+    padLeft,
+    strideHeight,
+    strideWidth,
+    channels,
+    outId
+  ]);
   return out;
 }
 
-export const avgPoolConfig: KernelConfig = {
+final avgPoolConfig = KernelConfigG(
   kernelName: AvgPool,
   backendName: 'wasm',
-  setupFunc: setup,
-  kernelFunc: avgPool as {} as KernelFunc
-};
+  setupFunc: _setup,
+  kernelFunc: avgPool,
+);

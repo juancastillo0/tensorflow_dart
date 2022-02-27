@@ -3,6 +3,7 @@ import 'package:tensorflow_wasm/src/wasm/kernels/add_n.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/all.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/any.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/arg_max.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/avg_pool.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/base_kernels.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/batch_mat_mul.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/batch_to_space_nd.dart';
@@ -23,6 +24,8 @@ import 'package:tensorflow_wasm/src/wasm/kernels/gather_v2.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/identity.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/leaky_relu.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/max.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/max_pool.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/mean.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/mirror_pad.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/non_max_suppression_v3.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/non_max_suppression_v4.dart';
@@ -146,9 +149,9 @@ void registerAllKernels() {
     preluConfig,
     reverseConfig,
     stepConfig,
-    // Mean
-    // AvgPool
-    // MaxPool
+    meanConfig,
+    avgPoolConfig,
+    maxPoolConfig,
 
     // Conv2D
     // Conv2DBackpropInput

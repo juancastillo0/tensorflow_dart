@@ -15,37 +15,51 @@
  * =============================================================================
  */
 
-import {backend_util, KernelConfig, KernelFunc, Mean, MeanAttrs, MeanInputs, TensorInfo, util} from '@tensorflow/tfjs-core';
+// import {backend_util, KernelConfig, KernelFunc, Mean, MeanAttrs, MeanInputs, TensorInfo, util} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
-import {cast} from './Cast';
+// import {BackendWasm} from '../backend_wasm';
+// import {cast} from './Cast';
 
-import {permuteAxesAndTranspose} from './kernel_utils';
+// import {permuteAxesAndTranspose} from './kernel_utils';
 
-let wasmMean: (xId: number, reduceSize: number, outId: number) => void;
+import '_prelude.dart';
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
+import 'package:tensorflow_wasm/backend_util.dart' as backend_util;
 
-function setup(backend: BackendWasm): void {
-  wasmMean =
+import 'cast.dart';
+import 'kernel_utils.dart';
+
+late final Function(List) _wasmMean;
+// : (xId: number, reduceSize: number, outId: number) => void;
+
+void _setup(BackendWasm backend) {
+  _wasmMean =
       backend.wasm.cwrap(Mean, null /*void*/, ['number, number, number']);
 }
 
-export function mean(
-    args: {backend: BackendWasm, inputs: MeanInputs, attrs: MeanAttrs}):
-    TensorInfo {
-  const {backend, inputs, attrs} = args;
-  const {axis, keepDims} = attrs;
-  const {x} = inputs;
-  const xId = backend.dataIdMap.get(x.dataId).id;
-  let inputId = xId;
-  let input = x;
+TensorInfo mean({
+  required BackendWasm backend,
+  required NamedTensorInfoMap inputs,
+  NamedAttrMap? attrs,
+}) {
+  final x = inputs['x']!;
+  final axis =
+      (attrs!['axis'] is int ? [attrs['axis']] : attrs['axis']) as List<int>;
+  final keepDims = attrs['keepDims'] as bool;
+  final xId = backend.dataIdMap.get(x.dataId)!.id;
+  var inputId = xId;
+  var input = x;
 
-  const {transposed, axes, originalAxes, inputWasTransposed} =
-      permuteAxesAndTranspose(x, axis, backend);
+  final _p = permuteAxesAndTranspose(x, axis, backend);
+  final transposed = _p.transposed;
+  final axes = _p.axes;
+  final originalAxes = _p.originalAxes;
+  final inputWasTransposed = _p.inputWasTransposed;
 
-  let reductionAxes = axes;
+  var reductionAxes = axes;
   if (inputWasTransposed) {
-    const transposedId = backend.dataIdMap.get(transposed.dataId).id;
-    if (transposedId !== xId) {
+    final transposedId = backend.dataIdMap.get(transposed!.dataId)!.id;
+    if (transposedId != xId) {
       // transpose was not a no-op. We will need to dispose of this
       // once we are done.
       input = transposed;
@@ -57,43 +71,45 @@ export function mean(
 
   backend_util.assertAxesAreInnerMostDims(
       'mean', reductionAxes, input.shape.length);
-  const [outShape, reduceShape] =
+  final _shapes =
       backend_util.computeOutAndReduceShapes(input.shape, reductionAxes);
-  const reduceSize = util.sizeFromShape(reduceShape);
-  let castedInput = input;
-  if (input.dtype !== 'float32') {
-    castedInput =
-        cast({backend, inputs: {x: input}, attrs: {dtype: 'float32'}});
-    inputId = backend.dataIdMap.get(castedInput.dataId).id;
+  final outShape = _shapes.outShape;
+  final reduceShape = _shapes.reduceShape;
+  final reduceSize = util.sizeFromShape(reduceShape);
+  var castedInput = input;
+  if (input.dtype != 'float32') {
+    castedInput = cast(
+        backend: backend, inputs: {'x': input}, attrs: {'dtype': 'float32'});
+    inputId = backend.dataIdMap.get(castedInput.dataId)!.id;
   }
 
-  const out = backend.makeOutput(outShape, 'float32');
-  if (util.sizeFromShape(input.shape) !== 0) {
-    const outId = backend.dataIdMap.get(out.dataId).id;
-    wasmMean(inputId, reduceSize, outId);
+  final out = backend.makeOutput(outShape, 'float32');
+  if (util.sizeFromShape(input.shape) != 0) {
+    final outId = backend.dataIdMap.get(out.dataId)!.id;
+    _wasmMean([inputId, reduceSize, outId]);
   }
 
   if (inputWasTransposed) {
     // dispose of the transposed tensor.
-    backend.disposeData(transposed.dataId);
+    backend.disposeData(transposed!.dataId);
+  }
+
+  if (input.dtype != 'float32') {
+    backend.disposeData(castedInput.dataId);
   }
 
   if (keepDims) {
     // reshape
-    const newShape = backend_util.expandShapeToKeepDim(out.shape, originalAxes);
-    out.shape = newShape;
-  }
-
-  if (input.dtype !== 'float32') {
-    backend.disposeData(castedInput.dataId);
+    final newShape = backend_util.expandShapeToKeepDim(out.shape, originalAxes);
+    return copyTensorInfo(out, shape: newShape);
   }
 
   return out;
 }
 
-export const meanConfig: KernelConfig = {
+final meanConfig = KernelConfigG(
   kernelName: Mean,
   backendName: 'wasm',
-  setupFunc: setup,
-  kernelFunc: mean as {} as KernelFunc
-};
+  setupFunc: _setup,
+  kernelFunc: mean,
+);

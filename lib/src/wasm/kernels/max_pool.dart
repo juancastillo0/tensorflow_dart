@@ -15,45 +15,51 @@
  * =============================================================================
  */
 
-import {backend_util, KernelConfig, KernelFunc, MaxPool, MaxPoolAttrs, MaxPoolInputs, Tensor4D, util} from '@tensorflow/tfjs-core';
+// import {backend_util, KernelConfig, KernelFunc, MaxPool, MaxPoolAttrs, MaxPoolInputs, Tensor4D, util} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-let wasmMaxPool: (
-    xId: number, batchSize: number, inputHeight: number, inputWidth: number,
-    filterHeight: number, filterWidth: number, padTop: number, padRight: number,
-    padBottom: number, padLeft: number, dilationHeight: number,
-    dilationWidth: number, strideHeight: number, strideWidth: number,
-    inputChannels: number, outputChannels: number, outId: number) => void;
+import '_prelude.dart';
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
+import 'package:tensorflow_wasm/backend_util.dart' as backend_util;
 
-function setup(backend: BackendWasm) {
-  wasmMaxPool = backend.wasm.cwrap(MaxPool, null /* void */, [
-    'number',  // xId
-    'number',  // batchSize
-    'number',  // inputHeight
-    'number',  // inputWidth
-    'number',  // filterHeight
-    'number',  // filterWidth
-    'number',  // padTop
-    'number',  // padRight
-    'number',  // padBottom
-    'number',  // padLeft
-    'number',  // dilationHeight
-    'number',  // dilationWidth
-    'number',  // strideHeight
-    'number',  // strideWidth
-    'number',  // inputChannels
-    'number',  // outputChannels
-    'number',  // outId
+late final Function(List) _wasmMaxPool;
+// : (
+//     xId: number, batchSize: number, inputHeight: number, inputWidth: number,
+//     filterHeight: number, filterWidth: number, padTop: number, padRight: number,
+//     padBottom: number, padLeft: number, dilationHeight: number,
+//     dilationWidth: number, strideHeight: number, strideWidth: number,
+//     inputChannels: number, outputChannels: number, outId: number) => void;
+
+void _setup(BackendWasm backend) {
+  _wasmMaxPool = backend.wasm.cwrap(MaxPool, null /* void */, [
+    'number', // xId
+    'number', // batchSize
+    'number', // inputHeight
+    'number', // inputWidth
+    'number', // filterHeight
+    'number', // filterWidth
+    'number', // padTop
+    'number', // padRight
+    'number', // padBottom
+    'number', // padLeft
+    'number', // dilationHeight
+    'number', // dilationWidth
+    'number', // strideHeight
+    'number', // strideWidth
+    'number', // inputChannels
+    'number', // outputChannels
+    'number', // outId
   ]);
 }
 
-function maxPool(
-    args: {inputs: MaxPoolInputs, backend: BackendWasm, attrs: MaxPoolAttrs}) {
-  const {inputs, attrs, backend} = args;
-
-  const x = inputs.x as Tensor4D;
-  const xId = backend.dataIdMap.get(x.dataId).id;
+TensorInfo maxPool({
+  required NamedTensorInfoMap inputs,
+  required BackendWasm backend,
+  NamedAttrMap? attrs,
+}) {
+  final x = inputs['x']! as Tensor4D;
+  final xId = backend.dataIdMap.get(x.dataId)!.id;
 
   // TF API supports int32 input. CPU and WebGL backend also support int32
   // input. WASM backend doesn't support it because it uses xnnpack which only
@@ -63,47 +69,65 @@ function maxPool(
   // level.
   //
   // TODO: add support for int32 input.
-  util.assert(
-      x.dtype === 'float32',
+  util.assert_(
+      x.dtype == 'float32',
       () =>
-          `Error in MaxPool: only float32 input is supported. Got ${x.dtype}.`);
+          "Error in MaxPool: only float32 input is supported. Got ${x.dtype}.");
 
-  const {filterSize, strides, pad, dimRoundingMode} = attrs;
-  const convInfo = backend_util.computePool2DInfo(
-      x.shape, filterSize, strides, 1 /* dilations */, pad, dimRoundingMode);
+  final filterSize = attrs!['filterSize'] as List<int>;
+  final strides = attrs['strides'] as List<int>;
+  final pad = attrs['pad'] as Object;
+  final dimRoundingMode = attrs['dimRoundingMode'] as String?;
 
-  const filterHeight = convInfo.filterHeight;
-  const filterWidth = convInfo.filterWidth;
-  const padTop = convInfo.padInfo.top;
-  const padRight = convInfo.padInfo.right;
-  const padBottom = convInfo.padInfo.bottom;
-  const padLeft = convInfo.padInfo.left;
-  const dilationHeight = convInfo.dilationHeight;
-  const dilationWidth = convInfo.dilationWidth;
-  const strideHeight = convInfo.strideHeight;
-  const strideWidth = convInfo.strideWidth;
-  const inputChannels = convInfo.inChannels;
-  const outputChannels = convInfo.outChannels;
+  final convInfo = backend_util.computePool2DInfo(x.shape, filterSize, strides,
+      [1, 1] /* dilations */, pad, dimRoundingMode);
 
-  if (convInfo.dataFormat !== 'channelsLast') {
-    throw new Error(
-        `wasm backend does not support dataFormat:'` +
-        `${convInfo.dataFormat}'. Please use 'channelsLast'.`);
+  final filterHeight = convInfo.filterHeight;
+  final filterWidth = convInfo.filterWidth;
+  final padTop = convInfo.padInfo.top;
+  final padRight = convInfo.padInfo.right;
+  final padBottom = convInfo.padInfo.bottom;
+  final padLeft = convInfo.padInfo.left;
+  final dilationHeight = convInfo.dilationHeight;
+  final dilationWidth = convInfo.dilationWidth;
+  final strideHeight = convInfo.strideHeight;
+  final strideWidth = convInfo.strideWidth;
+  final inputChannels = convInfo.inChannels;
+  final outputChannels = convInfo.outChannels;
+
+  if (convInfo.dataFormat != 'channelsLast') {
+    throw Exception("wasm backend does not support dataFormat:'" +
+        "${convInfo.dataFormat}'. Please use 'channelsLast'.");
   }
 
-  const out = backend.makeOutput(convInfo.outShape, 'float32');
-  const outId = backend.dataIdMap.get(out.dataId).id;
+  final out = backend.makeOutput(convInfo.outShape, 'float32');
+  final outId = backend.dataIdMap.get(out.dataId)!.id;
 
-  wasmMaxPool(
-      xId, x.shape[0], x.shape[1], x.shape[2], filterHeight, filterWidth,
-      padTop, padRight, padBottom, padLeft, dilationHeight, dilationWidth,
-      strideHeight, strideWidth, inputChannels, outputChannels, outId);
+  _wasmMaxPool([
+    xId,
+    x.shape[0],
+    x.shape[1],
+    x.shape[2],
+    filterHeight,
+    filterWidth,
+    padTop,
+    padRight,
+    padBottom,
+    padLeft,
+    dilationHeight,
+    dilationWidth,
+    strideHeight,
+    strideWidth,
+    inputChannels,
+    outputChannels,
+    outId
+  ]);
   return out;
 }
 
-export const maxPoolConfig: KernelConfig = {
+final maxPoolConfig = KernelConfigG(
   kernelName: MaxPool,
   backendName: 'wasm',
-  setupFunc: setup,
-  kernelFunc: maxPool as {} as KernelFunc
-};
+  setupFunc: _setup,
+  kernelFunc: maxPool,
+);
