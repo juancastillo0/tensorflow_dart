@@ -157,28 +157,40 @@ class Conv2DInfo {
 //       null /* roundingMode */, null /* depthWise */, $dataFormat);
 // }
 
-// export function computePool2DInfo(
-//     inShape: [number, number, number, number],
-//     filterSize: [number, number]|number, strides: number|[number, number],
-//     dilations: number|[number, number],
-//     pad: 'same'|'valid'|number|ExplicitPadding,
-//     roundingMode?: 'floor'|'round'|'ceil',
-//     dataFormat: 'channelsFirst'|'channelsLast' = 'channelsLast'): Conv2DInfo {
-//   const [filterHeight, filterWidth] = parseTupleParam(filterSize);
+Conv2DInfo computePool2DInfo(
+  List<int> inShape, // : [number, number, number, number],
+  List<int> filterSize, // : [number, number]|number,
+  List<int> strides, // : number|[number, number],
+  List<int> dilations, // : number|[number, number],
+  Object pad, // : 'same'|'valid'|number|ExplicitPadding,
+  [
+  String? roundingMode, //: 'floor'|'round'|'ceil',
+  dataFormat = 'channelsLast', //  'channelsFirst'|'channelsLast'
+]) {
+  final _p = parseTupleParam(filterSize);
+  final filterHeight = _p[0];
+  final filterWidth = _p[1];
 
-//   let filterShape: [number, number, number, number];
-//   if (dataFormat === 'channelsLast') {
-//     filterShape = [filterHeight, filterWidth, inShape[3], inShape[3]];
-//   } else if (dataFormat === 'channelsFirst') {
-//     filterShape = [filterHeight, filterWidth, inShape[1], inShape[1]];
-//   } else {
-//     throw Exception(`Unknown dataFormat ${dataFormat}`);
-//   }
+  final List<int> filterShape;
+  if (dataFormat == 'channelsLast') {
+    filterShape = [filterHeight, filterWidth, inShape[3], inShape[3]];
+  } else if (dataFormat == 'channelsFirst') {
+    filterShape = [filterHeight, filterWidth, inShape[1], inShape[1]];
+  } else {
+    throw Exception('Unknown dataFormat ${dataFormat}');
+  }
 
-//   return computeConv2DInfo(
-//       inShape, filterShape, strides, dilations, pad, roundingMode, false,
-//       dataFormat);
-// }
+  return computeConv2DInfo(
+    inShape,
+    filterShape,
+    strides,
+    dilations,
+    pad: pad,
+    roundingMode: roundingMode,
+    depthwise: false,
+    dataFormat: dataFormat,
+  );
+}
 
 // /**
 //  * Computes the information for a forward pass of a pooling3D operation.

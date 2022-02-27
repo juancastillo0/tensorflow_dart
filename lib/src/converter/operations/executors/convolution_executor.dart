@@ -15,306 +15,377 @@
  * =============================================================================
  */
 
-import {Rank, Tensor, Tensor3D, Tensor4D, Tensor5D} from '@tensorflow/tfjs-core';
-// tslint:disable-next-line: no-imports-from-dist
-import * as tfOps from '@tensorflow/tfjs-core/dist/ops/ops_for_converter';
+// import {Rank, Tensor, Tensor3D, Tensor4D, Tensor5D} from '@tensorflow/tfjs-core';
+// // tslint:disable-next-line: no-imports-from-dist
+// import * as tfOps from '@tensorflow/tfjs-core/dist/ops/ops_for_converter';
 
-import {NamedTensorsMap} from '../../data/types';
-import {ExecutionContext} from '../../executor/execution_context';
-import {InternalOpExecutor, Node} from '../types';
+// import {NamedTensorsMap} from '../../data/types';
+// import {ExecutionContext} from '../../executor/execution_context';
+// import {InternalOpExecutor, Node} from '../types';
 
-import {getPadding, getParamValue} from './utils';
+// import {getPadding, getParamValue} from './utils';
 
-function fusedConvAndDepthWiseParams(
-    node: Node, tensorMap: NamedTensorsMap, context: ExecutionContext) {
-  const [extraOp, activationFunc] =
-      (getParamValue('fusedOps', node, tensorMap, context) as string[]);
+import 'package:tensorflow_wasm/backend_util.dart';
+import 'package:tensorflow_wasm/tensorflow_wasm.dart' as tfOps;
+import '_prelude.dart';
 
-  const isBiasAdd = extraOp === 'biasadd';
-  const noBiasAdd = !isBiasAdd;
-  const isPrelu = activationFunc === 'prelu';
-  const isBatchNorm = extraOp === 'fusedbatchnorm';
+class _ConvParams {
+  final List<int> stride;
+  final Object pad;
+  final String dataFormat;
+  final List<int> dilations;
+  final Tensor? biasArg;
+  final Tensor preluArg;
+  final String activationFunc;
+  final double leakyreluAlpha;
 
-  const numArgs =
-      (getParamValue('numArgs', node, tensorMap, context) as number);
+  _ConvParams({
+    required this.stride,
+    required this.pad,
+    required this.dataFormat,
+    required this.dilations,
+    required this.biasArg,
+    required this.preluArg,
+    required this.activationFunc,
+    required this.leakyreluAlpha,
+  });
+}
+
+_ConvParams fusedConvAndDepthWiseParams(
+  Node node,
+  NamedTensorsMap tensorMap,
+  ExecutionContext context,
+) {
+  final params =
+      (getParamValue('fusedOps', node, tensorMap, context) as List<String>);
+  final extraOp = params[0];
+  final activationFunc = params[1];
+
+  final isBiasAdd = extraOp == 'biasadd';
+  final noBiasAdd = !isBiasAdd;
+  final isPrelu = activationFunc == 'prelu';
+  final isBatchNorm = extraOp == 'fusedbatchnorm';
+
+  final numArgs = (getParamValue('numArgs', node, tensorMap, context) as int);
   if (isBiasAdd) {
-    if (isPrelu && numArgs !== 2) {
-      throw new Error(
+    if (isPrelu && numArgs != 2) {
+      throw Exception(
           'FusedConv2d and DepthwiseConv2d with BiasAdd and Prelu ' +
-          'must have two extra arguments: bias and alpha.');
+              'must have two extra arguments: bias and alpha.');
     }
-    if (!isPrelu && isBiasAdd && numArgs !== 1) {
-      throw new Error(
+    if (!isPrelu && isBiasAdd && numArgs != 1) {
+      throw Exception(
           'FusedConv2d and DepthwiseConv2d with BiasAdd must have ' +
-          'one extra argument: bias.');
+              'one extra argument: bias.');
     }
   }
   if (isBatchNorm) {
-    throw new Error(
+    throw Exception(
         'FusedConv2d and DepthwiseConv2d with FusedBatchNorm is not supported');
   }
-  const stride = getParamValue('strides', node, tensorMap, context) as number[];
-  const pad = getPadding(node, tensorMap, context);
-  const dataFormat =
-      (getParamValue('dataFormat', node, tensorMap, context) as string)
+  final stride =
+      getParamValue('strides', node, tensorMap, context) as List<int>;
+  final pad = getPadding(node, tensorMap, context)!;
+  final dataFormat =
+      (getParamValue('dataFormat', node, tensorMap, context) as String)
           .toUpperCase();
-  const dilations =
-      getParamValue('dilations', node, tensorMap, context) as number[];
-  let [biasArg, preluArg] =
-      getParamValue('args', node, tensorMap, context) as Tensor[];
+  final dilations =
+      getParamValue('dilations', node, tensorMap, context) as List<int>;
+  final _a = getParamValue('args', node, tensorMap, context) as List<Tensor>;
+
+  Tensor? biasArg = _a[0];
+  Tensor preluArg = _a[1];
   if (noBiasAdd) {
     preluArg = biasArg;
-    biasArg = undefined;
+    biasArg = null;
   }
-  const leakyreluAlpha =
-      getParamValue('leakyreluAlpha', node, tensorMap, context) as number;
+  final leakyreluAlpha =
+      getParamValue('leakyreluAlpha', node, tensorMap, context) as double;
 
-  return {
-    stride,
-    pad,
-    dataFormat,
-    dilations,
-    biasArg,
-    preluArg,
-    activationFunc,
-    leakyreluAlpha
-  };
+  return _ConvParams(
+      stride: stride,
+      pad: pad,
+      dataFormat: dataFormat,
+      dilations: dilations,
+      biasArg: biasArg,
+      preluArg: preluArg,
+      activationFunc: activationFunc,
+      leakyreluAlpha: leakyreluAlpha);
 }
 
-export const executeOp: InternalOpExecutor =
-    (node: Node, tensorMap: NamedTensorsMap,
-     context: ExecutionContext): Tensor[] => {
-      switch (node.op) {
-        case 'Conv1D': {
-          const stride =
-              getParamValue('stride', node, tensorMap, context) as number;
-          const pad = getParamValue('pad', node, tensorMap, context);
-          const dataFormat =
-              (getParamValue('dataFormat', node, tensorMap, context) as string)
-                  .toUpperCase();
-          const dilation =
-              getParamValue('dilation', node, tensorMap, context) as number;
-          return [tfOps.conv1d(
-              getParamValue('x', node, tensorMap, context) as Tensor3D,
+List<Tensor> executeOp(
+  Node node,
+  NamedTensorsMap tensorMap,
+  ExecutionContext context,
+) {
+  switch (node.op) {
+    case 'Conv1D':
+      {
+        final stride = getParamValue('stride', node, tensorMap, context) as int;
+        final pad = getParamValue('pad', node, tensorMap, context)!;
+        final dataFormat =
+            (getParamValue('dataFormat', node, tensorMap, context) as String)
+                .toUpperCase();
+        final dilation =
+            getParamValue('dilation', node, tensorMap, context) as int;
+        return [
+          tfOps.conv1d(getParamValue('x', node, tensorMap, context) as Tensor3D,
               getParamValue('filter', node, tensorMap, context) as Tensor3D,
-              stride, pad as 'valid' | 'same', dataFormat as 'NWC' | 'NCW',
-              dilation)];
-        }
-        case 'Conv2D': {
-          const stride =
-              getParamValue('strides', node, tensorMap, context) as number[];
-          const pad = getPadding(node, tensorMap, context);
-          const dataFormat =
-              (getParamValue('dataFormat', node, tensorMap, context) as string)
-                  .toUpperCase();
-          const dilations =
-              getParamValue('dilations', node, tensorMap, context) as number[];
-          return [tfOps.conv2d(
-              getParamValue('x', node, tensorMap, context) as Tensor3D |
-                  Tensor4D,
-              getParamValue('filter', node, tensorMap, context) as Tensor4D,
-              [stride[1], stride[2]], pad as 'valid' | 'same',
-              dataFormat as 'NHWC' | 'NCHW', [dilations[1], dilations[2]])];
-        }
-        case '_FusedConv2D': {
-          const {
-            stride,
-            pad,
-            dataFormat,
-            dilations,
-            biasArg,
-            preluArg,
-            activationFunc,
-            leakyreluAlpha
-          } = fusedConvAndDepthWiseParams(node, tensorMap, context);
-
-          return [tfOps.fused.conv2d({
-            x: getParamValue('x', node, tensorMap, context) as Tensor3D |
-                Tensor4D,
-            filter: getParamValue('filter', node, tensorMap, context) as
-                Tensor4D,
-            strides: [stride[1], stride[2]],
-            pad: pad as 'valid' | 'same',
-            dataFormat: dataFormat as 'NHWC' | 'NCHW',
-            dilations: [dilations[1], dilations[2]],
-            bias: biasArg,
-            activation: activationFunc as tfOps.fused.Activation,
-            preluActivationWeights: preluArg,
-            leakyreluAlpha
-          })];
-        }
-
-        case 'FusedDepthwiseConv2dNative': {
-          const {
-            stride,
-            pad,
-            dataFormat,
-            dilations,
-            biasArg,
-            preluArg,
-            activationFunc,
-            leakyreluAlpha,
-          } = fusedConvAndDepthWiseParams(node, tensorMap, context);
-
-          return [tfOps.fused.depthwiseConv2d({
-            x: getParamValue('x', node, tensorMap, context) as Tensor3D |
-                Tensor4D,
-            filter: getParamValue('filter', node, tensorMap, context) as
-                Tensor4D,
-            strides: [stride[1], stride[2]],
-            pad: pad as 'valid' | 'same',
-            dataFormat: dataFormat as 'NHWC' | 'NCHW',
-            dilations: [dilations[1], dilations[2]],
-            bias: biasArg,
-            activation: activationFunc as tfOps.fused.Activation,
-            preluActivationWeights: preluArg,
-            leakyreluAlpha
-          })];
-        }
-        case 'Conv2DBackpropInput':
-        case 'Conv2dTranspose': {
-          const shape = getParamValue(
-                            'outputShape', node, tensorMap,
-                            context) as [number, number, number] |
-              [number, number, number, number];
-          const stride =
-              getParamValue('strides', node, tensorMap, context) as number[];
-          const pad = getPadding(node, tensorMap, context);
-          return [tfOps.conv2dTranspose(
-              getParamValue('x', node, tensorMap, context) as Tensor3D |
-                  Tensor4D,
-              getParamValue('filter', node, tensorMap, context) as Tensor4D,
-              shape, [stride[1], stride[2]], pad as 'valid' | 'same')];
-        }
-        case 'DepthwiseConv2dNative':
-        case 'DepthwiseConv2d': {
-          const stride =
-              getParamValue('strides', node, tensorMap, context) as number[];
-          const pad = getPadding(node, tensorMap, context);
-          const dilations =
-              getParamValue('dilations', node, tensorMap, context) as number[];
-          const dataFormat =
-              (getParamValue('dataFormat', node, tensorMap, context) as string)
-                  .toUpperCase();
-
-          return [tfOps.depthwiseConv2d(
-              getParamValue('input', node, tensorMap, context) as Tensor3D |
-                  Tensor4D,
-              getParamValue('filter', node, tensorMap, context) as Tensor4D,
-              [stride[1], stride[2]], pad as 'valid' | 'same',
-              dataFormat as 'NHWC' | 'NCHW', [dilations[1], dilations[2]])];
-        }
-        case 'Conv3D': {
-          const stride =
-              getParamValue('strides', node, tensorMap, context) as number[];
-          const pad = getParamValue('pad', node, tensorMap, context);
-          const dataFormat =
-              (getParamValue('dataFormat', node, tensorMap, context) as string)
-                  .toUpperCase();
-          const dilations =
-              getParamValue('dilations', node, tensorMap, context) as number[];
-          return [tfOps.conv3d(
-              getParamValue('x', node, tensorMap, context) as Tensor4D |
-                  Tensor<Rank.R5>,
-              getParamValue('filter', node, tensorMap, context) as
-                  Tensor<Rank.R5>,
-              [stride[1], stride[2], stride[3]], pad as 'valid' | 'same',
-              dataFormat as 'NDHWC' | 'NCDHW',
-              [dilations[1], dilations[2], dilations[3]])];
-        }
-        case 'AvgPool': {
-          const stride =
-              getParamValue('strides', node, tensorMap, context) as number[];
-          const pad = getParamValue('pad', node, tensorMap, context);
-          const kernelSize =
-              getParamValue('kernelSize', node, tensorMap, context) as number[];
-
-          return [tfOps.avgPool(
-              getParamValue('x', node, tensorMap, context) as Tensor3D |
-                  Tensor4D,
-              [kernelSize[1], kernelSize[2]], [stride[1], stride[2]],
-              pad as 'valid' | 'same')];
-        }
-        case 'MaxPool': {
-          const stride =
-              getParamValue('strides', node, tensorMap, context) as number[];
-          const pad = getParamValue('pad', node, tensorMap, context);
-          const kernelSize =
-              getParamValue('kernelSize', node, tensorMap, context) as number[];
-
-          return [tfOps.maxPool(
-              getParamValue('x', node, tensorMap, context) as Tensor3D |
-                  Tensor4D,
-              [kernelSize[1], kernelSize[2]], [stride[1], stride[2]],
-              pad as 'valid' | 'same')];
-        }
-        case 'MaxPoolWithArgmax': {
-          const stride =
-              getParamValue('strides', node, tensorMap, context) as number[];
-          const pad = getParamValue('pad', node, tensorMap, context);
-          const kernelSize =
-              getParamValue('kernelSize', node, tensorMap, context) as number[];
-          const includeBatchInIndex =
-              getParamValue('includeBatchInIndex', node, tensorMap, context) as
-              boolean;
-          const {result, indexes} = tfOps.maxPoolWithArgmax(
-              getParamValue('x', node, tensorMap, context) as Tensor4D,
-              [kernelSize[1], kernelSize[2]], [stride[1], stride[2]],
-              pad as 'valid' | 'same', includeBatchInIndex);
-          return [result, indexes];
-        }
-        case 'AvgPool3D': {
-          const stride =
-              getParamValue('strides', node, tensorMap, context) as number[];
-          const pad = getParamValue('pad', node, tensorMap, context);
-          const kernelSize =
-              getParamValue('kernelSize', node, tensorMap, context) as number[];
-
-          return [tfOps.avgPool3d(
-              getParamValue('x', node, tensorMap, context) as Tensor5D,
-              [kernelSize[1], kernelSize[2], kernelSize[3]],
-              [stride[1], stride[2], stride[3]], pad as 'valid' | 'same')];
-        }
-
-        case 'MaxPool3D': {
-          const stride =
-              getParamValue('strides', node, tensorMap, context) as number[];
-          const pad = getParamValue('pad', node, tensorMap, context);
-          const kernelSize =
-              getParamValue('kernelSize', node, tensorMap, context) as number[];
-
-          return [tfOps.maxPool3d(
-              getParamValue('x', node, tensorMap, context) as Tensor5D,
-              [kernelSize[1], kernelSize[2], kernelSize[3]],
-              [stride[1], stride[2], stride[3]], pad as 'valid' | 'same')];
-        }
-
-        case 'Dilation2D': {
-          const strides =
-              getParamValue('strides', node, tensorMap, context) as number[];
-          const pad = getParamValue('pad', node, tensorMap, context);
-          const dilations =
-              getParamValue('dilations', node, tensorMap, context) as number[];
-
-          // strides: [1, stride_height, stride_width, 1].
-          const strideHeight = strides[1];
-          const strideWidth = strides[2];
-
-          // dilations: [1, dilation_height, dilation_width, 1].
-          const dilationHeight = dilations[1];
-          const dilationWidth = dilations[2];
-
-          return [tfOps.dilation2d(
-              getParamValue('x', node, tensorMap, context) as Tensor3D |
-                  Tensor4D,
-              getParamValue('filter', node, tensorMap, context) as Tensor3D,
-              [strideHeight, strideWidth], pad as 'valid' | 'same',
-              [dilationHeight, dilationWidth], 'NHWC' /* dataFormat */)];
-        }
-
-        default:
-          throw TypeError(`Node type ${node.op} is not implemented`);
+              stride: stride,
+              pad: pad, // as 'valid' | 'same',
+              dataFormat: dataFormat, //  as 'NWC' | 'NCW',
+              dilation: dilation)
+        ];
       }
-    };
+    case 'Conv2D':
+      {
+        final stride =
+            getParamValue('strides', node, tensorMap, context) as List<int>;
+        final pad = getPadding(node, tensorMap, context)!;
+        final dataFormat =
+            (getParamValue('dataFormat', node, tensorMap, context) as String)
+                .toUpperCase();
+        final dilations =
+            getParamValue('dilations', node, tensorMap, context) as List<int>;
+        return [
+          tfOps.conv2d(
+            getParamValue('x', node, tensorMap, context)
+                as Tensor3D, //  |Tensor4D,
+            getParamValue('filter', node, tensorMap, context) as Tensor4D,
+            strides: [stride[1], stride[2]],
+            pad: pad, // as 'valid' | 'same',
+            dataFormat: dataFormat, // as 'NHWC' | 'NCHW',
+            dilations: [dilations[1], dilations[2]],
+          )
+        ];
+      }
+    case '_FusedConv2D':
+      {
+        final p = fusedConvAndDepthWiseParams(node, tensorMap, context);
 
-export const CATEGORY = 'convolution';
+        return [
+          tfOps.fused.conv2d(
+            x: getParamValue('x', node, tensorMap, context)
+                as Tensor3D, // |  Tensor4D,
+            filter:
+                getParamValue('filter', node, tensorMap, context) as Tensor4D,
+            strides: [p.stride[1], p.stride[2]],
+            pad: p.pad, // as 'valid' | 'same',
+            dataFormat: p.dataFormat, // as 'NHWC' | 'NCHW',
+            dilations: [p.dilations[1], p.dilations[2]],
+            bias: p.biasArg,
+            activation: Activation.values.byName(p.activationFunc),
+            preluActivationWeights: p.preluArg,
+            leakyreluAlpha: p.leakyreluAlpha,
+          )
+        ];
+      }
+
+    case 'FusedDepthwiseConv2dNative':
+      {
+        final p = fusedConvAndDepthWiseParams(node, tensorMap, context);
+
+        return [
+          tfOps.fused.depthwiseConv2d(
+              x: getParamValue('x', node, tensorMap, context)
+                  as Tensor3D, // |Tensor4D,
+              filter:
+                  getParamValue('filter', node, tensorMap, context) as Tensor4D,
+              strides: [p.stride[1], p.stride[2]],
+              pad: p.pad, // as 'valid' | 'same',
+              dataFormat: p.dataFormat, // as 'NHWC' | 'NCHW',
+              dilations: [p.dilations[1], p.dilations[2]],
+              bias: p.biasArg,
+              activation: Activation.values.byName(p.activationFunc),
+              preluActivationWeights: p.preluArg,
+              leakyreluAlpha: p.leakyreluAlpha)
+        ];
+      }
+    case 'Conv2DBackpropInput':
+    case 'Conv2dTranspose':
+      {
+        final shape =
+            getParamValue('outputShape', node, tensorMap, context) as List<int>;
+        final stride =
+            getParamValue('strides', node, tensorMap, context) as List<int>;
+        final pad = getPadding(node, tensorMap, context)!;
+        return [
+          tfOps.conv2dTranspose(
+            getParamValue('x', node, tensorMap, context)
+                as Tensor3D, // | Tensor4D,
+            getParamValue('filter', node, tensorMap, context) as Tensor4D,
+            outputShape: shape, strides: [stride[1], stride[2]],
+            pad: pad, //  as 'valid' | 'same'
+          )
+        ];
+      }
+    case 'DepthwiseConv2dNative':
+    case 'DepthwiseConv2d':
+      {
+        final stride =
+            getParamValue('strides', node, tensorMap, context) as List<int>;
+        final pad = getPadding(node, tensorMap, context)!;
+        final dilations =
+            getParamValue('dilations', node, tensorMap, context) as List<int>;
+        final dataFormat =
+            (getParamValue('dataFormat', node, tensorMap, context) as String)
+                .toUpperCase();
+
+        return [
+          tfOps.depthwiseConv2d(
+              getParamValue('input', node, tensorMap, context)
+                  as Tensor3D, // | Tensor4D,
+              getParamValue('filter', node, tensorMap, context) as Tensor4D,
+              strides: [stride[1], stride[2]],
+              pad: pad, // as 'valid' | 'same',
+              dataFormat: dataFormat, // as 'NHWC' | 'NCHW',
+              dilations: [dilations[1], dilations[2]])
+        ];
+      }
+    case 'Conv3D':
+      {
+        final stride =
+            getParamValue('strides', node, tensorMap, context) as List<int>;
+        final pad = getParamValue('pad', node, tensorMap, context);
+        final dataFormat =
+            (getParamValue('dataFormat', node, tensorMap, context) as String)
+                .toUpperCase();
+        final dilations =
+            getParamValue('dilations', node, tensorMap, context) as List<int>;
+        return [
+          tfOps.conv3d(
+              getParamValue('x', node, tensorMap, context)
+                  as Tensor4D, // | Tensor<Rank.R5>,
+              getParamValue('filter', node, tensorMap, context) as Tensor5D,
+              [stride[1], stride[2], stride[3]],
+              pad, //as 'valid' | 'same',
+              dataFormat, // as 'NDHWC' | 'NCDHW',
+              [dilations[1], dilations[2], dilations[3]])
+        ];
+      }
+    case 'AvgPool':
+      {
+        final stride =
+            getParamValue('strides', node, tensorMap, context) as List<int>;
+        final pad = getParamValue('pad', node, tensorMap, context)!;
+        final kernelSize =
+            getParamValue('kernelSize', node, tensorMap, context) as List<int>;
+
+        return [
+          tfOps.avgPool(
+            getParamValue('x', node, tensorMap, context)
+                as Tensor3D, // | Tensor4D,
+            filterSize: [kernelSize[1], kernelSize[2]],
+            strides: [stride[1], stride[2]],
+            pad: pad, // as 'valid' | 'same'
+          )
+        ];
+      }
+    case 'MaxPool':
+      {
+        final stride =
+            getParamValue('strides', node, tensorMap, context) as List<int>;
+        final pad = getParamValue('pad', node, tensorMap, context)!;
+        final kernelSize =
+            getParamValue('kernelSize', node, tensorMap, context) as List<int>;
+
+        return [
+          tfOps.maxPool(
+            getParamValue('x', node, tensorMap, context)
+                as Tensor3D, //| Tensor4D,
+            filterSize: [kernelSize[1], kernelSize[2]],
+            strides: [stride[1], stride[2]],
+            pad: pad, // as 'valid' | 'same'
+          )
+        ];
+      }
+    case 'MaxPoolWithArgmax':
+      {
+        final stride =
+            getParamValue('strides', node, tensorMap, context) as List<int>;
+        final pad = getParamValue('pad', node, tensorMap, context);
+        final kernelSize =
+            getParamValue('kernelSize', node, tensorMap, context) as List<int>;
+        final includeBatchInIndex =
+            getParamValue('includeBatchInIndex', node, tensorMap, context)
+                as bool;
+        final p = tfOps.maxPoolWithArgmax(
+            getParamValue('x', node, tensorMap, context) as Tensor4D,
+            [kernelSize[1], kernelSize[2]],
+            [stride[1], stride[2]],
+            pad //as 'valid' | 'same'
+            ,
+            includeBatchInIndex);
+
+        return [p.result, p.indexes];
+      }
+    case 'AvgPool3D':
+      {
+        final stride =
+            getParamValue('strides', node, tensorMap, context) as List<int>;
+        final pad = getParamValue('pad', node, tensorMap, context);
+        final kernelSize =
+            getParamValue('kernelSize', node, tensorMap, context) as List<int>;
+
+        return [
+          tfOps.avgPool3d(
+              getParamValue('x', node, tensorMap, context) as Tensor5D,
+              [kernelSize[1], kernelSize[2], kernelSize[3]],
+              [stride[1], stride[2], stride[3]],
+              pad // as 'valid' | 'same'
+              )
+        ];
+      }
+
+    case 'MaxPool3D':
+      {
+        final stride =
+            getParamValue('strides', node, tensorMap, context) as List<int>;
+        final pad = getParamValue('pad', node, tensorMap, context);
+        final kernelSize =
+            getParamValue('kernelSize', node, tensorMap, context) as List<int>;
+
+        return [
+          tfOps.maxPool3d(
+              getParamValue('x', node, tensorMap, context) as Tensor5D,
+              [kernelSize[1], kernelSize[2], kernelSize[3]],
+              [stride[1], stride[2], stride[3]],
+              pad // as 'valid' | 'same'
+              )
+        ];
+      }
+
+    case 'Dilation2D':
+      {
+        final strides =
+            getParamValue('strides', node, tensorMap, context) as List<int>;
+        final pad = getParamValue('pad', node, tensorMap, context);
+        final dilations =
+            getParamValue('dilations', node, tensorMap, context) as List<int>;
+
+        // strides: [1, stride_height, stride_width, 1].
+        final strideHeight = strides[1];
+        final strideWidth = strides[2];
+
+        // dilations: [1, dilation_height, dilation_width, 1].
+        final dilationHeight = dilations[1];
+        final dilationWidth = dilations[2];
+
+        return [
+          tfOps.dilation2d(
+              getParamValue('x', node, tensorMap, context)
+                  as Tensor3D, //| Tensor4D,
+              getParamValue('filter', node, tensorMap, context) as Tensor3D,
+              [strideHeight, strideWidth],
+              pad, // as 'valid' | 'same',
+              [dilationHeight, dilationWidth],
+              'NHWC' /* dataFormat */)
+        ];
+      }
+
+    default:
+      throw StateError('Node type ${node.op} is not implemented');
+  }
+}
+
+const CATEGORY = 'convolution';
