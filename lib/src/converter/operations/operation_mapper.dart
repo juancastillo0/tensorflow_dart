@@ -15,474 +15,501 @@
  * =============================================================================
  */
 
-import {DataType, env} from '@tensorflow/tfjs-core';
+// import {DataType, env} from '@tensorflow/tfjs-core';
 
-import * as tensorflow from '../data/compiled_api';
+// import * as tensorflow from '../data/compiled_api';
 
-import {getRegisteredOp} from './custom_op/register';
-import {getNodeNameAndIndex} from './executors/utils';
-import * as arithmetic from './op_list/arithmetic';
-import * as basicMath from './op_list/basic_math';
-import * as control from './op_list/control';
-import * as convolution from './op_list/convolution';
-import * as creation from './op_list/creation';
-import * as dynamic from './op_list/dynamic';
-import * as evaluation from './op_list/evaluation';
-import * as graph from './op_list/graph';
-import * as hashTable from './op_list/hash_table';
-import * as image from './op_list/image';
-import * as logical from './op_list/logical';
-import * as matrices from './op_list/matrices';
-import * as normalization from './op_list/normalization';
-import * as reduction from './op_list/reduction';
-import * as sliceJoin from './op_list/slice_join';
-import * as sparse from './op_list/sparse';
-import * as spectral from './op_list/spectral';
-import * as string from './op_list/string';
-import * as transformation from './op_list/transformation';
-import {Graph, InputParamValue, Node, OpMapper, ParamValue} from './types';
+// import {getRegisteredOp} from './custom_op/register';
+// import {getNodeNameAndIndex} from './executors/utils';
+import './op_list/arithmetic.dart' as arithmetic;
+import './op_list/basic_math.dart' as basicMath;
+import './op_list/control.dart' as control;
+import './op_list/convolution.dart' as convolution;
+import './op_list/creation.dart' as creation;
+import './op_list/dynamic.dart' as dynamic_;
+import './op_list/evaluation.dart' as evaluation;
+import './op_list/graph.dart' as graph;
+import './op_list/hash_table.dart' as hashTable;
+import './op_list/image.dart' as image;
+import './op_list/logical.dart' as logical;
+import './op_list/matrices.dart' as matrices;
+import './op_list/normalization.dart' as normalization;
+import './op_list/reduction.dart' as reduction;
+import './op_list/slice_join.dart' as sliceJoin;
+import './op_list/sparse.dart' as sparse;
+import './op_list/spectral.dart' as spectral;
+import './op_list/string.dart' as string;
+import './op_list/transformation.dart' as transformation;
+// import {Graph, InputParamValue, Node, OpMapper, ParamValue} from './types';
 
-export class OperationMapper {
-  private static _instance: OperationMapper;
+import 'dart:convert' show base64, utf8;
 
-  private opMappers: {[key: string]: OpMapper};
+import 'package:collection/collection.dart';
+import 'package:tensorflow_wasm/src/tensor.dart';
+
+import 'custom_op/register.dart';
+import 'executors/utils.dart';
+import 'types.dart';
+import '../data/compiled_api.dart' as tensorflow;
+
+class OperationMapper {
+  static OperationMapper? _instance;
+
+  late final Map<String, OpMapper> opMappers;
 
   // Singleton instance for the mapper
-  public static get Instance() {
-    return this._instance || (this._instance = new this());
+  static OperationMapper get Instance {
+    return _instance ?? (_instance = OperationMapper._());
   }
 
   // Loads the op mapping from the JSON file.
-  private constructor() {
+  OperationMapper._() {
     const ops = [
-      arithmetic, basicMath, control, convolution, creation, dynamic,
-      evaluation, graph, hashTable, image, logical, matrices, normalization,
-      reduction, sliceJoin, sparse, spectral, string, transformation
+      arithmetic.opMappers,
+      basicMath.opMappers,
+      control.opMappers,
+      convolution.opMappers,
+      creation.opMappers,
+      dynamic_.opMappers,
+      evaluation.opMappers,
+      graph.opMappers,
+      hashTable.opMappers,
+      image.opMappers,
+      logical.opMappers,
+      matrices.opMappers,
+      normalization.opMappers,
+      reduction.opMappers,
+      sliceJoin.opMappers,
+      sparse.opMappers,
+      spectral.opMappers,
+      string.opMappers,
+      transformation.opMappers,
     ];
-    const mappersJson: OpMapper[] = [].concat(...ops.map(op => op.json));
+    final List<OpMapper> mappersJson = [...ops.expand((op) => op)];
 
-    this.opMappers = mappersJson.reduce<{[key: string]: OpMapper}>(
-        (map, mapper: OpMapper) => {
-          map[mapper.tfOpName] = mapper;
-          return map;
-        },
-        {});
+    this.opMappers = mappersJson.fold<Map<String, OpMapper>>({}, (map, mapper) {
+      map[mapper.tfOpName] = mapper;
+      return map;
+    });
   }
 
   // Converts the model inference graph from Tensorflow GraphDef to local
   // representation for TensorFlow.js API
-  transformGraph(
-      graph: tensorflow.IGraphDef,
-      signature: tensorflow.ISignatureDef = {}): Graph {
-    const tfNodes = graph.node;
-    const placeholders: Node[] = [];
-    const weights: Node[] = [];
-    const initNodes: Node[] = [];
-    const nodes = tfNodes.reduce<{[key: string]: Node}>((map, node) => {
-      map[node.name] = this.mapNode(node);
-      if (node.op.startsWith('Placeholder')) {
-        placeholders.push(map[node.name]);
-      } else if (node.op === 'Const') {
-        weights.push(map[node.name]);
-      } else if (node.input == null || node.input.length === 0) {
-        initNodes.push(map[node.name]);
+  Graph transformGraph(
+    tensorflow.IGraphDef graph, [
+    tensorflow.ISignatureDef? signature,
+  ]) {
+    final tfNodes = graph.node!;
+    final List<Node> placeholders = [];
+    final List<Node> weights = [];
+    final List<Node> initNodes = [];
+    final nodes = tfNodes.fold<Map<String, Node>>({}, (map, node) {
+      final nodeName = node.name!;
+      final n = this._mapNode(node);
+      map[nodeName] = n;
+      if (node.op?.startsWith('Placeholder') == true) {
+        placeholders.add(n);
+      } else if (node.op == 'Const') {
+        weights.add(n);
+      } else if (node.input == null || node.input!.length == 0) {
+        initNodes.add(n);
       }
       return map;
-    }, {});
+    });
 
-    let inputs: Node[] = [];
-    const outputs: Node[] = [];
-    let inputNodeNameToKey: {[key: string]: string} = {};
-    let outputNodeNameToKey: {[key: string]: string} = {};
+    List<Node> inputs = [];
+    final List<Node> outputs = [];
+    Map<String, String> inputNodeNameToKey = {};
+    Map<String, String> outputNodeNameToKey = {};
     if (signature != null) {
-      inputNodeNameToKey = this.mapSignatureEntries(signature.inputs);
-      outputNodeNameToKey = this.mapSignatureEntries(signature.outputs);
+      inputNodeNameToKey = this._mapSignatureEntries(signature.inputs);
+      outputNodeNameToKey = this._mapSignatureEntries(signature.outputs);
     }
-    const allNodes = Object.keys(nodes);
-    allNodes.forEach(key => {
-      const node = nodes[key];
-      node.inputNames.forEach((name, index) => {
-        const [nodeName, , outputName] = getNodeNameAndIndex(name);
-        const inputNode = nodes[nodeName];
+    final allNodes = nodes.keys;
+    allNodes.forEach((key) {
+      final node = nodes[key]!;
+      node.inputNames.forEachIndexed((index, name) {
+        final n = getNodeNameAndIndex(name);
+        final nodeName = n.nodeName;
+        final inputNode = nodes[nodeName]!;
         if (inputNode.outputs != null) {
-          const outputIndex = inputNode.outputs.indexOf(outputName);
-          if (outputIndex !== -1) {
-            const inputName = `${nodeName}:${outputIndex}`;
+          final outputIndex = inputNode.outputs!.indexOf(n.outputName!);
+          if (outputIndex != -1) {
+            final inputName = '${nodeName}:${outputIndex}';
             // update the input name to use the mapped output index directly.
             node.inputNames[index] = inputName;
           }
         }
-        node.inputs.push(inputNode);
-        inputNode.children.push(node);
+        node.inputs.add(inputNode);
+        inputNode.children.add(node);
       });
     });
 
     // if signature has not outputs set, add any node that does not have
     // outputs.
-    if (Object.keys(outputNodeNameToKey).length === 0) {
-      allNodes.forEach(key => {
-        const node = nodes[key];
-        if (node.children.length === 0) {
-          outputs.push(node);
+    if (outputNodeNameToKey.length == 0) {
+      allNodes.forEach((key) {
+        final node = nodes[key]!;
+        if (node.children.length == 0) {
+          outputs.add(node);
         }
       });
     } else {
-      Object.keys(outputNodeNameToKey).forEach(name => {
-        const [nodeName, ] = getNodeNameAndIndex(name);
-        const node = nodes[nodeName];
+      outputNodeNameToKey.keys.forEach((name) {
+        final n = getNodeNameAndIndex(name);
+        final node = nodes[n.nodeName];
         if (node != null) {
           node.signatureKey = outputNodeNameToKey[name];
-          outputs.push(node);
+          outputs.add(node);
         }
       });
     }
 
-    if (Object.keys(inputNodeNameToKey).length > 0) {
-      Object.keys(inputNodeNameToKey).forEach(name => {
-        const [nodeName, ] = getNodeNameAndIndex(name);
-        const node = nodes[nodeName];
-        if (node) {
+    if (inputNodeNameToKey.length > 0) {
+      inputNodeNameToKey.keys.forEach((name) {
+        final n = getNodeNameAndIndex(name);
+        final node = nodes[n.nodeName];
+        if (node != null) {
           node.signatureKey = inputNodeNameToKey[name];
-          inputs.push(node);
+          inputs.add(node);
         }
       });
     } else {
       inputs = placeholders;
     }
 
-    let functions = {};
-    if (graph.library != null && graph.library.function != null) {
-      functions = graph.library.function.reduce((functions, func) => {
-        functions[func.signature.name] = this.mapFunction(func);
+    Map<String, Graph> functions = {};
+    if (graph.library?.function != null) {
+      functions = graph.library!.function!.fold<Map<String, Graph>>({},
+          (functions, func) {
+        functions[func.signature!.name!] = this._mapFunction(func);
         return functions;
-      }, {} as {[key: string]: Graph});
+      });
     }
 
-    const result: Graph =
-        {nodes, inputs, outputs, weights, placeholders, signature, functions};
-
-    if (initNodes.length > 0) {
-      result.initNodes = initNodes;
-    }
+    final result = Graph(
+      nodes: nodes,
+      inputs: inputs,
+      outputs: outputs,
+      weights: weights,
+      placeholders: placeholders,
+      signature: signature,
+      functions: functions,
+      initNodes: initNodes.isNotEmpty ? initNodes : null,
+    );
 
     return result;
   }
 
-  private mapSignatureEntries(entries: {[k: string]: tensorflow.ITensorInfo}) {
-    return Object.keys(entries || {})
-        .reduce<{[key: string]: string}>((prev, curr) => {
-          prev[entries[curr].name] = curr;
-          return prev;
-        }, {});
+  Map<String, String> _mapSignatureEntries(
+      Map<String, tensorflow.ITensorInfo>? entries) {
+    return (entries ?? {}).entries.fold<Map<String, String>>({}, (prev, entry) {
+      prev[entry.value.name!] = entry.key;
+      return prev;
+    });
   }
 
-  private mapNode(node: tensorflow.INodeDef): Node {
+  Node _mapNode(tensorflow.INodeDef node) {
     // Unsupported ops will cause an error at run-time (not parse time), since
     // they may not be used by the actual execution subgraph.
-    const mapper =
-        getRegisteredOp(node.op) || this.opMappers[node.op] || {} as OpMapper;
-    if (node.attr == null) {
-      node.attr = {};
-    }
+    final mapper =
+        getRegisteredOp(node.op!) ?? this.opMappers[node.op] ?? {} as OpMapper;
 
-    const newNode: Node = {
-      name: node.name,
-      op: node.op,
-      category: mapper.category,
-      inputNames:
-          (node.input ||
-           []).map(input => input.startsWith('^') ? input.substr(1) : input),
+    node.attr ??= {};
+
+    final attr = node.attr!;
+
+    final newNode = Node(
+      name: node.name!,
+      op: node.op!,
+      category: mapper.category!,
+      inputNames: (node.input ?? [])
+          .map((input) => input.startsWith('^') ? input.substring(1) : input)
+          .toList(),
       inputs: [],
       children: [],
-      inputParams: {},
-      attrParams: {},
       rawAttrs: node.attr,
-      outputs: mapper.outputs
-    };
-
-    if (mapper.inputs != null) {
-      newNode.inputParams =
-          mapper.inputs.reduce<{[key: string]: InputParamValue}>(
-              (map, param) => {
-                map[param.name] = {
+      outputs: mapper.outputs,
+      inputParams: mapper.inputs == null
+          ? {}
+          : mapper.inputs!.fold<Map<String, InputParamValue>>({}, (map, param) {
+              map[param.name] = InputParamValue(
                   type: param.type,
                   inputIndexStart: param.start,
-                  inputIndexEnd: param.end
-                };
-                return map;
-              },
-              {});
-    }
-    if (mapper.attrs != null) {
-      newNode.attrParams =
-          mapper.attrs.reduce<{[key: string]: ParamValue}>((map, param) => {
-            const type = param.type;
-            let value = undefined;
-            switch (param.type) {
-              case 'string':
-                value = getStringParam(
-                    node.attr, param.tfName, param.defaultValue as string);
-
-                if (value === undefined && !!param.tfDeprecatedName) {
+                  inputIndexEnd: param.end);
+              return map;
+            }),
+      attrParams: mapper.attrs == null
+          ? {}
+          : mapper.attrs!.fold<Map<String, ParamValue>>({}, (map, param) {
+              final type = param.type;
+              final tfName = param.tfName!;
+              Object? value;
+              switch (param.type) {
+                case 'string':
                   value = getStringParam(
-                      node.attr, param.tfDeprecatedName,
-                      param.defaultValue as string);
-                }
-                break;
-              case 'string[]':
-                value = getStringArrayParam(
-                    node.attr, param.tfName, param.defaultValue as string[]);
+                      attr, tfName, param.defaultValue as String);
 
-                if (value === undefined && !!param.tfDeprecatedName) {
+                  if (value == null && param.tfDeprecatedName != null) {
+                    value = getStringParam(attr, param.tfDeprecatedName!,
+                        param.defaultValue as String);
+                  }
+                  break;
+                case 'string[]':
                   value = getStringArrayParam(
-                      node.attr, param.tfDeprecatedName,
-                      param.defaultValue as string[]);
-                }
-                break;
-              case 'number':
-                value = getNumberParam(
-                    node.attr, param.tfName,
-                    (param.defaultValue || 0) as number);
-                if (value === undefined && !!param.tfDeprecatedName) {
+                      attr, tfName, param.defaultValue as List<String>);
+
+                  if (value == null && param.tfDeprecatedName != null) {
+                    value = getStringArrayParam(attr, param.tfDeprecatedName!,
+                        param.defaultValue as List<String>);
+                  }
+                  break;
+                case 'number':
                   value = getNumberParam(
-                      node.attr, param.tfDeprecatedName,
-                      param.defaultValue as number);
-                }
-                break;
-              case 'number[]':
-                value = getNumericArrayParam(
-                    node.attr, param.tfName, param.defaultValue as number[]);
-                if (value === undefined && !!param.tfDeprecatedName) {
+                      attr, tfName, (param.defaultValue ?? 0) as int);
+                  if (value == null && param.tfDeprecatedName != null) {
+                    value = getNumberParam(attr, param.tfDeprecatedName!,
+                        param.defaultValue as int);
+                  }
+                  break;
+                case 'number[]':
                   value = getNumericArrayParam(
-                      node.attr, param.tfDeprecatedName,
-                      param.defaultValue as number[]);
-                }
-                break;
-              case 'bool':
-                value = getBoolParam(
-                    node.attr, param.tfName, param.defaultValue as boolean);
-                if (value === undefined && !!param.tfDeprecatedName) {
-                  value = getBoolParam(
-                      node.attr, param.tfDeprecatedName,
-                      param.defaultValue as boolean);
-                }
-                break;
-              case 'bool[]':
-                value = getBoolArrayParam(
-                    node.attr, param.tfName, param.defaultValue as boolean[]);
-                if (value === undefined && !!param.tfDeprecatedName) {
+                      attr, tfName, param.defaultValue as List<num>);
+                  if (value == null && param.tfDeprecatedName != null) {
+                    value = getNumericArrayParam(attr, param.tfDeprecatedName!,
+                        param.defaultValue as List<num>);
+                  }
+                  break;
+                case 'bool':
+                  value =
+                      getBoolParam(attr, tfName, param.defaultValue as bool);
+                  if (value == null && param.tfDeprecatedName != null) {
+                    value = getBoolParam(attr, param.tfDeprecatedName!,
+                        param.defaultValue as bool);
+                  }
+                  break;
+                case 'bool[]':
                   value = getBoolArrayParam(
-                      node.attr, param.tfDeprecatedName,
-                      param.defaultValue as boolean[]);
-                }
-                break;
-              case 'shape':
-                value = getTensorShapeParam(
-                    node.attr, param.tfName, param.defaultValue as number[]);
-                if (value === undefined && !!param.tfDeprecatedName) {
+                      attr, tfName, param.defaultValue as List<bool>);
+                  if (value == null && param.tfDeprecatedName != null) {
+                    value = getBoolArrayParam(attr, param.tfDeprecatedName!,
+                        param.defaultValue as List<bool>);
+                  }
+                  break;
+                case 'shape':
                   value = getTensorShapeParam(
-                      node.attr, param.tfDeprecatedName,
-                      param.defaultValue as number[]);
-                }
-                break;
-              case 'shape[]':
-                value = getTensorShapeArrayParam(
-                    node.attr, param.tfName, param.defaultValue as number[][]);
-                if (value === undefined && !!param.tfDeprecatedName) {
+                      attr, tfName, param.defaultValue as List<int>);
+                  if (value == null && param.tfDeprecatedName != null) {
+                    value = getTensorShapeParam(attr, param.tfDeprecatedName!,
+                        param.defaultValue as List<int>);
+                  }
+                  break;
+                case 'shape[]':
                   value = getTensorShapeArrayParam(
-                      node.attr, param.tfDeprecatedName,
-                      param.defaultValue as number[][]);
-                }
-                break;
-              case 'dtype':
-                value = getDtypeParam(
-                    node.attr, param.tfName, param.defaultValue as DataType);
-                if (value === undefined && !!param.tfDeprecatedName) {
+                      attr, tfName, param.defaultValue as List<List<int>>);
+                  if (value == null && param.tfDeprecatedName != null) {
+                    value = getTensorShapeArrayParam(
+                        attr,
+                        param.tfDeprecatedName!,
+                        param.defaultValue as List<List<int>>);
+                  }
+                  break;
+                case 'dtype':
                   value = getDtypeParam(
-                      node.attr, param.tfDeprecatedName,
-                      param.defaultValue as DataType);
-                }
-                break;
-              case 'dtype[]':
-                value = getDtypeArrayParam(
-                    node.attr, param.tfName, param.defaultValue as DataType[]);
-                if (value === undefined && !!param.tfDeprecatedName) {
+                      attr, tfName, param.defaultValue as DataType);
+                  if (value == null && param.tfDeprecatedName != null) {
+                    value = getDtypeParam(attr, param.tfDeprecatedName!,
+                        param.defaultValue as DataType);
+                  }
+                  break;
+                case 'dtype[]':
                   value = getDtypeArrayParam(
-                      node.attr, param.tfDeprecatedName,
-                      param.defaultValue as DataType[]);
-                }
-                break;
-              case 'func':
-                value = getFuncParam(
-                    node.attr, param.tfName, param.defaultValue as string);
-                if (value === undefined && !!param.tfDeprecatedName) {
-                  value = getFuncParam(
-                      node.attr, param.tfDeprecatedName,
-                      param.defaultValue as string);
-                }
-                break;
-              case 'tensor':
-              case 'tensors':
-                break;
-              default:
-                throw new Error(
-                    `Unsupported param type: ${param.type} for op: ${node.op}`);
-            }
-            map[param.name] = {value, type};
-            return map;
-          }, {});
-    }
+                      attr, tfName, param.defaultValue as List<DataType>);
+                  if (value == null && param.tfDeprecatedName != null) {
+                    value = getDtypeArrayParam(attr, param.tfDeprecatedName!,
+                        param.defaultValue as List<DataType>);
+                  }
+                  break;
+                case 'func':
+                  value =
+                      getFuncParam(attr, tfName, param.defaultValue as String);
+                  if (value == null && param.tfDeprecatedName != null) {
+                    value = getFuncParam(attr, param.tfDeprecatedName!,
+                        param.defaultValue as String);
+                  }
+                  break;
+                case 'tensor':
+                case 'tensors':
+                  break;
+                default:
+                  throw Exception(
+                      'Unsupported param type: ${param.type} for op: ${node.op}');
+              }
+              map[param.name] = ParamValue(value: value, type: type);
+              return map;
+            }),
+    );
     return newNode;
   }
 
   // map the TFunctionDef to TFJS graph object
-  private mapFunction(functionDef: tensorflow.IFunctionDef): Graph {
-    const tfNodes = functionDef.nodeDef;
-    const placeholders: Node[] = [];
-    const weights: Node[] = [];
-    let nodes: {[key: string]: Node} = {};
+  Graph _mapFunction(tensorflow.IFunctionDef functionDef) {
+    final tfNodes = functionDef.nodeDef;
+    final List<Node> placeholders = [];
+    final List<Node> weights = [];
+    Map<String, Node> nodes = {};
     if (tfNodes != null) {
-      nodes = tfNodes.reduce<{[key: string]: Node}>((map, node) => {
-        map[node.name] = this.mapNode(node);
-        if (node.op === 'Const') {
-          weights.push(map[node.name]);
+      nodes = tfNodes.fold<Map<String, Node>>({}, (map, node) {
+        map[node.name!] = this._mapNode(node);
+        if (node.op == 'Const') {
+          weights.add(map[node.name!]!);
         }
         return map;
-      }, {});
+      });
     }
-    const inputs: Node[] = [];
-    const outputs: Node[] = [];
+    final List<Node> inputs = [];
+    final List<Node> outputs = [];
 
-    functionDef.signature.inputArg.forEach(arg => {
-      const [nodeName, ] = getNodeNameAndIndex(arg.name);
-      const node: Node = {
-        name: nodeName,
+    functionDef.signature!.inputArg!.forEach((arg) {
+      final n = getNodeNameAndIndex(arg.name!);
+      final node = Node(
+        name: n.nodeName,
         op: 'Placeholder',
         inputs: [],
         inputNames: [],
         category: 'graph',
         inputParams: {},
-        attrParams: {dtype: {value: parseDtypeParam(arg.type), type: 'dtype'}},
-        children: []
-      };
+        attrParams: {
+          'dtype': ParamValue(value: parseDtypeParam(arg.type!), type: 'dtype')
+        },
+        children: [],
+      );
       node.signatureKey = arg.name;
-      inputs.push(node);
-      nodes[nodeName] = node;
+      inputs.add(node);
+      nodes[n.nodeName] = node;
     });
 
-    const allNodes = Object.keys(nodes);
-    allNodes.forEach(key => {
-      const node = nodes[key];
-      node.inputNames.forEach((name, index) => {
-        const [nodeName, , outputName] = getNodeNameAndIndex(name);
-        const inputNode = nodes[nodeName];
+    nodes.keys.forEach((key) {
+      final node = nodes[key]!;
+      node.inputNames.forEachIndexed((index, name) {
+        final n = getNodeNameAndIndex(name);
+        final nodeName = n.nodeName;
+        final inputNode = nodes[nodeName]!;
         if (inputNode.outputs != null) {
-          const outputIndex = inputNode.outputs.indexOf(outputName);
-          if (outputIndex !== -1) {
-            const inputName = `${nodeName}:${outputIndex}`;
+          final outputIndex = inputNode.outputs!.indexOf(n.outputName!);
+          if (outputIndex != -1) {
+            final inputName = '${nodeName}:${outputIndex}';
             // update the input name to use the mapped output index directly.
             node.inputNames[index] = inputName;
           }
         }
-        node.inputs.push(inputNode);
-        inputNode.children.push(node);
+        node.inputs.add(inputNode);
+        inputNode.children.add(node);
       });
     });
 
-    const returnNodeMap = functionDef.ret;
+    final returnNodeMap = functionDef.ret;
 
-    functionDef.signature.outputArg.forEach(output => {
-      const [nodeName, index] = getNodeNameAndIndex(returnNodeMap[output.name]);
-      const node = nodes[nodeName];
+    functionDef.signature!.outputArg!.forEach((output) {
+      final n = getNodeNameAndIndex(returnNodeMap![output.name]!);
+      final node = nodes[n.nodeName];
       if (node != null) {
-        node.defaultOutput = index;
-        outputs.push(node);
+        node.defaultOutput = n.index;
+        outputs.add(node);
       }
     });
 
-    const signature = this.mapArgsToSignature(functionDef);
-    return {nodes, inputs, outputs, weights, placeholders, signature};
+    final signature = this._mapArgsToSignature(functionDef);
+    return Graph(
+      nodes: nodes,
+      inputs: inputs,
+      outputs: outputs,
+      weights: weights,
+      placeholders: placeholders,
+      signature: signature,
+    );
   }
 
-  private mapArgsToSignature(functionDef: tensorflow.IFunctionDef):
-      tensorflow.ISignatureDef {
-    return {
-      methodName: functionDef.signature.name,
-      inputs: functionDef.signature.inputArg.reduce(
-          (map, arg) => {
-            map[arg.name] = this.mapArgToTensorInfo(arg);
-            return map;
-          },
-          {} as {[key: string]: tensorflow.ITensorInfo}),
-      outputs: functionDef.signature.outputArg.reduce(
-          (map, arg) => {
-            map[arg.name] = this.mapArgToTensorInfo(arg, functionDef.ret);
-            return map;
-          },
-          {} as {[key: string]: tensorflow.ITensorInfo}),
-    };
+  tensorflow.ISignatureDef _mapArgsToSignature(
+      tensorflow.IFunctionDef functionDef) {
+    return tensorflow.ISignatureDef(
+      methodName: functionDef.signature?.name,
+      inputs: functionDef.signature!.inputArg!
+          .fold<Map<String, tensorflow.ITensorInfo>>({}, (map, arg) {
+        map[arg.name!] = this._mapArgToTensorInfo(arg, null);
+        return map;
+      }),
+      outputs: functionDef.signature!.outputArg!
+          .fold<Map<String, tensorflow.ITensorInfo>>({}, (map, arg) {
+        map[arg.name!] = this._mapArgToTensorInfo(arg, functionDef.ret);
+        return map;
+      }),
+    );
   }
 
-  private mapArgToTensorInfo(
-      arg: tensorflow.OpDef.IArgDef,
-      nameMap?: {[key: string]: string}): tensorflow.ITensorInfo {
-    let name = arg.name;
+  tensorflow.ITensorInfo _mapArgToTensorInfo(
+      tensorflow.OpDef_IArgDef arg, Map<String, String>? nameMap) {
+    var name = arg.name;
     if (nameMap != null) {
       name = nameMap[name];
     }
-    return {name, dtype: arg.type};
+    return tensorflow.ITensorInfo(name: name, dtype: arg.type);
   }
 }
 
-export function decodeBase64(text: string): string {
-  const global = env().global;
-  if (typeof global.atob !== 'undefined') {
-    return global.atob(text);
-  } else if (typeof Buffer !== 'undefined') {
-    return new Buffer(text, 'base64').toString();
-  } else {
-    throw new Error(
-        'Unable to decode base64 in this environment. ' +
-        'Missing built-in atob() or Buffer()');
-  }
+String decodeBase64(String text) {
+  return utf8.decode(base64.decode(text));
+  // final global = env().global;
+  // if (typeof global.atob != 'undefined') {
+  //   return global.atob(text);
+  // } else if (typeof Buffer != 'undefined') {
+  //   return new Buffer(text, 'base64').toString();
+  // } else {
+  //   throw Exception(
+  //       'Unable to decode base64 in this environment. ' +
+  //       'Missing built-in atob() or Buffer()');
+  // }
 }
 
-export function parseStringParam(s: []|string, keepCase: boolean): string {
-  const value =
-      Array.isArray(s) ? String.fromCharCode.apply(null, s) : decodeBase64(s);
+String parseStringParam(
+  String s, //: []|string
+  bool keepCase,
+) {
+  final value =
+      s is List ? String.fromCharCodes(s as List<int>) : decodeBase64(s);
   return keepCase ? value : value.toLowerCase();
 }
 
-export function getStringParam(
-    attrs: {[key: string]: tensorflow.IAttrValue}, name: string, def: string,
-    keepCase = false): string {
-  const param = attrs[name];
-  if (param != null) {
-    return parseStringParam(param.s, keepCase);
+String getStringParam(
+  Map<String, tensorflow.IAttrValue> attrs,
+  String name,
+  String def, {
+  bool keepCase = false,
+}) {
+  final param = attrs[name];
+  if (param?.s != null) {
+    return parseStringParam(param!.s!, keepCase);
   }
   return def;
 }
 
-export function getBoolParam(
-    attrs: {[key: string]: tensorflow.IAttrValue}, name: string,
-    def: boolean): boolean {
-  const param = attrs[name];
-  return param ? param.b : def;
+bool getBoolParam(
+    Map<String, tensorflow.IAttrValue> attrs, String name, bool def) {
+  final param = attrs[name];
+  return param?.b ?? def;
 }
 
-export function getNumberParam(
-    attrs: {[key: string]: tensorflow.IAttrValue}, name: string,
-    def: number): number {
-  const param = attrs[name] || {};
-  const value =
-      param['i'] != null ? param['i'] : (param['f'] != null ? param['f'] : def);
-  return (typeof value === 'number') ? value : parseInt(value, 10);
+int getNumberParam(
+    Map<String, tensorflow.IAttrValue> attrs, String name, int def) {
+  final param = attrs[name];
+  final value = param?.i ?? param?.f ?? def;
+  return value is int ? value : int.parse(value as String);
 }
 
-export function parseDtypeParam(value: string|tensorflow.DataType): DataType {
-  if (typeof (value) === 'string') {
+DataType? parseDtypeParam(tensorflow.DataType value) {
+  if (value is String) {
     // tslint:disable-next-line:no-any
-    value = tensorflow.DataType[value as any];
+    value = tensorflow.DataType.values.byName(value as String);
   }
   switch (value) {
     case tensorflow.DataType.DT_FLOAT:
@@ -506,102 +533,91 @@ export function parseDtypeParam(value: string|tensorflow.DataType): DataType {
   }
 }
 
-export function getFuncParam(
-    attrs: {[key: string]: tensorflow.IAttrValue}, name: string,
-    def: string): string {
-  const param = attrs[name];
-  if (param && param.func) {
-    return param.func.name;
+String getFuncParam(
+    Map<String, tensorflow.IAttrValue> attrs, String name, String def) {
+  final param = attrs[name];
+  return param?.func?.name ?? def;
+}
+
+DataType? getDtypeParam(
+    Map<String, tensorflow.IAttrValue> attrs, String name, DataType def) {
+  final param = attrs[name];
+  if (param?.type != null) {
+    return parseDtypeParam(param!.type!);
   }
   return def;
 }
 
-export function getDtypeParam(
-    attrs: {[key: string]: tensorflow.IAttrValue}, name: string,
-    def: DataType): DataType {
-  const param = attrs[name];
-  if (param && param.type) {
-    return parseDtypeParam(param.type);
+List<DataType> getDtypeArrayParam(
+    Map<String, tensorflow.IAttrValue> attrs, String name, List<DataType> def) {
+  final param = attrs[name];
+  if (param?.list?.type != null) {
+    return param!.list!.type!.map((v) => parseDtypeParam(v)!).toList();
   }
   return def;
 }
 
-export function getDtypeArrayParam(
-    attrs: {[key: string]: tensorflow.IAttrValue}, name: string,
-    def: DataType[]): DataType[] {
-  const param = attrs[name];
-  if (param && param.list && param.list.type) {
-    return param.list.type.map(v => parseDtypeParam(v));
-  }
-  return def;
-}
-
-export function parseTensorShapeParam(shape: tensorflow.ITensorShape): number[]|
-    undefined {
-  if (shape.unknownRank) {
-    return undefined;
+List<int>? parseTensorShapeParam(tensorflow.ITensorShape shape) {
+  if (shape.unknownRank == true) {
+    return null;
   }
   if (shape.dim != null) {
-    return shape.dim.map(
-        dim =>
-            (typeof dim.size === 'number') ? dim.size : parseInt(dim.size, 10));
+    return shape.dim!
+        .map<int>((dim) =>
+            (dim.size is int) ? dim.size as int : int.parse(dim.size as String))
+        .toList();
   }
   return [];
 }
 
-export function getTensorShapeParam(
-    attrs: {[key: string]: tensorflow.IAttrValue}, name: string,
-    def?: number[]): number[]|undefined {
-  const param = attrs[name];
-  if (param && param.shape) {
-    return parseTensorShapeParam(param.shape);
+List<int>? getTensorShapeParam(
+    Map<String, tensorflow.IAttrValue> attrs, String name, List<int>? def) {
+  final param = attrs[name];
+  if (param != null && param.shape != null) {
+    return parseTensorShapeParam(param.shape!);
   }
   return def;
 }
 
-export function getNumericArrayParam(
-    attrs: {[key: string]: tensorflow.IAttrValue}, name: string,
-    def: number[]): number[] {
-  const param = attrs[name];
-  if (param) {
-    return ((param.list.f && param.list.f.length ? param.list.f :
-                                                   param.list.i) ||
+List<num> getNumericArrayParam(
+    Map<String, tensorflow.IAttrValue> attrs, String name, List<num> def) {
+  final paramList = attrs[name]?.list;
+  if (paramList != null) {
+    return ((paramList.f != null && paramList.f!.isNotEmpty
+                ? paramList.f
+                : paramList.i) ??
             [])
-        .map(v => (typeof v === 'number') ? v : parseInt(v, 10));
+        .map<num>((v) => v is num ? v : int.parse(v as String))
+        .toList();
   }
   return def;
 }
 
-export function getStringArrayParam(
-    attrs: {[key: string]: tensorflow.IAttrValue}, name: string, def: string[],
-    keepCase = false): string[] {
-  const param = attrs[name];
-  if (param && param.list && param.list.s) {
-    return param.list.s.map((v) => {
+List<String> getStringArrayParam(
+    Map<String, tensorflow.IAttrValue> attrs, String name, List<String> def,
+    {bool keepCase = false}) {
+  final param = attrs[name];
+  if (param?.list?.s != null) {
+    return param!.list!.s!.map((v) {
       return parseStringParam(v, keepCase);
-    });
+    }).toList();
   }
   return def;
 }
 
-export function getTensorShapeArrayParam(
-    attrs: {[key: string]: tensorflow.IAttrValue}, name: string,
-    def: number[][]): number[][] {
-  const param = attrs[name];
-  if (param && param.list && param.list.shape) {
-    return param.list.shape.map((v) => {
-      return parseTensorShapeParam(v);
-    });
-  }
-  return def;
+List<List<int>> getTensorShapeArrayParam(
+    Map<String, tensorflow.IAttrValue> attrs,
+    String name,
+    List<List<int>> def) {
+  final param = attrs[name];
+  return param?.list?.shape?.map((v) {
+        return parseTensorShapeParam(v)!;
+      }).toList() ??
+      def;
 }
 
-export function getBoolArrayParam(
-    attrs: {[key: string]: tensorflow.IAttrValue}, name: string,
-    def: boolean[]): boolean[] {
-  const param = attrs[name];
-  if (param && param.list && param.list.b) {
-    return param.list.b;
-  }
-  return def;
+List<bool> getBoolArrayParam(
+    Map<String, tensorflow.IAttrValue> attrs, String name, List<bool> def) {
+  final param = attrs[name];
+  return param?.list?.b ?? def;
 }
