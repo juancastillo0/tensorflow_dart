@@ -453,7 +453,7 @@ class ISignatureDef {
   /** SignatureDef methodName */
   final String? methodName;
 
-  ISignatureDef({
+  const ISignatureDef({
     this.inputs,
     this.outputs,
     this.methodName,

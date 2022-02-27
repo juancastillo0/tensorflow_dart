@@ -47,22 +47,35 @@ class ParamMapper {
   final ValueType? defaultValue;
   final bool? notSupported;
 
-  ParamMapper({
+  const ParamMapper({
     required this.name,
     required this.type,
     this.defaultValue,
     this.notSupported,
   });
 
-  ParamMapper.fromModel(ParamMapper mapper)
-      : name = mapper.name,
-        notSupported = mapper.notSupported,
-        defaultValue = mapper.defaultValue,
-        type = mapper.type;
+  const factory ParamMapper.fromModel(ParamMapper mapper) = _ParamMapperWrap;
+}
+
+class _ParamMapperWrap implements ParamMapper {
+  const _ParamMapperWrap(this.mapper);
+  final ParamMapper mapper;
+
+  @override
+  ValueType? get defaultValue => mapper.defaultValue;
+
+  @override
+  String get name => mapper.name;
+
+  @override
+  bool? get notSupported => mapper.notSupported;
+
+  @override
+  ParamType get type => mapper.type;
 }
 
 // For mapping the input of TensorFlow NodeDef into TensorFlow.js Op param.
-class InputParamMapper extends ParamMapper {
+class InputParamMapper extends _ParamMapperWrap {
   // The first number is the starting index of the param, the second number is
   // the length of the param. If the length value is positive number, it
   // represents the true length of the param. Otherwise, it represents a
@@ -88,25 +101,26 @@ class InputParamMapper extends ParamMapper {
   // inncludes through to the end of the sequence (arr.length).
   final int? end;
 
-  InputParamMapper({
+  const InputParamMapper({
     required this.start,
     this.end,
     required ParamMapper mapper,
-  }) : super.fromModel(mapper);
+  }) : super(mapper);
 }
 
 // For mapping the attributes of TensorFlow NodeDef into TensorFlow.js op param.
-class AttrParamMapper extends ParamMapper {
+class AttrParamMapper extends _ParamMapperWrap {
   // TensorFlow attribute name, this should be set if the tensorflow attribute
   // name is different form the tensorflow.js name.
   final String? tfName;
   // TensorFlow deprecated attribute name, this is used to support old models.
   final String? tfDeprecatedName;
-  AttrParamMapper({
+
+  const AttrParamMapper({
     this.tfName,
     this.tfDeprecatedName,
     required ParamMapper mapper,
-  }) : super.fromModel(mapper);
+  }) : super(mapper);
 }
 
 abstract class InternalOpExecutor {
@@ -135,7 +149,7 @@ class OpMapper {
   final List<String>? outputs;
   final OpExecutor? customExecutor;
 
-  OpMapper({
+  const OpMapper({
     required this.tfOpName,
     this.category,
     this.inputs,
@@ -146,7 +160,7 @@ class OpMapper {
 }
 
 class Node {
-  final String? signatureKey;
+  String? signatureKey;
   final String name;
   final String op;
   final Category category;
@@ -156,7 +170,7 @@ class Node {
   final Map<String, ParamValue> attrParams;
   final List<Node> children;
   final Map<String, tensorflow.IAttrValue>? rawAttrs;
-  final int? defaultOutput;
+  int? defaultOutput;
   final List<String>? outputs;
 
   Node({
