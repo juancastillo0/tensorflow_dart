@@ -23,6 +23,8 @@
 // import {scalar} from '../scalar';
 // import {tensor1d} from '../tensor1d';
 
+
+import 'image.dart';
 import '../_prelude.dart';
 import '../scalar.dart';
 import '../tensor.dart';
@@ -51,11 +53,13 @@ import 'non_max_util.dart';
  *
  * @doc {heading: 'Operations', subheading: 'Images', namespace: 'image'}
  */
-Future<NamedTensorMap> nonMaxSuppressionPaddedAsync(
+Future<NmsPadded> nonMaxSuppressionPaddedAsync(
     Tensor2D boxes, Tensor1D scores,
-    int maxOutputSize, {double iouThreshold = 0.5,
-    double  scoreThreshold = double.negativeInfinity,
+    int maxOutputSize, {double? iouThreshold = image.defaultIouThreshold,
+    double? scoreThreshold = image.defaultScoreThreshold,
     bool padToMaxOutputSize = false,}) async{
+      iouThreshold ??= image.defaultIouThreshold;
+      scoreThreshold ??= image.defaultScoreThreshold;
   final $boxes = convertToTensor(boxes, 'boxes', 'nonMaxSuppressionAsync');
   final $scores = convertToTensor(scores, 'scores', 'nonMaxSuppressionAsync');
 
@@ -83,8 +87,8 @@ Future<NamedTensorMap> nonMaxSuppressionPaddedAsync(
     $scores.dispose();
   }
 
-  return {
-    'selectedIndices': tensor1d(selectedIndices, 'int32'),
-    'validOutputs': scalar(validOutputs, 'int32')
-  };
+  return NmsPadded(
+    selectedIndices: tensor1d(selectedIndices, 'int32'),
+    validOutputs: scalar(validOutputs, 'int32')
+  );
 }

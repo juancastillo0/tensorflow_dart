@@ -25,6 +25,7 @@
 import '../_prelude.dart';
 import '../tensor.dart';
 import 'non_max_util.dart';
+import 'image.dart';
 
 /**
  * Asynchronously performs non maximum suppression of bounding boxes based on
@@ -55,11 +56,15 @@ import 'non_max_util.dart';
  *
  * @doc {heading: 'Operations', subheading: 'Images', namespace: 'image'}
  */
-Future<NamedTensorMap> nonMaxSuppressionWithScoreAsync(
+Future<NmsWithScore> nonMaxSuppressionWithScoreAsync(
     Tensor2D boxes, Tensor1D scores,
-    int maxOutputSize, {double iouThreshold = 0.5,
-    double scoreThreshold = double.negativeInfinity,
-    double softNmsSigma = 0.0,}) async {
+    int maxOutputSize, {double? iouThreshold =  image.defaultIouThreshold,
+    double? scoreThreshold = image.defaultScoreThreshold,
+    double? softNmsSigma = image.defaultSoftNmsSigma,}) async {
+      iouThreshold ??= image.defaultIouThreshold;
+      scoreThreshold ??= image.defaultScoreThreshold;
+      softNmsSigma ??= image.defaultSoftNmsSigma;
+
   final $boxes = convertToTensor(boxes, 'boxes', 'nonMaxSuppressionAsync');
   final $scores = convertToTensor(scores, 'scores', 'nonMaxSuppressionAsync');
 
@@ -89,8 +94,8 @@ Future<NamedTensorMap> nonMaxSuppressionWithScoreAsync(
     $scores.dispose();
   }
 
-  return {
-    'selectedIndices': tensor1d(selectedIndices, 'int32'),
-    'selectedScores': tensor1d(selectedScores)
-  };
+  return NmsWithScore(
+    selectedIndices: tensor1d(selectedIndices, 'int32'),
+    selectedScores: tensor1d(selectedScores)
+  );
 }

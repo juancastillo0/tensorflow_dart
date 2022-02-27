@@ -28,6 +28,7 @@
 
 import '../_prelude.dart';
 import 'non_max_util.dart';
+import 'image.dart';
 
 /**
  * Performs non maximum suppression of bounding boxes based on
@@ -58,20 +59,24 @@ import 'non_max_util.dart';
  *
  * @doc {heading: 'Operations', subheading: 'Images', namespace: 'image'}
  */
-NamedTensorMap nonMaxSuppressionWithScore(
+NmsWithScore nonMaxSuppressionWithScore(
   Tensor2D boxes,
   Tensor1D scores,
   int maxOutputSize, {
-  double iouThreshold = 0.5,
-  double scoreThreshold = double.negativeInfinity,
-  double softNmsSigma = 0.0,
+  double? iouThreshold = image.defaultIouThreshold,
+  double? scoreThreshold = image.defaultScoreThreshold,
+  double? softNmsSigma = image.defaultSoftNmsSigma,
 }) {
   return execOp('nonMaxSuppressionWithScore', () {
+    iouThreshold ??= image.defaultIouThreshold;
+    scoreThreshold ??= image.defaultScoreThreshold;
+    softNmsSigma ??= image.defaultSoftNmsSigma;
+
     final $boxes = convertToTensor(boxes, 'boxes', 'nonMaxSuppression');
     final $scores = convertToTensor(scores, 'scores', 'nonMaxSuppression');
 
     final params = nonMaxSuppSanityCheck($boxes, $scores, maxOutputSize,
-        iouThreshold, scoreThreshold, softNmsSigma);
+        iouThreshold!, scoreThreshold!, softNmsSigma);
     maxOutputSize = params.maxOutputSize;
     iouThreshold = params.iouThreshold;
     scoreThreshold = params.scoreThreshold;
@@ -93,6 +98,6 @@ NamedTensorMap nonMaxSuppressionWithScore(
     final result =
         ENGINE.runKernel(NonMaxSuppressionV5, inputs, attrs) as List<Tensor>;
 
-    return {'selectedIndices': result[0], 'selectedScores': result[1]};
+    return NmsWithScore(selectedIndices: result[0], selectedScores: result[1]);
   });
 }

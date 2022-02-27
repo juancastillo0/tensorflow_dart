@@ -19,6 +19,7 @@
 // import * as util from '../util';
 
 import 'dart:math' as math;
+import 'image.dart';
 import '../../tensor.dart';
 import '../../util_base.dart' as util;
 
@@ -52,7 +53,7 @@ NonMaxInputs nonMaxSuppSanityCheck(
   //   scoreThreshold = Number.NEGATIVE_INFINITY;
   // }
 
-  softNmsSigma ??= 0.0;
+  softNmsSigma ??= image.defaultSoftNmsSigma;
 
   final numBoxes = boxes.shape[0];
   maxOutputSize = math.min(maxOutputSize, numBoxes);

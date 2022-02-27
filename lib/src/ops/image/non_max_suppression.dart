@@ -25,6 +25,7 @@
 
 import '../_prelude.dart';
 import 'non_max_util.dart';
+import 'image.dart';
 
 /**
  * Performs non maximum suppression of bounding boxes based on
@@ -48,17 +49,20 @@ Tensor1D nonMaxSuppression(
   Tensor2D boxes,
   Tensor1D scores,
   int maxOutputSize, {
-  double iouThreshold = 0.5,
-  double scoreThreshold = double.negativeInfinity,
+  double? iouThreshold = image.defaultIouThreshold,
+  double? scoreThreshold = image.defaultScoreThreshold,
 }) {
   return execOp('nonMaxSuppression', () {
+    iouThreshold ??= image.defaultIouThreshold;
+    scoreThreshold ??= image.defaultScoreThreshold;
+
     final $boxes =
         convertToTensor(boxes, 'boxes', 'nonMaxSuppression', 'float32');
     final $scores =
         convertToTensor(scores, 'scores', 'nonMaxSuppression', 'float32');
 
     final inputs = nonMaxSuppSanityCheck(
-        $boxes, $scores, maxOutputSize, iouThreshold, scoreThreshold, null);
+        $boxes, $scores, maxOutputSize, iouThreshold!, scoreThreshold!, null);
     maxOutputSize = inputs.maxOutputSize;
     iouThreshold = inputs.iouThreshold;
     scoreThreshold = inputs.scoreThreshold;

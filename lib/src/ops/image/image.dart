@@ -1,3 +1,4 @@
+import '../../tensor.dart';
 import 'non_max_suppression.dart' as non_max_suppression;
 import 'non_max_suppression_async.dart' as non_max_suppression_async;
 import 'non_max_suppression_padded.dart' as non_max_suppression_padded;
@@ -39,4 +40,28 @@ class image {
       non_max_suppression_padded.nonMaxSuppressionPadded;
   static const nonMaxSuppressionWithScore =
       non_max_suppression_with_score.nonMaxSuppressionWithScore;
+
+  static const double defaultIouThreshold = 0.5;
+  static const double defaultScoreThreshold = double.negativeInfinity;
+  static const double defaultSoftNmsSigma = 0.0;
+}
+
+class NmsPadded {
+  final Tensor1D selectedIndices;
+  final Scalar validOutputs;
+
+  NmsPadded({
+    required this.selectedIndices,
+    required this.validOutputs,
+  });
+}
+
+class NmsWithScore {
+  final Tensor1D selectedIndices;
+  final Tensor1D selectedScores;
+
+  NmsWithScore({
+    required this.selectedIndices,
+    required this.selectedScores,
+  });
 }
