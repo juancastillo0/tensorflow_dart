@@ -27,6 +27,7 @@ import 'package:tensorflow_wasm/src/tensor.dart';
 
 import '../../executor/execution_context.dart';
 import '../executors/utils.dart';
+import '../operation_mapper.dart';
 import '../types.dart';
 
 /**
@@ -40,18 +41,19 @@ class NodeValueImpl implements GraphNode {
   final Node node;
   final NamedTensorsMap tensorMap;
   final ExecutionContext context;
-  
+
   NodeValueImpl(
-      this.node,
-      this.tensorMap,
-      this.context,
-      ) {
+    this.node,
+    this.tensorMap,
+    this.context,
+  ) {
     this.inputs = node.inputNames.map((name) => this._getInput(name)!).toList();
     if (node.rawAttrs != null) {
-      this.attrs = node.rawAttrs!.keys.fold<Map<String, ValueType?>>({}, (attrs, key) {
-                         attrs[key] = this._getAttr(key);
-                         return attrs;
-                       });
+      this.attrs =
+          node.rawAttrs!.keys.fold<Map<String, ValueType?>>({}, (attrs, key) {
+        attrs[key] = this._getAttr(key);
+        return attrs;
+      });
     } else {
       this.attrs = {};
     }
@@ -71,46 +73,44 @@ class NodeValueImpl implements GraphNode {
    */
   ValueType? _getAttr(String name, [ValueType? defaultValue]) {
     final value = this.node.rawAttrs![name]!;
+    final rawAttrs = this.node.rawAttrs!;
     if (value.tensor != null) {
       return getTensor(name, this.tensorMap, this.context);
     }
     if (value.i != null || value.f != null) {
-      return getNumberParam(this.node.rawAttrs, name, defaultValue as number);
+      return getNumberParam(rawAttrs, name, defaultValue as int?);
     }
     if (value.s != null) {
-      return getStringParam(this.node.rawAttrs, name, defaultValue as String);
+      return getStringParam(rawAttrs, name, defaultValue as String?);
     }
     if (value.b != null) {
-      return getBoolParam(this.node.rawAttrs, name, defaultValue as bool);
+      return getBoolParam(rawAttrs, name, defaultValue as bool?);
     }
     if (value.shape != null) {
-      return getTensorShapeParam(
-          this.node.rawAttrs, name, defaultValue as List<int>);
+      return getTensorShapeParam(rawAttrs, name, defaultValue as List<int>?);
     }
     if (value.type != null) {
-      return getDtypeParam(this.node.rawAttrs, name, defaultValue as DataType);
+      return getDtypeParam(rawAttrs, name, defaultValue as DataType?);
     }
     if (value.list != null) {
       final list = value.list!;
       if (list.i != null || list.f != null) {
-        return getNumericArrayParam(
-            this.node.rawAttrs, name, defaultValue as number[]);
+        return getNumericArrayParam(rawAttrs, name, defaultValue as List<num>?);
       }
       if (list.s != null) {
         return getStringArrayParam(
-            this.node.rawAttrs, name, defaultValue as string[]);
+            rawAttrs, name, defaultValue as List<String>?);
       }
       if (list.shape != null) {
         return getTensorShapeArrayParam(
-            this.node.rawAttrs, name, defaultValue as number[][]);
+            rawAttrs, name, defaultValue as List<List<int>>?);
       }
       if (list.b != null) {
-        return getBoolArrayParam(
-            this.node.rawAttrs, name, defaultValue as List<bool>);
+        return getBoolArrayParam(rawAttrs, name, defaultValue as List<bool>?);
       }
       if (list.type != null) {
         return getDtypeArrayParam(
-            this.node.rawAttrs, name, defaultValue as List<DataType>);
+            rawAttrs, name, defaultValue as List<DataType>?);
       }
     }
 

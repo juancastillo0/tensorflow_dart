@@ -215,9 +215,7 @@ class OperationMapper {
     final mapper =
         getRegisteredOp(node.op!) ?? this.opMappers[node.op] ?? {} as OpMapper;
 
-    node.attr ??= {};
-
-    final attr = node.attr!;
+    final attr = node.attr ?? {};
 
     final newNode = Node(
       name: node.name!,
@@ -248,20 +246,20 @@ class OperationMapper {
               switch (param.type) {
                 case 'string':
                   value = getStringParam(
-                      attr, tfName, param.defaultValue as String);
+                      attr, tfName, param.defaultValue as String?);
 
                   if (value == null && param.tfDeprecatedName != null) {
                     value = getStringParam(attr, param.tfDeprecatedName!,
-                        param.defaultValue as String);
+                        param.defaultValue as String?);
                   }
                   break;
                 case 'string[]':
                   value = getStringArrayParam(
-                      attr, tfName, param.defaultValue as List<String>);
+                      attr, tfName, param.defaultValue as List<String>?);
 
                   if (value == null && param.tfDeprecatedName != null) {
                     value = getStringArrayParam(attr, param.tfDeprecatedName!,
-                        param.defaultValue as List<String>);
+                        param.defaultValue as List<String>?);
                   }
                   break;
                 case 'number':
@@ -269,73 +267,73 @@ class OperationMapper {
                       attr, tfName, (param.defaultValue ?? 0) as int);
                   if (value == null && param.tfDeprecatedName != null) {
                     value = getNumberParam(attr, param.tfDeprecatedName!,
-                        param.defaultValue as int);
+                        param.defaultValue as int?);
                   }
                   break;
                 case 'number[]':
                   value = getNumericArrayParam(
-                      attr, tfName, param.defaultValue as List<num>);
+                      attr, tfName, param.defaultValue as List<num>?);
                   if (value == null && param.tfDeprecatedName != null) {
                     value = getNumericArrayParam(attr, param.tfDeprecatedName!,
-                        param.defaultValue as List<num>);
+                        param.defaultValue as List<num>?);
                   }
                   break;
                 case 'bool':
                   value =
-                      getBoolParam(attr, tfName, param.defaultValue as bool);
+                      getBoolParam(attr, tfName, param.defaultValue as bool?);
                   if (value == null && param.tfDeprecatedName != null) {
                     value = getBoolParam(attr, param.tfDeprecatedName!,
-                        param.defaultValue as bool);
+                        param.defaultValue as bool?);
                   }
                   break;
                 case 'bool[]':
                   value = getBoolArrayParam(
-                      attr, tfName, param.defaultValue as List<bool>);
+                      attr, tfName, param.defaultValue as List<bool>?);
                   if (value == null && param.tfDeprecatedName != null) {
                     value = getBoolArrayParam(attr, param.tfDeprecatedName!,
-                        param.defaultValue as List<bool>);
+                        param.defaultValue as List<bool>?);
                   }
                   break;
                 case 'shape':
                   value = getTensorShapeParam(
-                      attr, tfName, param.defaultValue as List<int>);
+                      attr, tfName, param.defaultValue as List<int>?);
                   if (value == null && param.tfDeprecatedName != null) {
                     value = getTensorShapeParam(attr, param.tfDeprecatedName!,
-                        param.defaultValue as List<int>);
+                        param.defaultValue as List<int>?);
                   }
                   break;
                 case 'shape[]':
                   value = getTensorShapeArrayParam(
-                      attr, tfName, param.defaultValue as List<List<int>>);
+                      attr, tfName, param.defaultValue as List<List<int>>?);
                   if (value == null && param.tfDeprecatedName != null) {
                     value = getTensorShapeArrayParam(
                         attr,
                         param.tfDeprecatedName!,
-                        param.defaultValue as List<List<int>>);
+                        param.defaultValue as List<List<int>>?);
                   }
                   break;
                 case 'dtype':
                   value = getDtypeParam(
-                      attr, tfName, param.defaultValue as DataType);
+                      attr, tfName, param.defaultValue as DataType?);
                   if (value == null && param.tfDeprecatedName != null) {
                     value = getDtypeParam(attr, param.tfDeprecatedName!,
-                        param.defaultValue as DataType);
+                        param.defaultValue as DataType?);
                   }
                   break;
                 case 'dtype[]':
                   value = getDtypeArrayParam(
-                      attr, tfName, param.defaultValue as List<DataType>);
+                      attr, tfName, param.defaultValue as List<DataType>?);
                   if (value == null && param.tfDeprecatedName != null) {
                     value = getDtypeArrayParam(attr, param.tfDeprecatedName!,
-                        param.defaultValue as List<DataType>);
+                        param.defaultValue as List<DataType>?);
                   }
                   break;
                 case 'func':
                   value =
-                      getFuncParam(attr, tfName, param.defaultValue as String);
+                      getFuncParam(attr, tfName, param.defaultValue as String?);
                   if (value == null && param.tfDeprecatedName != null) {
                     value = getFuncParam(attr, param.tfDeprecatedName!,
-                        param.defaultValue as String);
+                        param.defaultValue as String?);
                   }
                   break;
                 case 'tensor':
@@ -480,10 +478,10 @@ String parseStringParam(
   return keepCase ? value : value.toLowerCase();
 }
 
-String getStringParam(
+String? getStringParam(
   Map<String, tensorflow.IAttrValue> attrs,
   String name,
-  String def, {
+  String? def, {
   bool keepCase = false,
 }) {
   final param = attrs[name];
@@ -493,14 +491,14 @@ String getStringParam(
   return def;
 }
 
-bool getBoolParam(
-    Map<String, tensorflow.IAttrValue> attrs, String name, bool def) {
+bool? getBoolParam(
+    Map<String, tensorflow.IAttrValue> attrs, String name, bool? def) {
   final param = attrs[name];
   return param?.b ?? def;
 }
 
-int getNumberParam(
-    Map<String, tensorflow.IAttrValue> attrs, String name, int def) {
+int? getNumberParam(
+    Map<String, tensorflow.IAttrValue> attrs, String name, int? def) {
   final param = attrs[name];
   final value = param?.i ?? param?.f ?? def;
   return value is int ? value : int.parse(value as String);
@@ -533,14 +531,14 @@ DataType? parseDtypeParam(tensorflow.DataType value) {
   }
 }
 
-String getFuncParam(
-    Map<String, tensorflow.IAttrValue> attrs, String name, String def) {
+String? getFuncParam(
+    Map<String, tensorflow.IAttrValue> attrs, String name, String? def) {
   final param = attrs[name];
   return param?.func?.name ?? def;
 }
 
 DataType? getDtypeParam(
-    Map<String, tensorflow.IAttrValue> attrs, String name, DataType def) {
+    Map<String, tensorflow.IAttrValue> attrs, String name, DataType? def) {
   final param = attrs[name];
   if (param?.type != null) {
     return parseDtypeParam(param!.type!);
@@ -548,8 +546,8 @@ DataType? getDtypeParam(
   return def;
 }
 
-List<DataType> getDtypeArrayParam(
-    Map<String, tensorflow.IAttrValue> attrs, String name, List<DataType> def) {
+List<DataType>? getDtypeArrayParam(Map<String, tensorflow.IAttrValue> attrs,
+    String name, List<DataType>? def) {
   final param = attrs[name];
   if (param?.list?.type != null) {
     return param!.list!.type!.map((v) => parseDtypeParam(v)!).toList();
@@ -579,8 +577,8 @@ List<int>? getTensorShapeParam(
   return def;
 }
 
-List<num> getNumericArrayParam(
-    Map<String, tensorflow.IAttrValue> attrs, String name, List<num> def) {
+List<num>? getNumericArrayParam(
+    Map<String, tensorflow.IAttrValue> attrs, String name, List<num>? def) {
   final paramList = attrs[name]?.list;
   if (paramList != null) {
     return ((paramList.f != null && paramList.f!.isNotEmpty
@@ -593,8 +591,8 @@ List<num> getNumericArrayParam(
   return def;
 }
 
-List<String> getStringArrayParam(
-    Map<String, tensorflow.IAttrValue> attrs, String name, List<String> def,
+List<String>? getStringArrayParam(
+    Map<String, tensorflow.IAttrValue> attrs, String name, List<String>? def,
     {bool keepCase = false}) {
   final param = attrs[name];
   if (param?.list?.s != null) {
@@ -605,10 +603,10 @@ List<String> getStringArrayParam(
   return def;
 }
 
-List<List<int>> getTensorShapeArrayParam(
+List<List<int>>? getTensorShapeArrayParam(
     Map<String, tensorflow.IAttrValue> attrs,
     String name,
-    List<List<int>> def) {
+    List<List<int>>? def) {
   final param = attrs[name];
   return param?.list?.shape?.map((v) {
         return parseTensorShapeParam(v)!;
@@ -616,8 +614,8 @@ List<List<int>> getTensorShapeArrayParam(
       def;
 }
 
-List<bool> getBoolArrayParam(
-    Map<String, tensorflow.IAttrValue> attrs, String name, List<bool> def) {
+List<bool>? getBoolArrayParam(
+    Map<String, tensorflow.IAttrValue> attrs, String name, List<bool>? def) {
   final param = attrs[name];
   return param?.list?.b ?? def;
 }
