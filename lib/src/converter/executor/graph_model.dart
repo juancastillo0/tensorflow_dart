@@ -35,6 +35,8 @@ import 'package:tensorflow_wasm/src/io/io.dart' as io;
 import 'package:tensorflow_wasm/src/model_types.dart';
 import 'package:tensorflow_wasm/src/tensor.dart' hide TensorInfo;
 
+import '../operations/operation_mapper.dart';
+
 class ModelHandler {
   final LoadHandler? load;
   final SaveHandler? save;
@@ -175,7 +177,8 @@ class GraphModel implements InferenceModel {
    */
   bool loadSync(io.ModelArtifacts artifacts) {
     this._artifacts = artifacts;
-    final graph = this._artifacts.modelTopology as tensorflow.IGraphDef;
+    final graph = tensorflow.IGraphDef.fromJson(
+        this._artifacts.modelTopology as Map<String, dynamic>);
 
     final Map<String, Object?> signature =
         (this._artifacts.userDefinedMetadata?['signature'] ??
@@ -190,17 +193,18 @@ class GraphModel implements InferenceModel {
       this._artifacts.weightSpecs!,
     );
     this._executor = GraphExecutor(
-        OperationMapper.Instance.transformGraph(graph, this._signature));
+        OperationMapper.Instance.transformGraph(graph, this._signature), null);
     this._executor.weightMap = this._convertTensorMapToTensorsMap(weightMap);
     // Attach a model-level resourceManager to each executor to share resources,
     // such as `HashTable`.
     this._executor.resourceManager = this._resourceManager;
 
     if (artifacts.modelInitializer != null &&
-        (artifacts.modelInitializer as tensorflow.IGraphDef).node != null) {
-      final graph =
-          OperationMapper.Instance.transformGraph(artifacts.modelInitializer);
-      final initializer = GraphExecutor(graph);
+        artifacts.modelInitializer!['node'] != null) {
+      final _g = tensorflow.IGraphDef.fromJson(
+          this._artifacts.modelInitializer!.cast());
+      final graph = OperationMapper.Instance.transformGraph(_g, null);
+      final initializer = GraphExecutor(graph, null);
       this._initializer = initializer;
       initializer.weightMap = this._executor.weightMap;
       // Attach a model-level resourceManager to the initializer, the
