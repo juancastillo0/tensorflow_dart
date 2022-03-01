@@ -15,51 +15,53 @@
  * =============================================================================
  */
 
-import {Scalar, Tensor, Tensor1D} from '@tensorflow/tfjs-core';
-// tslint:disable-next-line: no-imports-from-dist
-import * as tfOps from '@tensorflow/tfjs-core/dist/ops/ops_for_converter';
+// import {Scalar, Tensor, Tensor1D} from '@tensorflow/tfjs-core';
+// // tslint:disable-next-line: no-imports-from-dist
+// import * as tfOps from '@tensorflow/tfjs-core/dist/ops/ops_for_converter';
 
-import {NamedTensorsMap} from '../../data/types';
-import {ExecutionContext} from '../../executor/execution_context';
-import {InternalOpExecutor, Node} from '../types';
+// import {NamedTensorsMap} from '../../data/types';
+// import {ExecutionContext} from '../../executor/execution_context';
+// import {InternalOpExecutor, Node} from '../types';
 
-import {getParamValue} from './utils';
+// import {getParamValue} from './utils';
 
-export const executeOp: InternalOpExecutor =
-    (node: Node, tensorMap: NamedTensorsMap,
-     context: ExecutionContext): Tensor[] => {
+import '_prelude.dart';
+import 'package:tensorflow_wasm/tensorflow_wasm.dart' as tfOps;
+
+List<Tensor> executeOp(Node node, NamedTensorsMap tensorMap,
+     ExecutionContext context) {
       switch (node.op) {
         case 'StringNGrams': {
-          const {nGrams, nGramsSplits} = tfOps.string.stringNGrams(
+          final p = tfOps.string.stringNGrams(
               getParamValue('data', node, tensorMap, context) as Tensor1D,
               getParamValue('dataSplits', node, tensorMap, context) as Tensor,
-              getParamValue('separator', node, tensorMap, context) as string,
+              getParamValue('separator', node, tensorMap, context) as String,
               getParamValue('nGramWidths', node, tensorMap, context) as
                   number[],
-              getParamValue('leftPad', node, tensorMap, context) as string,
-              getParamValue('rightPad', node, tensorMap, context) as string,
+              getParamValue('leftPad', node, tensorMap, context) as String,
+              getParamValue('rightPad', node, tensorMap, context) as String,
               getParamValue('padWidth', node, tensorMap, context) as number,
               getParamValue(
                   'preserveShortSequences', node, tensorMap, context) as
-                  boolean);
-          return [nGrams, nGramsSplits];
+                  bool);
+          return [p.nGrams, p.nGramsSplits];
         }
         case 'StringSplit': {
-          const {indices, values, shape} = tfOps.string.stringSplit(
+          final p = tfOps.string.stringSplit(
               getParamValue('input', node, tensorMap, context) as Tensor1D,
               getParamValue('delimiter', node, tensorMap, context) as Scalar,
-              getParamValue('skipEmpty', node, tensorMap, context) as boolean);
-          return [indices, values, shape];
+              getParamValue('skipEmpty', node, tensorMap, context) as bool);
+          return [p.indices, p.values, p.shape];
         }
         case 'StringToHashBucketFast': {
-          const output = tfOps.string.stringToHashBucketFast(
+          final output = tfOps.string.stringToHashBucketFast(
               getParamValue('input', node, tensorMap, context) as Tensor,
-              getParamValue('numBuckets', node, tensorMap, context) as number);
+              getParamValue('numBuckets', node, tensorMap, context) as int);
           return [output];
         }
         default:
-          throw TypeError(`Node type ${node.op} is not implemented`);
+          throw StateError('Node type ${node.op} is not implemented');
       }
-    };
+    }
 
-export const CATEGORY = 'string';
+const CATEGORY = 'string';

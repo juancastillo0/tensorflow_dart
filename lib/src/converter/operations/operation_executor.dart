@@ -32,16 +32,16 @@ import './executors/creation_executor.dart' as creation;
 import './executors/dynamic_executor.dart' as dynamic_;
 import './executors/evaluation_executor.dart' as evaluation;
 import './executors/graph_executor.dart' as graph;
-// import * as hashTable from './executors/hash_table_executor';
+import './executors/hash_table_executor.dart' as hashTable;
 import './executors/image_executor.dart' as image;
 import './executors/logical_executor.dart' as logical;
 import './executors/matrices_executor.dart' as matrices;
 import './executors/normalization_executor.dart' as normalization;
 import './executors/reduction_executor.dart' as reduction;
 import './executors/slice_join_executor.dart' as sliceJoin;
-// import * as sparse from './executors/sparse_executor';
+import './executors/sparse_executor.dart' as sparse;
 // import * as spectral from './executors/spectral_executor';
-// import * as string from './executors/string_executor';
+import './executors/string_executor.dart' as string;
 import './executors/transformation_executor.dart' as transformation;
 // import {Node} from './types';
 
@@ -66,8 +66,11 @@ FutureOr<List<tfc.Tensor>> executeOp(
   ExecutionContext context, [
   ResourceManager? resourceManager,
 ]) {
-  final value =
-      ((Node node, NamedTensorsMap tensorMap, ExecutionContext context) {
+  FutureOr<List<Tensor>> _d(
+    Node node,
+    NamedTensorsMap tensorMap,
+    ExecutionContext context,
+  ) {
     switch (node.category) {
       case 'arithmetic':
         return tfc.tidy(() => arithmetic.executeOp(node, tensorMap, context));
@@ -101,19 +104,23 @@ FutureOr<List<tfc.Tensor>> executeOp(
       case 'sparse':
         return tfc.tidy(() => sparse.executeOp(node, tensorMap, context));
       case 'spectral':
-        return tfc.tidy(() => spectral.executeOp(node, tensorMap, context));
+        // TODO: spectral
+        // return tfc.tidy(() => spectral.executeOp(node, tensorMap, context));
+        throw UnimplementedError();
       case 'string':
         return tfc.tidy(() => string.executeOp(node, tensorMap, context));
       case 'transformation':
         return tfc
             .tidy(() => transformation.executeOp(node, tensorMap, context));
       case 'hash_table':
-        return hashTable.executeOp(node, tensorMap, context, resourceManager);
+        return hashTable.executeOp(node, tensorMap, context, resourceManager!);
       case 'custom':
         final opMapper = getRegisteredOp(node.op);
         if (opMapper != null && opMapper.customExecutor != null) {
-          return opMapper
-              .customExecutor!(NodeValueImpl(node, tensorMap, context));
+          return _then<Tensors, List<Tensor>>(
+            opMapper.customExecutor!(NodeValueImpl(node, tensorMap, context)),
+            (t) => t.toTensorList(),
+          );
         } else {
           throw StateError("Custom op ${node.op} is not registered.");
         }
@@ -122,9 +129,13 @@ FutureOr<List<tfc.Tensor>> executeOp(
             "https://github.com/tensorflow/tfjs/issues so we can add it" +
             ", or register a custom execution with tf.registerOp()");
     }
-  })(node, tensorMap, context);
-  if (value is Future<tfc.Tensor>) {
-    return value.then((data) => [data]);
   }
-  return [value];
+
+  final value = _d(node, tensorMap, context);
+  return value;
+}
+
+FutureOr<O> _then<T, O>(FutureOr<T> fut, FutureOr<O> Function(T) map) {
+  if (fut is Future<T>) return fut.then(map);
+  return map(fut);
 }

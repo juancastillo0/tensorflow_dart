@@ -125,7 +125,7 @@ Future<List<Tensor?>?> executeOp(
           data = cloneTensor(data);
         }
         // Outputs nodes :0 => false, :1 => true
-        return (await pred.data())[0] ? [null, data] : [data, null];
+        return (await pred.data())[0] == 1 ? [null, data] : [data, null];
       }
     case 'Merge':
       {

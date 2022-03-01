@@ -15,68 +15,76 @@
  * =============================================================================
  */
 
-import {DataType, Tensor} from '@tensorflow/tfjs-core';
+// import {DataType, Tensor} from '@tensorflow/tfjs-core';
 
-import {NamedTensorsMap} from '../../data/types';
-import {ExecutionContext} from '../../executor/execution_context';
-import {HashTable} from '../../executor/hash_table';
-import {ResourceManager} from '../../executor/resource_manager';
-import {InternalOpAsyncExecutor, Node} from '../types';
+// import {NamedTensorsMap} from '../../data/types';
+// import {ExecutionContext} from '../../executor/execution_context';
+// import {HashTable} from '../../executor/hash_table';
+// import {ResourceManager} from '../../executor/resource_manager';
+// import {InternalOpAsyncExecutor, Node} from '../types';
 
-import {getParamValue} from './utils';
+// import {getParamValue} from './utils';
 
-export const executeOp: InternalOpAsyncExecutor = async(
-    node: Node, tensorMap: NamedTensorsMap, context: ExecutionContext,
-    resourceManager: ResourceManager): Promise<Tensor[]> => {
+import '../../executor/hash_table.dart';
+import '../../executor/resource_manager.dart';
+import '_prelude.dart';
+
+Future<List<Tensor>> executeOp(
+  Node node,
+  NamedTensorsMap tensorMap,
+  ExecutionContext context,
+  ResourceManager resourceManager,
+) async {
   switch (node.op) {
     case 'HashTable':
-    case 'HashTableV2': {
-      const keyDType =
-          getParamValue('keyDType', node, tensorMap, context) as DataType;
-      const valueDType =
-          getParamValue('valueDType', node, tensorMap, context) as DataType;
+    case 'HashTableV2':
+      {
+        final keyDType =
+            getParamValue('keyDType', node, tensorMap, context) as DataType;
+        final valueDType =
+            getParamValue('valueDType', node, tensorMap, context) as DataType;
 
-      const hashTable = new HashTable(keyDType, valueDType);
-      resourceManager.addHashTable(node.name, hashTable);
-      return [hashTable.handle];
-    }
+        final hashTable = HashTable(keyDType, valueDType);
+        resourceManager.addHashTable(node.name, hashTable);
+        return [hashTable.handle];
+      }
     case 'LookupTableImport':
-    case 'LookupTableImportV2': {
-      const handle = getParamValue(
-                         'tableHandle', node, tensorMap, context,
-                         resourceManager) as Tensor;
-      const keys = getParamValue('keys', node, tensorMap, context) as Tensor;
-      const values =
-          getParamValue('values', node, tensorMap, context) as Tensor;
+    case 'LookupTableImportV2':
+      {
+        final handle = getParamValue(
+            'tableHandle', node, tensorMap, context, resourceManager) as Tensor;
+        final keys = getParamValue('keys', node, tensorMap, context) as Tensor;
+        final values =
+            getParamValue('values', node, tensorMap, context) as Tensor;
 
-      const hashTable = resourceManager.getHashTableById(handle.id);
+        final hashTable = resourceManager.getHashTableById(handle.id)!;
 
-      return [await hashTable.import(keys, values)];
-    }
+        return [await hashTable.import_(keys, values)];
+      }
     case 'LookupTableFind':
-    case 'LookupTableFindV2': {
-      const handle = getParamValue(
-                         'tableHandle', node, tensorMap, context,
-                         resourceManager) as Tensor;
-      const keys = getParamValue('keys', node, tensorMap, context) as Tensor;
-      const defaultValue =
-          getParamValue('defaultValue', node, tensorMap, context) as Tensor;
+    case 'LookupTableFindV2':
+      {
+        final handle = getParamValue(
+            'tableHandle', node, tensorMap, context, resourceManager) as Tensor;
+        final keys = getParamValue('keys', node, tensorMap, context) as Tensor;
+        final defaultValue =
+            getParamValue('defaultValue', node, tensorMap, context) as Tensor;
 
-      const hashTable = resourceManager.getHashTableById(handle.id);
-      return [await hashTable.find(keys, defaultValue)];
-    }
+        final hashTable = resourceManager.getHashTableById(handle.id)!;
+        return [await hashTable.find(keys, defaultValue)];
+      }
     case 'LookupTableSize':
-    case 'LookupTableSizeV2': {
-      const handle = getParamValue(
-                         'tableHandle', node, tensorMap, context,
-                         resourceManager) as Tensor;
+    case 'LookupTableSizeV2':
+      {
+        final handle = getParamValue(
+            'tableHandle', node, tensorMap, context, resourceManager) as Tensor;
 
-      const hashTable = resourceManager.getHashTableById(handle.id);
-      return [hashTable.tensorSize()];
-    }
+        final hashTable = resourceManager.getHashTableById(handle.id)!;
+        return [hashTable.tensorSize()];
+      }
     default:
-      throw TypeError(`Node type ${node.op} is not implemented`);
+      throw StateError('Node type ${node.op} is not implemented');
   }
-};
+}
 
-export const CATEGORY = 'hash_table';
+const CATEGORY = 'hash_table';
