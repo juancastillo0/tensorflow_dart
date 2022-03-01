@@ -93,12 +93,14 @@ List<Tensor> executeOp(
       {
         return [
           tfOps.sparseToDense(
-              getParamValue('sparseIndices', node, tensorMap, context)
-                  as Tensor,
-              getParamValue('outputShape', node, tensorMap, context) as Tensor,
-              getParamValue('sparseValues', node, tensorMap, context)
-                  as List<num>,
-              getParamValue('defaultValue', node, tensorMap, context) as Scalar)
+            getParamValue('sparseIndices', node, tensorMap, context) as Tensor,
+            getParamValue('outputShape', node, tensorMap, context) as Tensor,
+            getParamValue('sparseValues', node, tensorMap, context)
+                as List<int>,
+            defaultValue:
+                getParamValue('defaultValue', node, tensorMap, context)
+                    as Scalar,
+          )
         ];
       }
     default:

@@ -14,7 +14,9 @@
  * limitations under the License.
  * =============================================================================
  */
-import {sizeFromShape} from '../../util';
+// import {sizeFromShape} from '../../util';
+
+import '../../util_base.dart' show sizeFromShape;
 
 /**
  * Generates sparse reshape multiple negative 1 output dimension error message.
@@ -22,9 +24,9 @@ import {sizeFromShape} from '../../util';
  * @param dim1 The first dimension with a negative 1 value.
  * @param dim2 The second dimension with a negative 1 value.
  */
-export function getSparseReshapeMultipleNegativeOneOutputDimErrorMessage(
-    dim1: number, dim2: number) {
-  return `only one output dimension may be -1, not both ${dim1} and ${dim2}`;
+String getSparseReshapeMultipleNegativeOneOutputDimErrorMessage(
+    int dim1, int dim2) {
+  return 'only one output dimension may be -1, not both ${dim1} and ${dim2}';
 }
 
 /**
@@ -33,16 +35,15 @@ export function getSparseReshapeMultipleNegativeOneOutputDimErrorMessage(
  * @param dim The dimension with a negative value.
  * @param value The negative value.
  */
-export function getSparseReshapeNegativeOutputDimErrorMessage(
-    dim: number, value: number) {
-  return `size ${dim} must be non-negative, not ${value}`;
+String getSparseReshapeNegativeOutputDimErrorMessage(int dim, int value) {
+  return 'size ${dim} must be non-negative, not ${value}';
 }
 
 /**
  * Generates sparse reshape empty tensor zero output dimension error message.
  *
  */
-export function getSparseReshapeEmptyTensorZeroOutputDimErrorMessage() {
+String getSparseReshapeEmptyTensorZeroOutputDimErrorMessage() {
   return 'reshape cannot infer the missing input size for an empty tensor ' +
       'unless all specified input sizes are non-zero';
 }
@@ -53,13 +54,12 @@ export function getSparseReshapeEmptyTensorZeroOutputDimErrorMessage() {
  * @param inputShape the input shape.
  * @param outputShape the requested output shape.
  */
-export function getSparseReshapeInputOutputMultipleErrorMessage(
-    inputShape: number[], outputShape: number[]) {
-  const inputSize = sizeFromShape(inputShape);
-  const outputSize = sizeFromShape(outputShape);
-  return `Input to reshape is a SparseTensor with ${inputSize}
-  dense values, but the requested shape requires a multiple of ${
-      outputSize}. inputShape=${inputShape} outputShape= ${outputShape}`;
+String getSparseReshapeInputOutputMultipleErrorMessage(
+    List<int> inputShape, List<int> outputShape) {
+  final inputSize = sizeFromShape(inputShape);
+  final outputSize = sizeFromShape(outputShape);
+  return 'Input to reshape is a SparseTensor with ${inputSize}'
+      ' dense values, but the requested shape requires a multiple of ${outputSize}. inputShape=${inputShape} outputShape= ${outputShape}';
 }
 
 /**
@@ -68,11 +68,9 @@ export function getSparseReshapeInputOutputMultipleErrorMessage(
  * @param inputShape the input shape.
  * @param outputShape the requested output shape.
  */
-export function getSparseReshapeInputOutputMismatchErrorMessage(
-    inputShape: number[], outputShape: number[]) {
-  const inputSize = sizeFromShape(inputShape);
-  const outputSize = sizeFromShape(outputShape);
-  return `Input to reshape is a tensor with ${
-      inputSize} dense values, but the requested shape has ${
-      outputSize}. inputShape=${inputShape} outputShape=${outputShape}`;
+String getSparseReshapeInputOutputMismatchErrorMessage(
+    List<int> inputShape, List<int> outputShape) {
+  final inputSize = sizeFromShape(inputShape);
+  final outputSize = sizeFromShape(outputShape);
+  return 'Input to reshape is a tensor with ${inputSize} dense values, but the requested shape has ${outputSize}. inputShape=${inputShape} outputShape=${outputShape}';
 }

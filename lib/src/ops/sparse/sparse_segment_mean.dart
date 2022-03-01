@@ -15,12 +15,14 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../../engine';
-import {SparseSegmentMean, SparseSegmentMeanInputs} from '../../kernel_names';
-import {Tensor, Tensor1D} from '../../tensor';
-import {convertToTensor} from '../../tensor_util_env';
-import {TensorLike} from '../../types';
-import {op} from '../operation';
+// import {ENGINE} from '../../engine';
+// import {SparseSegmentMean, SparseSegmentMeanInputs} from '../../kernel_names';
+// import {Tensor, Tensor1D} from '../../tensor';
+// import {convertToTensor} from '../../tensor_util_env';
+// import {TensorLike} from '../../types';
+// import {op} from '../operation';
+
+import '../_prelude.dart';
 
 /**
  * Computes the mean along sparse segments of a tensor.
@@ -56,35 +58,34 @@ import {op} from '../operation';
  *
  * @doc {heading: 'Operations', subheading: 'Sparse'}
  */
-function sparseSegmentMean_(
-    data: Tensor|TensorLike, indices: Tensor1D|TensorLike,
-    segmentIds: Tensor1D|TensorLike): Tensor {
-  const $data = convertToTensor(data, 'data', 'sparseSegmentMean');
-  const $indices =
-      convertToTensor(indices, 'indices', 'sparseSegmentMean', 'int32');
-  const $segmentIds =
-      convertToTensor(segmentIds, 'segmentIds', 'sparseSegmentMean', 'int32');
+Tensor sparseSegmentMean(Tensor data, Tensor1D indices, Tensor1D segmentIds) {
+  return execOp('sparseSegmentMean', () {
+    final $data = convertToTensor(data, 'data', 'sparseSegmentMean');
+    final $indices =
+        convertToTensor(indices, 'indices', 'sparseSegmentMean', 'int32');
+    final $segmentIds =
+        convertToTensor(segmentIds, 'segmentIds', 'sparseSegmentMean', 'int32');
 
-  if ($data.rank < 1) {
-    throw new Error(
-        `Data should be at least 1 dimensional but received scalar`);
-  }
-  if ($indices.rank !== 1) {
-    throw new Error(`Indices should be Tensor1D but received shape
-          ${$indices.shape}`);
-  }
-  if ($segmentIds.rank !== 1) {
-    throw new Error(`Segment ids should be Tensor1D but received shape
-          ${$segmentIds.shape}`);
-  }
+    if ($data.rank < 1) {
+      throw Exception(
+          'Data should be at least 1 dimensional but received scalar');
+    }
+    if ($indices.rank != 1) {
+      throw Exception(
+          'Indices should be Tensor1D but received shape ${$indices.shape}');
+    }
+    if ($segmentIds.rank != 1) {
+      throw Exception(
+          'Segment ids should be Tensor1D but received shape ${$segmentIds.shape}');
+    }
 
-  const inputs: SparseSegmentMeanInputs = {
-    data: $data,
-    indices: $indices,
-    segmentIds: $segmentIds
-  };
+    final inputs = {
+      // : SparseSegmentMeanInputs
+      'data': $data,
+      'indices': $indices,
+      'segmentIds': $segmentIds
+    };
 
-  return ENGINE.runKernel(SparseSegmentMean, inputs as {});
+    return ENGINE.runKernel(SparseSegmentMean, inputs) as Tensor;
+  });
 }
-
-export const sparseSegmentMean = op({sparseSegmentMean_});

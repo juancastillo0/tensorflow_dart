@@ -14,7 +14,8 @@
  * limitations under the License.
  * =============================================================================
  */
-import {Tensor} from '../tensor';
+// import {Tensor} from '../tensor';
+import '../tensor.dart';
 
 /**
  * Validate sparseToDense inputs.
@@ -29,38 +30,37 @@ import {Tensor} from '../tensor';
  * @param validateIndices boolean. indice validation is not supported, error
  * will be thrown if it is set.
  */
-export function validateInput(
-    sparseIndices: Tensor, sparseValues: Tensor, outputShape: number[],
-    defaultValues: Tensor) {
-  if (sparseIndices.dtype !== 'int32') {
-    throw new Error(
-        'tf.sparseToDense() expects the indices to be int32 type,' +
-        ` but the dtype was ${sparseIndices.dtype}.`);
+void validateInput(
+  Tensor sparseIndices,
+  Tensor sparseValues,
+  Shape outputShape,
+  Tensor defaultValues,
+) {
+  if (sparseIndices.dtype != 'int32') {
+    throw Exception('tf.sparseToDense() expects the indices to be int32 type,' +
+        ' but the dtype was ${sparseIndices.dtype}.');
   }
   if (sparseIndices.rank > 2) {
-    throw new Error(
-        'sparseIndices should be a scalar, vector, or matrix,' +
-        ` but got shape ${sparseIndices.shape}.`);
+    throw Exception('sparseIndices should be a scalar, vector, or matrix,' +
+        ' but got shape ${sparseIndices.shape}.');
   }
 
-  const numElems = sparseIndices.rank > 0 ? sparseIndices.shape[0] : 1;
-  const numDims = sparseIndices.rank > 1 ? sparseIndices.shape[1] : 1;
+  final numElems = sparseIndices.rank > 0 ? sparseIndices.shape[0] : 1;
+  final numDims = sparseIndices.rank > 1 ? sparseIndices.shape[1] : 1;
 
-  if (outputShape.length !== numDims) {
-    throw new Error(
-        'outputShape has incorrect number of elements:,' +
-        ` ${outputShape.length}, should be: ${numDims}.`);
+  if (outputShape.length != numDims) {
+    throw Exception('outputShape has incorrect number of elements:,' +
+        ' ${outputShape.length}, should be: ${numDims}.');
   }
 
-  const numValues = sparseValues.size;
-  if (!(sparseValues.rank === 0 ||
-        sparseValues.rank === 1 && numValues === numElems)) {
-    throw new Error(
-        'sparseValues has incorrect shape ' +
-        `${sparseValues.shape}, should be [] or [${numElems}]`);
+  final numValues = sparseValues.size;
+  if (!(sparseValues.rank == 0 ||
+      sparseValues.rank == 1 && numValues == numElems)) {
+    throw Exception('sparseValues has incorrect shape ' +
+        '${sparseValues.shape}, should be [] or [${numElems}]');
   }
 
-  if (sparseValues.dtype !== defaultValues.dtype) {
-    throw new Error('sparseValues.dtype must match defaultValues.dtype');
+  if (sparseValues.dtype != defaultValues.dtype) {
+    throw Exception('sparseValues.dtype must match defaultValues.dtype');
   }
 }

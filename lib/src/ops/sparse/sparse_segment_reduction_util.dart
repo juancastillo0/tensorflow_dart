@@ -19,16 +19,16 @@
  * Generates sparse segment reduction negative segment ids error message.
  *
  */
-export function getSparseSegmentReductionNegativeSegmentIdsErrorMessage() {
-  return `segment ids must be >= 0`;
+String getSparseSegmentReductionNegativeSegmentIdsErrorMessage() {
+  return 'segment ids must be >= 0';
 }
 
 /**
  * Generates sparse segment reduction non increasing segment ids error message.
  *
  */
-export function getSparseSegmentReductionNonIncreasingSegmentIdsErrorMessage() {
-  return `segment ids are not increasing`;
+String getSparseSegmentReductionNonIncreasingSegmentIdsErrorMessage() {
+  return 'segment ids are not increasing';
 }
 
 /**
@@ -37,10 +37,9 @@ export function getSparseSegmentReductionNonIncreasingSegmentIdsErrorMessage() {
  * @param segmentId The segment id index that is out of range.
  * @param outputRows Upper bound of valid segment id values.
  */
-export function getSparseSegmentReductionSegmentIdOutOfRangeErrorMessage(
-    segmentId: number, outputRows: number) {
-  return `Segment id ${segmentId} out of range [0, ${
-      outputRows}), possibly because segmentIds input is not sorted.`;
+String getSparseSegmentReductionSegmentIdOutOfRangeErrorMessage(
+    int segmentId, int outputRows) {
+  return 'Segment id ${segmentId} out of range [0, ${outputRows}), possibly because segmentIds input is not sorted.';
 }
 
 /**
@@ -50,8 +49,7 @@ export function getSparseSegmentReductionSegmentIdOutOfRangeErrorMessage(
  * @param indexValue The value that is out of range.
  * @param inputRows Upper bound of valid index values.
  */
-export function getSparseSegmentReductionIndicesOutOfRangeErrorMessage(
-    index: number, indexValue: number, inputRows: number) {
-  return `Bad: indices[${index}] == ${indexValue} out of range [0, ${
-      inputRows})`;
+String getSparseSegmentReductionIndicesOutOfRangeErrorMessage(
+    int index, int indexValue, int inputRows) {
+  return 'Bad: indices[${index}] == ${indexValue} out of range [0, ${inputRows})';
 }

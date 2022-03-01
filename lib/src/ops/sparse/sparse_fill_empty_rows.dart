@@ -15,13 +15,15 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../../engine';
-import {SparseFillEmptyRows, SparseFillEmptyRowsInputs} from '../../kernel_names';
-import {Scalar, Tensor, Tensor1D, Tensor2D} from '../../tensor';
-import {NamedTensorMap} from '../../tensor_types';
-import {convertToTensor} from '../../tensor_util_env';
-import {ScalarLike, TensorLike} from '../../types';
-import {op} from '../operation';
+// import {ENGINE} from '../../engine';
+// import {SparseFillEmptyRows, SparseFillEmptyRowsInputs} from '../../kernel_names';
+// import {Scalar, Tensor, Tensor1D, Tensor2D} from '../../tensor';
+// import {NamedTensorMap} from '../../tensor_types';
+// import {convertToTensor} from '../../tensor_util_env';
+// import {ScalarLike, TensorLike} from '../../types';
+// import {op} from '../operation';
+
+import '../_prelude.dart';
 
 /**
  * The input SparseTensor is represented via the map of inputs {`indices`,
@@ -79,49 +81,66 @@ import {op} from '../operation';
  * indices.
  * @doc {heading: 'Operations', subheading: 'Sparse'}
  */
-function sparseFillEmptyRows_(
-    indices: Tensor2D|TensorLike, values: Tensor1D|TensorLike,
-    denseShape: Tensor1D|TensorLike,
-    defaultValue: Scalar|ScalarLike): NamedTensorMap {
-  const $indices =
-      convertToTensor(indices, 'indices', 'sparseFillEmptyRows', 'int32');
-  const $values = convertToTensor(values, 'values', 'sparseFillEmptyRows');
-  const $denseShape =
-      convertToTensor(denseShape, 'denseShape', 'sparseFillEmptyRows', 'int32');
-  const $defaultValue = convertToTensor(
-      defaultValue, 'defaultValue', 'sparseFillEmptyRows', $values.dtype);
+SparseFillEmptyRowsResult sparseFillEmptyRows(
+  Tensor2D indices,
+  Tensor1D values,
+  Tensor1D denseShape,
+  Scalar defaultValue,
+) {
+  return execOp('sparseFillEmptyRows', () {
+    final $indices =
+        convertToTensor(indices, 'indices', 'sparseFillEmptyRows', 'int32');
+    final $values = convertToTensor(values, 'values', 'sparseFillEmptyRows');
+    final $denseShape = convertToTensor(
+        denseShape, 'denseShape', 'sparseFillEmptyRows', 'int32');
+    final $defaultValue = convertToTensor(
+        defaultValue, 'defaultValue', 'sparseFillEmptyRows', $values.dtype);
 
-  if ($indices.rank !== 2) {
-    throw new Error(`Indices should be Tensor2D but received shape
-        ${$indices.shape}`);
-  }
-  if ($values.rank !== 1) {
-    throw new Error(
-        `Values should be Tensor1D but received shape ${$values.shape}`);
-  }
-  if ($denseShape.rank !== 1) {
-    throw new Error(`Dense shape should be Tensor1D but received shape ${
-        $denseShape.shape}`);
-  }
-  if ($defaultValue.rank !== 0) {
-    throw new Error(`Default value should be a scalar but received shape ${
-        $defaultValue.shape}`);
-  }
+    if ($indices.rank != 2) {
+      throw Exception(
+          "Indices should be Tensor2D but received shape ${$indices.shape}");
+    }
+    if ($values.rank != 1) {
+      throw Exception(
+          "Values should be Tensor1D but received shape ${$values.shape}");
+    }
+    if ($denseShape.rank != 1) {
+      throw Exception(
+          "Dense shape should be Tensor1D but received shape ${$denseShape.shape}");
+    }
+    if ($defaultValue.rank != 0) {
+      throw Exception(
+          "Default value should be a scalar but received shape ${$defaultValue.shape}");
+    }
 
-  const inputs: SparseFillEmptyRowsInputs = {
-    indices: $indices,
-    values: $values,
-    denseShape: $denseShape,
-    defaultValue: $defaultValue
-  };
+    final inputs = {
+      // : SparseFillEmptyRowsInputs
+      'indices': $indices,
+      'values': $values,
+      'denseShape': $denseShape,
+      'defaultValue': $defaultValue
+    };
 
-  const result: Tensor[] = ENGINE.runKernel(SparseFillEmptyRows, inputs as {});
-  return {
-    outputIndices: result[0],
-    outputValues: result[1],
-    emptyRowIndicator: result[2],
-    reverseIndexMap: result[3]
-  };
+    final result =
+        ENGINE.runKernel(SparseFillEmptyRows, inputs) as List<Tensor>;
+    return SparseFillEmptyRowsResult(
+        outputIndices: result[0],
+        outputValues: result[1],
+        emptyRowIndicator: result[2],
+        reverseIndexMap: result[3]);
+  });
 }
 
-export const sparseFillEmptyRows = op({sparseFillEmptyRows_});
+class SparseFillEmptyRowsResult {
+  final Tensor outputIndices;
+  final Tensor outputValues;
+  final Tensor emptyRowIndicator;
+  final Tensor reverseIndexMap;
+
+  SparseFillEmptyRowsResult({
+    required this.outputIndices,
+    required this.outputValues,
+    required this.emptyRowIndicator,
+    required this.reverseIndexMap,
+  });
+}

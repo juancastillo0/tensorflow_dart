@@ -216,11 +216,8 @@ List<Tensor> executeOp(
             getParamValue('defaultValue', node, tensorMap, context)
                 as Tensor; // Scalar;
         return [
-          tfOps.sparseToDense(
-              indices,
-              sparseValues,
-              shape,
-              sparseValues.dtype == defaultValue.dtype
+          tfOps.sparseToDense(indices, sparseValues, shape,
+              defaultValue: sparseValues.dtype == defaultValue.dtype
                   ? defaultValue
                   : tfOps.cast(defaultValue, sparseValues.dtype))
         ];

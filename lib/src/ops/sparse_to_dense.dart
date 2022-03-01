@@ -15,16 +15,21 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../engine';
-import {SparseToDense, SparseToDenseAttrs, SparseToDenseInputs} from '../kernel_names';
-import {NamedAttrMap} from '../kernel_registry';
-import * as sparse_to_dense from '../ops/sparse_to_dense_util';
-import {Scalar, Tensor} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {convertToTensor} from '../tensor_util_env';
-import {Rank, ScalarLike, ShapeMap, TensorLike} from '../types';
+// import {ENGINE} from '../engine';
+// import {SparseToDense, SparseToDenseAttrs, SparseToDenseInputs} from '../kernel_names';
+// import {NamedAttrMap} from '../kernel_registry';
+// import * as sparse_to_dense from '../ops/sparse_to_dense_util';
+// import {Scalar, Tensor} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {convertToTensor} from '../tensor_util_env';
+// import {Rank, ScalarLike, ShapeMap, TensorLike} from '../types';
 
-import {op} from './operation';
+// import {op} from './operation';
+
+import 'package:tensorflow_wasm/tensorflow_wasm.dart';
+
+import '_prelude.dart';
+import 'sparse_to_dense_util.dart' as sparse_to_dense;
 
 /**
  * Converts a sparse representation into a dense tensor.
@@ -64,30 +69,33 @@ import {op} from './operation';
  *
  * @doc {heading: 'Operations', subheading: 'Normalization'}
  */
-function sparseToDense_<R extends Rank>(
-    sparseIndices: Tensor|TensorLike, sparseValues: Tensor|TensorLike,
-    outputShape: ShapeMap[R], defaultValue: Scalar|ScalarLike = 0): Tensor<R> {
-  const $sparseIndices =
-      convertToTensor(sparseIndices, 'sparseIndices', 'sparseToDense', 'int32');
-  const $sparseValues =
-      convertToTensor(sparseValues, 'sparseValues', 'sparseToDense');
-  const $defaultValue = convertToTensor(
-      defaultValue, 'defaultValue', 'sparseToDense', $sparseValues.dtype);
+Tensor<R> sparseToDense<R extends Rank>(
+  Tensor sparseIndices,
+  Tensor sparseValues,
+  Shape outputShape, {
+  Scalar? defaultValue,
+}) {
+  return execOp('sparseToDense', () {
+    final $sparseIndices = convertToTensor(
+        sparseIndices, 'sparseIndices', 'sparseToDense', 'int32');
+    final $sparseValues =
+        convertToTensor(sparseValues, 'sparseValues', 'sparseToDense');
 
-  sparse_to_dense.validateInput(
-      $sparseIndices, $sparseValues, outputShape, $defaultValue);
+    final $defaultValue = convertToTensor(defaultValue ?? scalar(0),
+        'defaultValue', 'sparseToDense', $sparseValues.dtype);
 
-  const inputs: SparseToDenseInputs = {
-    sparseIndices: $sparseIndices,
-    sparseValues: $sparseValues,
-    defaultValue: $defaultValue
-  };
+    sparse_to_dense.validateInput(
+        $sparseIndices, $sparseValues, outputShape, $defaultValue);
 
-  const attrs: SparseToDenseAttrs = {outputShape};
+    final inputs = {
+      // : SparseToDenseInputs
+      'sparseIndices': $sparseIndices,
+      'sparseValues': $sparseValues,
+      'defaultValue': $defaultValue
+    };
 
-  return ENGINE.runKernel(
-      SparseToDense, inputs as {} as NamedTensorMap,
-      attrs as {} as NamedAttrMap);
+    final attrs = {'outputShape': outputShape}; // : SparseToDenseAttrs
+
+    return ENGINE.runKernel(SparseToDense, inputs, attrs) as Tensor<R>;
+  });
 }
-
-export const sparseToDense = op({sparseToDense_});

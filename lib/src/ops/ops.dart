@@ -52,6 +52,7 @@ export 'in_top_k.dart';
 export 'unique.dart';
 export 'log_sigmoid.dart';
 export 'log_sum_exp.dart';
+export 'sparse_to_dense.dart';
 //
 export 'round_ops.dart';
 export 'mul_ops.dart';
@@ -61,6 +62,7 @@ export 'creation_ops.dart';
 export 'creation_rand_ops.dart';
 export 'fused/fused.dart';
 export 'image/image.dart';
+export 'sparse/sparse.dart';
 //
 export 'conv1d.dart';
 export 'conv2d.dart';

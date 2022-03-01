@@ -20,10 +20,8 @@
  *
  * @param indicesLength The first dimension of indices.
  */
-export function getSparseFillEmptyRowsIndicesDenseShapeMismatch(
-    indicesLength: number) {
-  return `Received SparseTensor with denseShape[0] = 0 but
-  indices.shape[0] = ${indicesLength}`;
+String getSparseFillEmptyRowsIndicesDenseShapeMismatch(int indicesLength) {
+  return 'Received SparseTensor with denseShape[0] = 0 but indices.shape[0] = ${indicesLength}';
 }
 
 /**
@@ -32,9 +30,8 @@ export function getSparseFillEmptyRowsIndicesDenseShapeMismatch(
  * @param index The index with a negative value.
  * @param value The negative value.
  */
-export function getSparseFillEmptyRowsNegativeIndexErrorMessage(
-    index: number, value: number) {
-  return `indices(${index}, 0) is invalid: ${value} < 0`;
+String getSparseFillEmptyRowsNegativeIndexErrorMessage(int index, int value) {
+  return 'indices(${index}, 0) is invalid: ${value} < 0';
 }
 
 /**
@@ -44,7 +41,7 @@ export function getSparseFillEmptyRowsNegativeIndexErrorMessage(
  * @param value The out of range value.
  * @param limit The upper limit for indices.
  */
-export function getSparseFillEmptyRowsOutOfRangeIndexErrorMessage(
-    index: number, value: number, limit: number) {
-  return `indices(${index}, 0) is invalid: ${value} >= ${limit}`;
+String getSparseFillEmptyRowsOutOfRangeIndexErrorMessage(
+    int index, int value, int limit) {
+  return 'indices(${index}, 0) is invalid: ${value} >= ${limit}';
 }
