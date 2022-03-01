@@ -48,7 +48,7 @@ List concatImplCPU(
     inputs.forEach((input) {
       final size = util.sizeFromShape(input.shape);
 
-      outVals.set(input.vals as TypedArray, offset);
+      outVals.setAll(offset, input.vals);
       offset += size;
     });
   } else {
@@ -57,7 +57,7 @@ List concatImplCPU(
     inputs.forEach((input) {
       final decodedData = dtype == 'string'
           ? backend_util.fromUint8ToStringArray(input.vals as List<Uint8List>)
-          : input.vals as TypedArray;
+          : input.vals;
 
       int tIdx = 0;
 

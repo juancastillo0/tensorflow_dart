@@ -863,7 +863,7 @@ typedef StridedSliceInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 class StridedSliceAttrs extends UnmodifiableMapView<String, Object?> {
   final List<int> begin;
   final List<int> end;
-  final List<int> strides;
+  final List<int>? strides;
   final int beginMask;
   final int endMask;
   final int ellipsisMask;

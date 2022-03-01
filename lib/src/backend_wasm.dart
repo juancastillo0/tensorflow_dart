@@ -63,7 +63,7 @@ class TensorData {
   final DataType dtype;
   int refCount;
   /** Only used for string tensors, storing encoded bytes. */
-  final List<Uint8List>? stringBytes;
+  List<Uint8List>? stringBytes;
 
   TensorData({
     required this.id,

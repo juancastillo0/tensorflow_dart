@@ -23,7 +23,7 @@
 // import {reshape} from './Reshape';
 
 import 'package:tensorflow_wasm/tensorflow_wasm.dart' show SliceList;
-
+import 'package:collection/collection.dart';
 import '../kernel_utils/shared.dart' show concatImplCPU, ValueWithShape;
 import '_prelude.dart';
 import 'package:tensorflow_wasm/src/util_base.dart' as util;
@@ -93,7 +93,7 @@ TensorInfo concat({
         $inputs.map((t) => t.shape).toList(), axis);
 
     // out.shape = finalOutShape;
-    final outData = backend.dataIdMap.get(out.dataId);
+    final outData = backend.dataIdMap.get(out.dataId)!;
     outData.stringBytes = backend_util.fromStringArrayToUint8(outVals);
 
     inputs2D.forEach((t) => backend.disposeData(t.dataId));
@@ -120,8 +120,8 @@ TensorInfo concat({
     for (int i = 0; i < inVals.length; i++) {
       final innerDim = innerDims[i];
       final inOffset = b * innerDim;
-      final vals = inVals[i].subarray(inOffset, inOffset + innerDim);
-      outVals.set(vals, outOffset);
+      final vals = (inVals[i] as List).slice(inOffset, inOffset + innerDim);
+      (outVals as List).setAll(outOffset, vals);
       outOffset += innerDim;
     }
   }

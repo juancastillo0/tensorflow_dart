@@ -22,6 +22,8 @@
 
 import 'dart:typed_data';
 
+import 'package:collection/collection.dart';
+
 import '../kernel_utils/shared.dart' show sliceImplCPU;
 import '_prelude.dart';
 import 'package:tensorflow_wasm/slice_util.dart' as slice_util;
@@ -53,9 +55,9 @@ TensorInfo slice({
       outData.stringBytes = (xVals as List<Uint8List>)
           .slice(flatOffset, flatOffset + util.sizeFromShape(size_));
     } else {
-      final outVals = backend.typedArrayFromHeap(out);
-      outVals.set((xVals as TypedArray)
-          .subarray(flatOffset, flatOffset + util.sizeFromShape(size_)));
+      final outVals = backend.typedArrayFromHeap(out) as List;
+      outVals.setAll(
+          flatOffset + util.sizeFromShape(size_), xVals.slice(flatOffset));
     }
 
     return out;
@@ -78,7 +80,7 @@ TensorInfo slice({
         xVals, xStrides[0], xStrides[1], xStrides[2], outVals, begin_, size_);
   } else {
     final res = sliceImplCPU(xVals, begin_, size_, x.shape, x.dtype);
-    outVals.set(res);
+    outVals.setAll(0, res);
   }
 
   return out;
@@ -99,7 +101,7 @@ void slice2d(
   final endI = beginI + size[0];
   for (int i = beginI; i < endI; i++) {
     final xOffset = i * xStride + beginJ;
-    outVals.set(xVals.subarray(xOffset, xOffset + size[1]), outOffset);
+    outVals.setAll(outOffset, xVals.slice(xOffset, xOffset + size[1]));
     outOffset += size[1];
   }
 }
@@ -122,7 +124,7 @@ void slice3d(
   for (int i = beginI; i < endI; i++) {
     for (int j = beginJ; j < endJ; j++) {
       final xOffset = i * xStride1 + j * xStride2 + beginK;
-      outVals.set(xVals.subarray(xOffset, xOffset + size[2]), outOffset);
+      outVals.setAll(outOffset, xVals.slice(xOffset, xOffset + size[2]));
       outOffset += size[2];
     }
   }
@@ -152,7 +154,7 @@ void slice4d(
     for (int j = beginJ; j < endJ; j++) {
       for (int k = beginK; k < endK; k++) {
         final xOffset = i * xStride1 + j * xStride2 + k * xStride3 + beginL;
-        outVals.set(xVals.subarray(xOffset, xOffset + size[3]), outOffset);
+        outVals.setAll(outOffset, xVals.slice(xOffset, xOffset + size[3]));
         outOffset += size[3];
       }
     }

@@ -98,15 +98,11 @@ Tensor? getTensor(
     }
   }
 
-  final contextId = context.currentContextIds.firstWhereOrNull((contextId) {
-    return tensorsMap.containsKey(
-      getNodeNameWithContextId(nodeName, contextId),
-    );
-  });
-
-  return contextId != null
-      ? tensorsMap[getNodeNameWithContextId(nodeName, contextId)]![index]
-      : null;
+  for (final contextId in context.currentContextIds) {
+    final list = tensorsMap[getNodeNameWithContextId(nodeName, contextId)];
+    if (list != null) return list[index];
+  }
+  return null;
 }
 
 /**
