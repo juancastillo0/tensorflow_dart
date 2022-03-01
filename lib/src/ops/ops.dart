@@ -63,6 +63,7 @@ export 'creation_rand_ops.dart';
 export 'fused/fused.dart';
 export 'image/image.dart';
 export 'sparse/sparse.dart';
+export 'string/string.dart';
 //
 export 'conv1d.dart';
 export 'conv2d.dart';

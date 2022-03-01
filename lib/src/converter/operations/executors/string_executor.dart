@@ -28,40 +28,42 @@
 import '_prelude.dart';
 import 'package:tensorflow_wasm/tensorflow_wasm.dart' as tfOps;
 
-List<Tensor> executeOp(Node node, NamedTensorsMap tensorMap,
-     ExecutionContext context) {
-      switch (node.op) {
-        case 'StringNGrams': {
-          final p = tfOps.string.stringNGrams(
-              getParamValue('data', node, tensorMap, context) as Tensor1D,
-              getParamValue('dataSplits', node, tensorMap, context) as Tensor,
-              getParamValue('separator', node, tensorMap, context) as String,
-              getParamValue('nGramWidths', node, tensorMap, context) as
-                  number[],
-              getParamValue('leftPad', node, tensorMap, context) as String,
-              getParamValue('rightPad', node, tensorMap, context) as String,
-              getParamValue('padWidth', node, tensorMap, context) as number,
-              getParamValue(
-                  'preserveShortSequences', node, tensorMap, context) as
-                  bool);
-          return [p.nGrams, p.nGramsSplits];
-        }
-        case 'StringSplit': {
-          final p = tfOps.string.stringSplit(
-              getParamValue('input', node, tensorMap, context) as Tensor1D,
-              getParamValue('delimiter', node, tensorMap, context) as Scalar,
-              getParamValue('skipEmpty', node, tensorMap, context) as bool);
-          return [p.indices, p.values, p.shape];
-        }
-        case 'StringToHashBucketFast': {
-          final output = tfOps.string.stringToHashBucketFast(
-              getParamValue('input', node, tensorMap, context) as Tensor,
-              getParamValue('numBuckets', node, tensorMap, context) as int);
-          return [output];
-        }
-        default:
-          throw StateError('Node type ${node.op} is not implemented');
+List<Tensor> executeOp(
+    Node node, NamedTensorsMap tensorMap, ExecutionContext context) {
+  switch (node.op) {
+    case 'StringNGrams':
+      {
+        final p = tfOps.string.stringNGrams(
+            getParamValue('data', node, tensorMap, context) as Tensor1D,
+            getParamValue('dataSplits', node, tensorMap, context) as Tensor,
+            getParamValue('separator', node, tensorMap, context) as String,
+            getParamValue('nGramWidths', node, tensorMap, context) as List<int>,
+            getParamValue('leftPad', node, tensorMap, context) as String,
+            getParamValue('rightPad', node, tensorMap, context) as String,
+            getParamValue('padWidth', node, tensorMap, context) as int,
+            getParamValue('preserveShortSequences', node, tensorMap, context)
+                as bool);
+        return [p.nGrams, p.nGramsSplits];
       }
-    }
+    case 'StringSplit':
+      {
+        final p = tfOps.string.stringSplit(
+            getParamValue('input', node, tensorMap, context) as Tensor1D,
+            getParamValue('delimiter', node, tensorMap, context) as Scalar,
+            skipEmpty:
+                getParamValue('skipEmpty', node, tensorMap, context) as bool);
+        return [p.indices, p.values, p.shape];
+      }
+    case 'StringToHashBucketFast':
+      {
+        final output = tfOps.string.stringToHashBucketFast(
+            getParamValue('input', node, tensorMap, context) as Tensor,
+            getParamValue('numBuckets', node, tensorMap, context) as int);
+        return [output];
+      }
+    default:
+      throw StateError('Node type ${node.op} is not implemented');
+  }
+}
 
 const CATEGORY = 'string';

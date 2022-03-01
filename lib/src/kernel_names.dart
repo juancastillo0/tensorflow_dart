@@ -828,23 +828,23 @@ const Softmax = 'Softmax';
 //   dim: number;
 // }
 
-// export const SparseFillEmptyRows = 'SparseFillEmptyRows';
+const SparseFillEmptyRows = 'SparseFillEmptyRows';
 // export type SparseFillEmptyRowsInputs =
 //     Pick<NamedTensorInfoMap, 'indices'|'values'|'denseShape'|'defaultValue'>;
 
-// export const SparseReshape = 'SparseReshape';
+const SparseReshape = 'SparseReshape';
 // export type SparseReshapeInputs =
 //     Pick<NamedTensorInfoMap, 'inputIndices'|'inputShape'|'newShape'>;
 
-// export const SparseSegmentMean = 'SparseSegmentMean';
+const SparseSegmentMean = 'SparseSegmentMean';
 // export type SparseSegmentMeanInputs =
 //     Pick<NamedTensorInfoMap, 'data'|'indices'|'segmentIds'>;
 
-// export const SparseSegmentSum = 'SparseSegmentSum';
+const SparseSegmentSum = 'SparseSegmentSum';
 // export type SparseSegmentSumInputs =
 //     Pick<NamedTensorInfoMap, 'data'|'indices'|'segmentIds'>;
 
-// export const SparseToDense = 'SparseToDense';
+const SparseToDense = 'SparseToDense';
 // export type SparseToDenseInputs =
 //     Pick<NamedTensorInfoMap, 'sparseIndices'|'sparseValues'|'defaultValue'>;
 // export interface SparseToDenseAttrs {
@@ -891,7 +891,7 @@ class StridedSliceAttrs extends UnmodifiableMapView<String, Object?> {
         });
 }
 
-// export const StringNGrams = 'StringNGrams';
+const StringNGrams = 'StringNGrams';
 // export type StringNGramsInputs = Pick<NamedTensorInfoMap, 'data'|'dataSplits'>;
 // export interface StringNGramsAttrs {
 //   separator: string;
@@ -902,13 +902,13 @@ class StridedSliceAttrs extends UnmodifiableMapView<String, Object?> {
 //   preserveShortSequences: boolean;
 // }
 
-// export const StringSplit = 'StringSplit';
+const StringSplit = 'StringSplit';
 // export type StringSplitInputs = Pick<NamedTensorInfoMap, 'input'|'delimiter'>;
 // export interface StringSplitAttrs {
 //   skipEmpty: boolean;
 // }
 
-// export const StringToHashBucketFast = 'StringToHashBucketFast';
+const StringToHashBucketFast = 'StringToHashBucketFast';
 // export type StringToHashBucketFastInputs = Pick<NamedTensorInfoMap, 'input'>;
 // export interface StringToHashBucketFastAttrs {
 //   numBuckets: number;

@@ -15,13 +15,15 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../../engine';
-import {StringSplit, StringSplitAttrs, StringSplitInputs} from '../../kernel_names';
-import {Scalar, Tensor, Tensor1D} from '../../tensor';
-import {NamedTensorMap} from '../../tensor_types';
-import {convertToTensor} from '../../tensor_util_env';
-import {ScalarLike, TensorLike} from '../../types';
-import {op} from '../operation';
+// import {ENGINE} from '../../engine';
+// import {StringSplit, StringSplitAttrs, StringSplitInputs} from '../../kernel_names';
+// import {Scalar, Tensor, Tensor1D} from '../../tensor';
+// import {NamedTensorMap} from '../../tensor_types';
+// import {convertToTensor} from '../../tensor_util_env';
+// import {ScalarLike, TensorLike} from '../../types';
+// import {op} from '../operation';
+
+import '../_prelude.dart';
 
 /**
  * Split elements of `input` based on `delimiter` into a SparseTensor .
@@ -55,27 +57,44 @@ import {op} from '../operation';
  *
  * @doc {heading: 'Operations', subheading: 'String'}
  */
-function stringSplit_(
-    input: Tensor1D|TensorLike, delimiter: Scalar|ScalarLike,
-    skipEmpty = true): NamedTensorMap {
-  const $input = convertToTensor(input, 'input', 'stringSplit', 'string');
-  const $delimiter =
-      convertToTensor(delimiter, 'delimiter', 'stringSplit', 'string');
+StringSplitResult stringSplit(
+  Tensor1D input,
+  Scalar delimiter, {
+  bool skipEmpty = true,
+}) {
+  return execOp('stringSplit', () {
+    final $input = convertToTensor(input, 'input', 'stringSplit', 'string');
+    final $delimiter =
+        convertToTensor(delimiter, 'delimiter', 'stringSplit', 'string');
 
-  if ($input.rank !== 1) {
-    throw new Error(
-        `Input should be Tensor1D but received shape ${$input.shape}`);
-  }
-  if ($delimiter.rank !== 0) {
-    throw new Error(
-        `Delimiter should be a scalar but received shape ${$delimiter.shape}`);
-  }
+    if ($input.rank != 1) {
+      throw Exception(
+          'Input should be Tensor1D but received shape ${$input.shape}');
+    }
+    if ($delimiter.rank != 0) {
+      throw Exception(
+          'Delimiter should be a scalar but received shape ${$delimiter.shape}');
+    }
 
-  const attrs: StringSplitAttrs = {skipEmpty};
-  const inputs: StringSplitInputs = {input: $input, delimiter: $delimiter};
-  const result: Tensor[] =
-      ENGINE.runKernel(StringSplit, inputs as {}, attrs as {});
-  return {indices: result[0], values: result[1], shape: result[2]};
+    final attrs = {'skipEmpty': skipEmpty}; // : StringSplitAttrs
+    final inputs = {
+      'input': $input,
+      'delimiter': $delimiter
+    }; // : StringSplitInputs
+    final result = ENGINE.runKernel(StringSplit, inputs, attrs) as List<Tensor>;
+    return StringSplitResult(
+        indices: result[0], values: result[1], shape: result[2]);
+  });
 }
 
-export const stringSplit = op({stringSplit_});
+class StringSplitResult {
+  final Tensor indices;
+  final Tensor values;
+  final Tensor shape;
+
+  StringSplitResult({
+    required this.indices,
+    required this.values,
+    required this.shape,
+  });
+}

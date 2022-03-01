@@ -15,13 +15,15 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../../engine';
-import {StringNGrams, StringNGramsAttrs, StringNGramsInputs} from '../../kernel_names';
-import {Tensor, Tensor1D} from '../../tensor';
-import {NamedTensorMap} from '../../tensor_types';
-import {convertToTensor} from '../../tensor_util_env';
-import {TensorLike} from '../../types';
-import {op} from '../operation';
+// import {ENGINE} from '../../engine';
+// import {StringNGrams, StringNGramsAttrs, StringNGramsInputs} from '../../kernel_names';
+// import {Tensor, Tensor1D} from '../../tensor';
+// import {NamedTensorMap} from '../../tensor_types';
+// import {convertToTensor} from '../../tensor_util_env';
+// import {TensorLike} from '../../types';
+// import {op} from '../operation';
+
+import '../_prelude.dart';
 
 /**
  * Creates ngrams from ragged string data.
@@ -64,36 +66,57 @@ import {op} from '../operation';
  *
  * @doc {heading: 'Operations', subheading: 'String'}
  */
-function stringNGrams_(
-    data: Tensor1D|TensorLike, dataSplits: Tensor|TensorLike, separator: string,
-    nGramWidths: number[], leftPad: string, rightPad: string, padWidth: number,
-    preserveShortSequences: boolean): NamedTensorMap {
-  const $data = convertToTensor(data, 'data', 'stringNGrams', 'string');
-  if ($data.dtype !== 'string') {
-    throw new Error('Data must be of datatype string');
-  }
-  if ($data.shape.length !== 1) {
-    throw new Error(`Data must be a vector, saw: ${$data.shape}`);
-  }
+StringNGramsResult stringNGrams(
+  Tensor1D data,
+  Tensor dataSplits,
+  String separator,
+  List<int> nGramWidths,
+  String leftPad,
+  String rightPad,
+  int padWidth,
+  bool preserveShortSequences,
+) {
+  return execOp('stringNGrams', () {
+    final $data = convertToTensor(data, 'data', 'stringNGrams', 'string');
+    if ($data.dtype != 'string') {
+      throw Exception('Data must be of datatype string');
+    }
+    if ($data.shape.length != 1) {
+      throw Exception('Data must be a vector, saw: ${$data.shape}');
+    }
 
-  const $dataSplits = convertToTensor(dataSplits, 'dataSplits', 'stringNGrams');
-  if ($dataSplits.dtype !== 'int32') {
-    throw new Error('Data splits must be of datatype int32');
-  }
+    final $dataSplits =
+        convertToTensor(dataSplits, 'dataSplits', 'stringNGrams');
+    if ($dataSplits.dtype != 'int32') {
+      throw Exception('Data splits must be of datatype int32');
+    }
 
-  const attrs: StringNGramsAttrs = {
-    separator,
-    nGramWidths,
-    leftPad,
-    rightPad,
-    padWidth,
-    preserveShortSequences
-  };
+    final attrs = {
+      // StringNGramsAttrs
+      'separator': separator,
+      'nGramWidths': nGramWidths,
+      'leftPad': leftPad,
+      'rightPad': rightPad,
+      'padWidth': padWidth,
+      'preserveShortSequences': preserveShortSequences
+    };
 
-  const inputs: StringNGramsInputs = {data: $data, dataSplits: $dataSplits};
-  const result: Tensor[] =
-      ENGINE.runKernel(StringNGrams, inputs as {}, attrs as {});
-  return {nGrams: result[0], nGramsSplits: result[1]};
+    final inputs = {
+      'data': $data,
+      'dataSplits': $dataSplits
+    }; // StringNGramsInputs
+    final result =
+        ENGINE.runKernel(StringNGrams, inputs, attrs) as List<Tensor>;
+    return StringNGramsResult(nGrams: result[0], nGramsSplits: result[1]);
+  });
 }
 
-export const stringNGrams = op({stringNGrams_});
+class StringNGramsResult {
+  final Tensor nGrams;
+  final Tensor nGramsSplits;
+
+  StringNGramsResult({
+    required this.nGrams,
+    required this.nGramsSplits,
+  });
+}

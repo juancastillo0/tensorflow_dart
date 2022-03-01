@@ -44,9 +44,9 @@ export './src/ops/fused_util.dart';
 // export './src/backends/complex_util.dart';
 // export './src/backends/einsum_util.dart';
 export './src/ops/split_util.dart';
-// export './src/ops/sparse/sparse_fill_empty_rows_util.dart';
-// export './src/ops/sparse/sparse_reshape_util.dart';
-// export './src/ops/sparse/sparse_segment_reduction_util.dart';
+export './src/ops/sparse/sparse_fill_empty_rows_util.dart';
+export './src/ops/sparse/sparse_reshape_util.dart';
+export './src/ops/sparse/sparse_segment_reduction_util.dart';
 
 // import * as './src/ops/segment_util.dart';
 // export {segment_util};

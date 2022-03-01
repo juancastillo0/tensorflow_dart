@@ -15,12 +15,14 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../../engine';
-import {StringToHashBucketFast, StringToHashBucketFastAttrs, StringToHashBucketFastInputs} from '../../kernel_names';
-import {Tensor} from '../../tensor';
-import {convertToTensor} from '../../tensor_util_env';
-import {TensorLike} from '../../types';
-import {op} from '../operation';
+// import {ENGINE} from '../../engine';
+// import {StringToHashBucketFast, StringToHashBucketFastAttrs, StringToHashBucketFastInputs} from '../../kernel_names';
+// import {Tensor} from '../../tensor';
+// import {convertToTensor} from '../../tensor_util_env';
+// import {TensorLike} from '../../types';
+// import {op} from '../operation';
+
+import '../_prelude.dart';
 
 /**
  * Converts each string in the input Tensor to its hash mod by a number of
@@ -43,18 +45,17 @@ import {op} from '../operation';
  *
  * @doc {heading: 'Operations', subheading: 'String'}
  */
-function stringToHashBucketFast_(
-    input: Tensor|TensorLike, numBuckets: number): Tensor {
-  const $input =
-      convertToTensor(input, 'input', 'stringToHashBucketFast', 'string');
-  const attrs: StringToHashBucketFastAttrs = {numBuckets};
+Tensor stringToHashBucketFast(Tensor input, int numBuckets) {
+  return execOp('stringToHashBucketFast', () {
+    final $input =
+        convertToTensor(input, 'input', 'stringToHashBucketFast', 'string');
+    final attrs = {'numBuckets': numBuckets}; // : StringToHashBucketFastAttrs
 
-  if (numBuckets <= 0) {
-    throw new Error(`Number of buckets must be at least 1`);
-  }
+    if (numBuckets <= 0) {
+      throw Exception('Number of buckets must be at least 1');
+    }
 
-  const inputs: StringToHashBucketFastInputs = {input: $input};
-  return ENGINE.runKernel(StringToHashBucketFast, inputs as {}, attrs as {});
+    final inputs = {'input': $input}; // : StringToHashBucketFastInputs
+    return ENGINE.runKernel(StringToHashBucketFast, inputs, attrs) as Tensor;
+  });
 }
-
-export const stringToHashBucketFast = op({stringToHashBucketFast_});
