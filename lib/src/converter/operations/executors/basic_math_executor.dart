@@ -114,9 +114,11 @@ List<Tensor> executeOp(
         tfOps.log1p(getParamValue('x', node, tensorMap, context) as Tensor)
       ];
     case 'Imag':
-      return [
-        tfOps.imag(getParamValue('x', node, tensorMap, context) as Tensor)
-      ];
+      // TODO: complex
+      throw UnimplementedError();
+    // return [
+    //   tfOps.imag(getParamValue('x', node, tensorMap, context) as Tensor)
+    // ];
     case 'Neg':
       return [
         tfOps.neg(getParamValue('x', node, tensorMap, context) as Tensor)
@@ -126,9 +128,11 @@ List<Tensor> executeOp(
         tfOps.reciprocal(getParamValue('x', node, tensorMap, context) as Tensor)
       ];
     case 'Real':
-      return [
-        tfOps.real(getParamValue('x', node, tensorMap, context) as Tensor)
-      ];
+      // TODO: complex
+      throw UnimplementedError();
+    // return [
+    //   tfOps.real(getParamValue('x', node, tensorMap, context) as Tensor)
+    // ];
     case 'Relu':
       return [
         tfOps.relu(getParamValue('x', node, tensorMap, context) as Tensor)

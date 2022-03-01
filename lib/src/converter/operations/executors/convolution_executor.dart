@@ -244,24 +244,26 @@ List<Tensor> executeOp(
       }
     case 'Conv3D':
       {
-        final stride =
-            getParamValue('strides', node, tensorMap, context) as List<int>;
-        final pad = getParamValue('pad', node, tensorMap, context);
-        final dataFormat =
-            (getParamValue('dataFormat', node, tensorMap, context) as String)
-                .toUpperCase();
-        final dilations =
-            getParamValue('dilations', node, tensorMap, context) as List<int>;
-        return [
-          tfOps.conv3d(
-              getParamValue('x', node, tensorMap, context)
-                  as Tensor4D, // | Tensor<Rank.R5>,
-              getParamValue('filter', node, tensorMap, context) as Tensor5D,
-              [stride[1], stride[2], stride[3]],
-              pad, //as 'valid' | 'same',
-              dataFormat, // as 'NDHWC' | 'NCDHW',
-              [dilations[1], dilations[2], dilations[3]])
-        ];
+        // TODO: conv3d
+        throw UnimplementedError();
+        // final stride =
+        //     getParamValue('strides', node, tensorMap, context) as List<int>;
+        // final pad = getParamValue('pad', node, tensorMap, context);
+        // final dataFormat =
+        //     (getParamValue('dataFormat', node, tensorMap, context) as String)
+        //         .toUpperCase();
+        // final dilations =
+        //     getParamValue('dilations', node, tensorMap, context) as List<int>;
+        // return [
+        //   tfOps.conv3d(
+        //       getParamValue('x', node, tensorMap, context)
+        //           as Tensor4D, // | Tensor<Rank.R5>,
+        //       getParamValue('filter', node, tensorMap, context) as Tensor5D,
+        //       [stride[1], stride[2], stride[3]],
+        //       pad, //as 'valid' | 'same',
+        //       dataFormat, // as 'NDHWC' | 'NCDHW',
+        //       [dilations[1], dilations[2], dilations[3]])
+        // ];
       }
     case 'AvgPool':
       {
@@ -321,66 +323,72 @@ List<Tensor> executeOp(
       }
     case 'AvgPool3D':
       {
-        final stride =
-            getParamValue('strides', node, tensorMap, context) as List<int>;
-        final pad = getParamValue('pad', node, tensorMap, context);
-        final kernelSize =
-            getParamValue('kernelSize', node, tensorMap, context) as List<int>;
+        // TODO: conv3d
+        throw UnimplementedError();
+        // final stride =
+        //     getParamValue('strides', node, tensorMap, context) as List<int>;
+        // final pad = getParamValue('pad', node, tensorMap, context);
+        // final kernelSize =
+        //     getParamValue('kernelSize', node, tensorMap, context) as List<int>;
 
-        return [
-          tfOps.avgPool3d(
-              getParamValue('x', node, tensorMap, context) as Tensor5D,
-              [kernelSize[1], kernelSize[2], kernelSize[3]],
-              [stride[1], stride[2], stride[3]],
-              pad // as 'valid' | 'same'
-              )
-        ];
+        // return [
+        //   tfOps.avgPool3d(
+        //       getParamValue('x', node, tensorMap, context) as Tensor5D,
+        //       [kernelSize[1], kernelSize[2], kernelSize[3]],
+        //       [stride[1], stride[2], stride[3]],
+        //       pad // as 'valid' | 'same'
+        //       )
+        // ];
       }
 
     case 'MaxPool3D':
       {
-        final stride =
-            getParamValue('strides', node, tensorMap, context) as List<int>;
-        final pad = getParamValue('pad', node, tensorMap, context);
-        final kernelSize =
-            getParamValue('kernelSize', node, tensorMap, context) as List<int>;
+        // TODO: conv3d
+        throw UnimplementedError();
+        // final stride =
+        //     getParamValue('strides', node, tensorMap, context) as List<int>;
+        // final pad = getParamValue('pad', node, tensorMap, context);
+        // final kernelSize =
+        //     getParamValue('kernelSize', node, tensorMap, context) as List<int>;
 
-        return [
-          tfOps.maxPool3d(
-              getParamValue('x', node, tensorMap, context) as Tensor5D,
-              [kernelSize[1], kernelSize[2], kernelSize[3]],
-              [stride[1], stride[2], stride[3]],
-              pad // as 'valid' | 'same'
-              )
-        ];
+        // return [
+        //   tfOps.maxPool3d(
+        //       getParamValue('x', node, tensorMap, context) as Tensor5D,
+        //       [kernelSize[1], kernelSize[2], kernelSize[3]],
+        //       [stride[1], stride[2], stride[3]],
+        //       pad // as 'valid' | 'same'
+        //       )
+        // ];
       }
 
     case 'Dilation2D':
       {
-        final strides =
-            getParamValue('strides', node, tensorMap, context) as List<int>;
-        final pad = getParamValue('pad', node, tensorMap, context);
-        final dilations =
-            getParamValue('dilations', node, tensorMap, context) as List<int>;
+        // TODO: dilation2d
+        throw UnimplementedError();
+        // final strides =
+        //     getParamValue('strides', node, tensorMap, context) as List<int>;
+        // final pad = getParamValue('pad', node, tensorMap, context);
+        // final dilations =
+        //     getParamValue('dilations', node, tensorMap, context) as List<int>;
 
-        // strides: [1, stride_height, stride_width, 1].
-        final strideHeight = strides[1];
-        final strideWidth = strides[2];
+        // // strides: [1, stride_height, stride_width, 1].
+        // final strideHeight = strides[1];
+        // final strideWidth = strides[2];
 
-        // dilations: [1, dilation_height, dilation_width, 1].
-        final dilationHeight = dilations[1];
-        final dilationWidth = dilations[2];
+        // // dilations: [1, dilation_height, dilation_width, 1].
+        // final dilationHeight = dilations[1];
+        // final dilationWidth = dilations[2];
 
-        return [
-          tfOps.dilation2d(
-              getParamValue('x', node, tensorMap, context)
-                  as Tensor3D, //| Tensor4D,
-              getParamValue('filter', node, tensorMap, context) as Tensor3D,
-              [strideHeight, strideWidth],
-              pad, // as 'valid' | 'same',
-              [dilationHeight, dilationWidth],
-              'NHWC' /* dataFormat */)
-        ];
+        // return [
+        //   tfOps.dilation2d(
+        //       getParamValue('x', node, tensorMap, context)
+        //           as Tensor3D, //| Tensor4D,
+        //       getParamValue('filter', node, tensorMap, context) as Tensor3D,
+        //       [strideHeight, strideWidth],
+        //       pad, // as 'valid' | 'same',
+        //       [dilationHeight, dilationWidth],
+        //       'NHWC' /* dataFormat */)
+        // ];
       }
 
     default:
