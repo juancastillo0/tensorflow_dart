@@ -15,22 +15,26 @@
  * =============================================================================
  */
 
-import {KernelConfig, KernelFunc, SparseSegmentMean, SparseSegmentMeanInputs, TensorInfo} from '@tensorflow/tfjs-core';
+// import {KernelConfig, KernelFunc, SparseSegmentMean, SparseSegmentMeanInputs, TensorInfo} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-import {setup, sparseSegmentReduction} from './SparseSegmentReduction';
+// import {setup, sparseSegmentReduction} from './SparseSegmentReduction';
 
-function sparseSegmentMean(args: {
-  backend: BackendWasm,
-  inputs: SparseSegmentMeanInputs,
-}): TensorInfo {
-  return sparseSegmentReduction(args, true);
+import '_prelude.dart';
+import 'sparse_segment_reduction.dart';
+
+TensorInfo sparseSegmentMean({
+  required NamedTensorInfoMap inputs,
+  required BackendWasm backend,
+  NamedAttrMap? attrs,
+}) {
+  return sparseSegmentReduction(backend: backend, inputs: inputs, isMean: true);
 }
 
-export const sparseSegmentMeanConfig: KernelConfig = {
+final sparseSegmentMeanConfig = KernelConfigG(
   kernelName: SparseSegmentMean,
   backendName: 'wasm',
-  setupFunc: setup,
-  kernelFunc: sparseSegmentMean as {} as KernelFunc
-};
+  setupFunc: setupSparseSegmentReduction,
+  kernelFunc: sparseSegmentMean,
+);

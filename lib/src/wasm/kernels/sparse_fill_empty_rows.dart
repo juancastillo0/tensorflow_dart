@@ -15,101 +15,127 @@
  * =============================================================================
  */
 
-import {backend_util, KernelConfig, KernelFunc, SparseFillEmptyRows, SparseFillEmptyRowsInputs, TensorInfo} from '@tensorflow/tfjs-core';
+// import {backend_util, KernelConfig, KernelFunc, SparseFillEmptyRows, SparseFillEmptyRowsInputs, TensorInfo} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
-import {slice} from './Slice';
+// import {BackendWasm} from '../backend_wasm';
+// import {slice} from './Slice';
 
-import {CppDType} from './types';
+// import {CppDType} from './types';
 
-let wasmSparseFillEmptyRows: (
-    indicesId: number, valuesId: number, valuesDType: number,
-    indicesCount: number, denseRows: number, rank: number,
-    defaultValueId: number, outputIndicesId: number, outputValuesId: number,
-    emptyRowIndicatorId: number, reverseIndexMapId: number,
-    exceptionValuesId: number) => number;
+import 'dart:typed_data';
 
-export function setup(backend: BackendWasm): void {
-  wasmSparseFillEmptyRows =
+import '_prelude.dart';
+
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
+import 'package:tensorflow_wasm/backend_util.dart' as backend_util;
+
+import 'slice.dart';
+
+late final Function(List) _wasmSparseFillEmptyRows;
+// : (
+//     indicesId: number, valuesId: number, valuesDType: number,
+//     indicesCount: number, denseRows: number, rank: number,
+//     defaultValueId: number, outputIndicesId: number, outputValuesId: number,
+//     emptyRowIndicatorId: number, reverseIndexMapId: number,
+//     exceptionValuesId: number) => number;
+
+void _setup(BackendWasm backend) {
+  _wasmSparseFillEmptyRows =
       backend.wasm.cwrap('SparseFillEmptyRows', 'number', [
-        'number',  // indicesId
-        'number',  // valuesId
-        'number',  // valuesDType
-        'number',  // indicesCount
-        'number',  // denseRows
-        'number',  // rank
-        'number',  // defaultValueId
-        'number',  // outputIndicesId
-        'number',  // outputValuesId
-        'number',  // emptyRowIndicatorId
-        'number',  // reverseIndexMapId
-        'number',  // exceptionValuesId
-      ]);
+    'number', // indicesId
+    'number', // valuesId
+    'number', // valuesDType
+    'number', // indicesCount
+    'number', // denseRows
+    'number', // rank
+    'number', // defaultValueId
+    'number', // outputIndicesId
+    'number', // outputValuesId
+    'number', // emptyRowIndicatorId
+    'number', // reverseIndexMapId
+    'number', // exceptionValuesId
+  ]);
 }
 
-export function sparseFillEmptyRows(args: {
-  backend: BackendWasm,
-  inputs: SparseFillEmptyRowsInputs,
-}): [TensorInfo, TensorInfo, TensorInfo, TensorInfo] {
-  const {backend, inputs} = args;
-  const {indices, values, denseShape, defaultValue} = inputs;
+TensorInfoList sparseFillEmptyRows({
+  required NamedTensorInfoMap inputs,
+  required BackendWasm backend,
+  NamedAttrMap? attrs,
+}) {
+  final indices = inputs['indices']!;
+  final values = inputs['values']!;
+  final denseShape = inputs['denseShape']!;
+  final defaultValue = inputs['defaultValue']!;
 
-  const indicesCount = indices.shape[0];
-  const rank = indices.shape[1];
-  const denseRows = backend.readSync(denseShape.dataId)[0] as number;
+  final indicesCount = indices.shape[0];
+  final rank = indices.shape[1];
+  final denseRows = backend.readSync(denseShape.dataId)[0] as int;
 
   // Set output size to maximum possible and resize later (actual result
   // might be smaller).
-  const maxOutputIndicesShape = [indicesCount + denseRows, rank];
+  final maxOutputIndicesShape = [indicesCount + denseRows, rank];
 
-  const indicesId = backend.dataIdMap.get(indices.dataId).id;
-  const valuesId = backend.dataIdMap.get(values.dataId).id;
-  const defaultValueId = backend.dataIdMap.get(defaultValue.dataId).id;
+  final indicesId = backend.dataIdMap.get(indices.dataId)!.id;
+  final valuesId = backend.dataIdMap.get(values.dataId)!.id;
+  final defaultValueId = backend.dataIdMap.get(defaultValue.dataId)!.id;
 
-  const outputIndices =
+  final outputIndices =
       backend.makeOutput(maxOutputIndicesShape, indices.dtype);
-  const outputIndicesId = backend.dataIdMap.get(outputIndices.dataId).id;
+  final outputIndicesId = backend.dataIdMap.get(outputIndices.dataId)!.id;
 
-  const outputValues =
-      backend.makeOutput(maxOutputIndicesShape.slice(0, 1), values.dtype);
-  const outputValuesId = backend.dataIdMap.get(outputValues.dataId).id;
+  final outputValues =
+      backend.makeOutput(maxOutputIndicesShape.sublist(0, 1), values.dtype);
+  final outputValuesId = backend.dataIdMap.get(outputValues.dataId)!.id;
 
-  const emptyRowIndicator = backend.makeOutput([denseRows], 'bool');
-  const emptyRowIndicatorId =
-      backend.dataIdMap.get(emptyRowIndicator.dataId).id;
+  final emptyRowIndicator = backend.makeOutput([denseRows], 'bool');
+  final emptyRowIndicatorId =
+      backend.dataIdMap.get(emptyRowIndicator.dataId)!.id;
 
-  const reverseIndexMap = backend.makeOutput([indicesCount], indices.dtype);
-  const reverseIndexMapId = backend.dataIdMap.get(reverseIndexMap.dataId).id;
+  final reverseIndexMap = backend.makeOutput([indicesCount], indices.dtype);
+  final reverseIndexMapId = backend.dataIdMap.get(reverseIndexMap.dataId)!.id;
 
-  const exceptionValues = backend.makeOutput([4], 'int32');
-  const exceptionValuesId = backend.dataIdMap.get(exceptionValues.dataId).id;
+  final exceptionValues = backend.makeOutput([4], 'int32');
+  final exceptionValuesId = backend.dataIdMap.get(exceptionValues.dataId)!.id;
 
-  const outputRows = wasmSparseFillEmptyRows(
-      indicesId, valuesId, CppDType[values.dtype], indicesCount, denseRows,
-      rank, defaultValueId, outputIndicesId, outputValuesId,
-      emptyRowIndicatorId, reverseIndexMapId, exceptionValuesId);
+  final outputRows = _wasmSparseFillEmptyRows([
+    indicesId,
+    valuesId,
+    CppDType.values.byName(values.dtype).index,
+    indicesCount,
+    denseRows,
+    rank,
+    defaultValueId,
+    outputIndicesId,
+    outputValuesId,
+    emptyRowIndicatorId,
+    reverseIndexMapId,
+    exceptionValuesId
+  ]);
 
-  const exceptionValuesArray =
-      backend.readSync(exceptionValues.dataId) as Int32Array;
+  final exceptionValuesArray =
+      backend.readSync(exceptionValues.dataId) as Int32List;
 
-  let exceptionMessage: string;
+  final String exceptionMessage;
   switch (exceptionValuesArray[0]) {
-    case 1: {
-      exceptionMessage =
-          backend_util.getSparseFillEmptyRowsIndicesDenseShapeMismatch(
-              exceptionValuesArray[1]);
-      break;
-    }
-    case 2: {
-      exceptionMessage =
-          backend_util.getSparseFillEmptyRowsNegativeIndexErrorMessage(
-              exceptionValuesArray[1], exceptionValuesArray[2]);
-      break;
-    }
+    case 1:
+      {
+        exceptionMessage =
+            backend_util.getSparseFillEmptyRowsIndicesDenseShapeMismatch(
+                exceptionValuesArray[1]);
+        break;
+      }
+    case 2:
+      {
+        exceptionMessage =
+            backend_util.getSparseFillEmptyRowsNegativeIndexErrorMessage(
+                exceptionValuesArray[1], exceptionValuesArray[2]);
+        break;
+      }
     case 3:
       exceptionMessage =
           backend_util.getSparseFillEmptyRowsOutOfRangeIndexErrorMessage(
-              exceptionValuesArray[1], exceptionValuesArray[2],
+              exceptionValuesArray[1],
+              exceptionValuesArray[2],
               exceptionValuesArray[3]);
       break;
     default:
@@ -117,38 +143,46 @@ export function sparseFillEmptyRows(args: {
   }
 
   backend.disposeData(exceptionValues.dataId);
-  if (exceptionMessage) {
+  if (exceptionMessage.isNotEmpty) {
     backend.disposeData(outputIndices.dataId);
     backend.disposeData(outputValues.dataId);
     backend.disposeData(emptyRowIndicator.dataId);
     backend.disposeData(reverseIndexMap.dataId);
-    throw new Error(exceptionMessage);
+    throw Exception(exceptionMessage);
   }
 
-  let resizedIndices = outputIndices;
-  let resizedValues = outputValues;
+  TensorInfo resizedIndices = outputIndices;
+  TensorInfo resizedValues = outputValues;
   // Overestimated output size.
-  if (outputRows !== maxOutputIndicesShape[0]) {
-    resizedIndices = slice({
-      inputs: {x: outputIndices},
-      attrs: {begin: 0, size: [outputRows, rank]},
-      backend
-    });
-    resizedValues = slice({
-      inputs: {x: outputValues},
-      attrs: {begin: 0, size: outputRows},
-      backend
-    });
+  if (outputRows != maxOutputIndicesShape[0]) {
+    resizedIndices = slice(
+      inputs: {'x': outputIndices},
+      attrs: {
+        'begin': 0,
+        'size': [outputRows, rank]
+      },
+      backend: backend,
+    );
+    resizedValues = slice(
+      inputs: {'x': outputValues},
+      attrs: {'begin': 0, 'size': outputRows},
+      backend: backend,
+    );
     backend.disposeData(outputIndices.dataId);
     backend.disposeData(outputValues.dataId);
   }
 
-  return [resizedIndices, resizedValues, emptyRowIndicator, reverseIndexMap];
+  return TensorInfoList([
+    resizedIndices,
+    resizedValues,
+    emptyRowIndicator,
+    reverseIndexMap,
+  ]);
 }
 
-export const sparseFillEmptyRowsConfig: KernelConfig = {
+final sparseFillEmptyRowsConfig = KernelConfigG(
   kernelName: SparseFillEmptyRows,
   backendName: 'wasm',
-  setupFunc: setup,
-  kernelFunc: sparseFillEmptyRows as {} as KernelFunc
-};
+  setupFunc: _setup,
+  kernelFunc: sparseFillEmptyRows,
+);

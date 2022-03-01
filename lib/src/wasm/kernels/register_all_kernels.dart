@@ -46,6 +46,10 @@ import 'package:tensorflow_wasm/src/wasm/kernels/sigmoid.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/slice.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/softmax.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/space_to_batch_nd.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/sparse_fill_empty_rows.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/sparse_reshape.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/sparse_segment_mean.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/sparse_segment_sum.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/split_v.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/step.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/sum.dart';
@@ -155,11 +159,10 @@ void registerAllKernels() {
 
     // Conv2D
     // Conv2DBackpropInput
-    // SparseFillEmptyRows
-    // SparseReshape
-    // SparseSegmentMean
-    // SparseSegmentReduction
-    // SparseSegmentSum
+    sparseFillEmptyRowsConfig,
+    sparseReshapeConfig,
+    sparseSegmentMeanConfig,
+    sparseSegmentSumConfig,
   ];
 
   for (final config in configs) {

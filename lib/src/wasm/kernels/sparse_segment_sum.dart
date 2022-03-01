@@ -15,22 +15,27 @@
  * =============================================================================
  */
 
-import {KernelConfig, KernelFunc, SparseSegmentSum, SparseSegmentSumInputs, TensorInfo} from '@tensorflow/tfjs-core';
+// import {KernelConfig, KernelFunc, SparseSegmentSum, SparseSegmentSumInputs, TensorInfo} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-import {setup, sparseSegmentReduction} from './SparseSegmentReduction';
+// import {setup, sparseSegmentReduction} from './SparseSegmentReduction';
 
-function sparseSegmentSum(args: {
-  backend: BackendWasm,
-  inputs: SparseSegmentSumInputs,
-}): TensorInfo {
-  return sparseSegmentReduction(args, false);
+import '_prelude.dart';
+import 'sparse_segment_reduction.dart';
+
+TensorInfo sparseSegmentSum({
+  required NamedTensorInfoMap inputs,
+  required BackendWasm backend,
+  NamedAttrMap? attrs,
+}) {
+  return sparseSegmentReduction(
+      backend: backend, inputs: inputs, isMean: false);
 }
 
-export const sparseSegmentSumConfig: KernelConfig = {
+final sparseSegmentSumConfig = KernelConfigG(
   kernelName: SparseSegmentSum,
   backendName: 'wasm',
-  setupFunc: setup,
-  kernelFunc: sparseSegmentSum as {} as KernelFunc
-};
+  setupFunc: setupSparseSegmentReduction,
+  kernelFunc: sparseSegmentSum,
+);

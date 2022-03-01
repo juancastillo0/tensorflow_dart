@@ -15,125 +15,145 @@
  * =============================================================================
  */
 
-import {backend_util, KernelConfig, KernelFunc, SparseReshape, SparseReshapeInputs, TensorInfo, util} from '@tensorflow/tfjs-core';
+// import {backend_util, KernelConfig, KernelFunc, SparseReshape, SparseReshapeInputs, TensorInfo, util} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-let wasmSparseReshape: (
-    inputIndicesId: number, inputShapeId: number, newShapeId: number,
-    nnz: number, newIndicesId: number, outputShapeId: number,
-    exceptionValuesId: number) => void;
+import 'dart:typed_data';
 
-function setup(backend: BackendWasm): void {
-  wasmSparseReshape = backend.wasm.cwrap(SparseReshape, null /*void*/, [
-    'number',  // inputIndicesId
-    'number',  // inputShapeId
-    'number',  // newShapeId
-    'number',  // nnz
-    'number',  // newIndicesId
-    'number',  // outputShapeId
-    'number',  // exceptionValuesId
+import '_prelude.dart';
+
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
+import 'package:tensorflow_wasm/backend_util.dart' as backend_util;
+
+late final Function(List) _wasmSparseReshape;
+// : (
+//     inputIndicesId: number, inputShapeId: number, newShapeId: number,
+//     nnz: number, newIndicesId: number, outputShapeId: number,
+//     exceptionValuesId: number) => void;
+
+void _setup(BackendWasm backend) {
+  _wasmSparseReshape = backend.wasm.cwrap(SparseReshape, null /*void*/, [
+    'number', // inputIndicesId
+    'number', // inputShapeId
+    'number', // newShapeId
+    'number', // nnz
+    'number', // newIndicesId
+    'number', // outputShapeId
+    'number', // exceptionValuesId
   ]);
 }
 
-function sparseReshape(args: {
-  backend: BackendWasm,
-  inputs: SparseReshapeInputs,
-}): [TensorInfo, TensorInfo] {
-  const {backend, inputs} = args;
-  const {inputIndices, inputShape, newShape} = inputs;
+TensorInfoList sparseReshape({
+  required NamedTensorInfoMap inputs,
+  required BackendWasm backend,
+  NamedAttrMap? attrs,
+}) {
+  final inputIndices = inputs['inputIndices']!;
+  final inputShape = inputs['inputShape']!;
+  final newShape = inputs['newShape']!;
 
-  if (inputIndices.shape.length !== 2) {
-    throw new Error(`Input indices should be a matrix but received shape
-        ${inputIndices.shape}`);
+  if (inputIndices.shape.length != 2) {
+    throw Exception(
+        'Input indices should be a matrix but received shape ${inputIndices.shape}');
   }
-  if (inputShape.shape.length !== 1) {
-    throw new Error(`Input shape should be a vector but received shape
-        ${inputShape.shape}`);
+  if (inputShape.shape.length != 1) {
+    throw Exception(
+        'Input shape should be a vector but received shape ${inputShape.shape}');
   }
-  if (newShape.shape.length !== 1) {
-    throw new Error(
-        `Target shape should be a vector but received shape ${newShape.shape}`);
+  if (newShape.shape.length != 1) {
+    throw Exception(
+        'Target shape should be a vector but received shape ${newShape.shape}');
   }
 
-  const inputIndicesId = backend.dataIdMap.get(inputIndices.dataId).id;
-  const inputShapeId = backend.dataIdMap.get(inputShape.dataId).id;
-  const newShapeId = backend.dataIdMap.get(newShape.dataId).id;
+  final inputIndicesId = backend.dataIdMap.get(inputIndices.dataId)!.id;
+  final inputShapeId = backend.dataIdMap.get(inputShape.dataId)!.id;
+  final newShapeId = backend.dataIdMap.get(newShape.dataId)!.id;
 
-  const nnz = inputIndices.shape[0];
-  const outputRank = util.sizeFromShape(newShape.shape);
+  final nnz = inputIndices.shape[0];
+  final outputRank = util.sizeFromShape(newShape.shape);
 
-  const newIndices = backend.makeOutput([nnz, outputRank], inputIndices.dtype);
-  const newIndicesId = backend.dataIdMap.get(newIndices.dataId).id;
+  final newIndices = backend.makeOutput([nnz, outputRank], inputIndices.dtype);
+  final newIndicesId = backend.dataIdMap.get(newIndices.dataId)!.id;
 
-  const outputShape = backend.makeOutput([outputRank], newShape.dtype);
-  const outputShapeId = backend.dataIdMap.get(outputShape.dataId).id;
+  final outputShape = backend.makeOutput([outputRank], newShape.dtype);
+  final outputShapeId = backend.dataIdMap.get(outputShape.dataId)!.id;
 
-  const exceptionValues = backend.makeOutput([3], 'int32');
-  const exceptionValuesId = backend.dataIdMap.get(exceptionValues.dataId).id;
+  final exceptionValues = backend.makeOutput([3], 'int32');
+  final exceptionValuesId = backend.dataIdMap.get(exceptionValues.dataId)!.id;
 
-  wasmSparseReshape(
-      inputIndicesId, inputShapeId, newShapeId, nnz, newIndicesId,
-      outputShapeId, exceptionValuesId);
+  _wasmSparseReshape([
+    inputIndicesId,
+    inputShapeId,
+    newShapeId,
+    nnz,
+    newIndicesId,
+    outputShapeId,
+    exceptionValuesId
+  ]);
 
-  const exceptionValuesArray =
-      backend.readSync(exceptionValues.dataId) as Int32Array;
+  final exceptionValuesArray =
+      backend.readSync(exceptionValues.dataId) as Int32List;
 
-  let exceptionMessage: string;
+  final String exceptionMessage;
   switch (exceptionValuesArray[0]) {
-    case 0: {
-      exceptionMessage =
-          backend_util.getSparseReshapeMultipleNegativeOneOutputDimErrorMessage(
-              exceptionValuesArray[1], exceptionValuesArray[2]);
-      break;
-    }
-    case 1: {
-      exceptionMessage =
-          backend_util.getSparseReshapeNegativeOutputDimErrorMessage(
-              exceptionValuesArray[1], exceptionValuesArray[2]);
-      break;
-    }
+    case 0:
+      {
+        exceptionMessage = backend_util
+            .getSparseReshapeMultipleNegativeOneOutputDimErrorMessage(
+                exceptionValuesArray[1], exceptionValuesArray[2]);
+        break;
+      }
+    case 1:
+      {
+        exceptionMessage =
+            backend_util.getSparseReshapeNegativeOutputDimErrorMessage(
+                exceptionValuesArray[1], exceptionValuesArray[2]);
+        break;
+      }
     case 2:
       exceptionMessage =
           backend_util.getSparseReshapeEmptyTensorZeroOutputDimErrorMessage();
       break;
-    case 3: {
-      const inputShapeValues =
-          Array.from(backend.readSync(inputShape.dataId) as Int32Array),
+    case 3:
+      {
+        final inputShapeValues =
+                (backend.readSync(inputShape.dataId) as Int32List),
             outputShapeValues =
-                Array.from(backend.readSync(outputShape.dataId) as Int32Array);
-      exceptionMessage =
-          backend_util.getSparseReshapeInputOutputMultipleErrorMessage(
-              inputShapeValues, outputShapeValues);
-      break;
-    }
-    case 4: {
-      const inputShapeValues =
-          Array.from(backend.readSync(inputShape.dataId) as Int32Array),
+                (backend.readSync(outputShape.dataId) as Int32List);
+        exceptionMessage =
+            backend_util.getSparseReshapeInputOutputMultipleErrorMessage(
+                inputShapeValues, outputShapeValues);
+        break;
+      }
+    case 4:
+      {
+        final inputShapeValues =
+                (backend.readSync(inputShape.dataId) as Int32List),
             outputShapeValues =
-                Array.from(backend.readSync(outputShape.dataId) as Int32Array);
-      exceptionMessage =
-          backend_util.getSparseReshapeInputOutputMismatchErrorMessage(
-              inputShapeValues, outputShapeValues);
-      break;
-    }
+                (backend.readSync(outputShape.dataId) as Int32List);
+        exceptionMessage =
+            backend_util.getSparseReshapeInputOutputMismatchErrorMessage(
+                inputShapeValues, outputShapeValues);
+        break;
+      }
     default:
       exceptionMessage = '';
   }
 
   backend.disposeData(exceptionValues.dataId);
-  if (exceptionMessage) {
+  if (exceptionMessage.isNotEmpty) {
     backend.disposeData(newIndices.dataId);
     backend.disposeData(outputShape.dataId);
-    throw new Error(exceptionMessage);
+    throw Exception(exceptionMessage);
   }
 
-  return [newIndices, outputShape];
+  return TensorInfoList([newIndices, outputShape]);
 }
 
-export const sparseReshapeConfig: KernelConfig = {
+final sparseReshapeConfig = KernelConfigG(
   kernelName: SparseReshape,
   backendName: 'wasm',
-  setupFunc: setup,
-  kernelFunc: sparseReshape as {} as KernelFunc
-};
+  setupFunc: _setup,
+  kernelFunc: sparseReshape,
+);

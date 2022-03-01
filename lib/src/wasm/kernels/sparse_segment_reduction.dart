@@ -15,88 +15,101 @@
  * =============================================================================
  */
 
-import {backend_util, SparseSegmentMeanInputs, SparseSegmentSumInputs, TensorInfo} from '@tensorflow/tfjs-core';
+// import {backend_util, SparseSegmentMeanInputs, SparseSegmentSumInputs, TensorInfo} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
 
-import {CppDType} from './types';
+// import {CppDType} from './types';
 
-let wasmSparseSegmentReduction: (
-    dataId: number, dtype: number, numRow: number, indicesId: number,
-    segmentIdsId: number, outputId: number, exceptionValuesId: number,
-    isMean: boolean, defaultValue: number) => void;
+import 'dart:typed_data';
 
-export function setup(backend: BackendWasm): void {
-  wasmSparseSegmentReduction =
+import '_prelude.dart';
+
+import 'package:tensorflow_wasm/backend_util.dart' as backend_util;
+
+late Function(List) _wasmSparseSegmentReduction;
+// : (
+//     dataId: number, dtype: number, numRow: number, indicesId: number,
+//     segmentIdsId: number, outputId: number, exceptionValuesId: number,
+//     isMean: boolean, defaultValue: number) => void;
+
+void setupSparseSegmentReduction(BackendWasm backend) {
+  _wasmSparseSegmentReduction =
       backend.wasm.cwrap('SparseSegmentReduction', null /*void*/, [
-        'number',  // dataId
-        'number',  // dtype
-        'number',  // numRow
-        'number',  // indicesId
-        'number',  // segmentIdsId
-        'number',  // outputId
-        'number',  // exceptionValuesId,
-        'number',  // isMean
-        'number',  // defaultValue
-      ]);
+    'number', // dataId
+    'number', // dtype
+    'number', // numRow
+    'number', // indicesId
+    'number', // segmentIdsId
+    'number', // outputId
+    'number', // exceptionValuesId,
+    'number', // isMean
+    'number', // defaultValue
+  ]);
 }
 
-export function sparseSegmentReduction(
-    args: {
-      backend: BackendWasm,
-      inputs: SparseSegmentSumInputs|SparseSegmentMeanInputs,
-    },
-    isMean: boolean): TensorInfo {
-  const {backend, inputs} = args;
-  const {data, indices, segmentIds} = inputs;
+TensorInfo sparseSegmentReduction({
+  required NamedTensorInfoMap inputs,
+  required BackendWasm backend,
+  required bool isMean,
+}) {
+  final data = inputs['data']!;
+  final indices = inputs['indices']!;
+  final segmentIds = inputs['segmentIds']!;
 
-  const numIndices = indices.shape[0];
-  const segmentIdsBack =
-      (backend.readSync(segmentIds.dataId, numIndices - 1, numIndices) as
-       Int32Array)[0];
-  const lastSegmentIdPlusOne = numIndices > 0 ? segmentIdsBack + 1 : 0;
-  const outputRows = lastSegmentIdPlusOne;
+  final numIndices = indices.shape[0];
+  final segmentIdsBack = (backend.readSync(
+      segmentIds.dataId, numIndices - 1, numIndices) as Int32List)[0];
+  final lastSegmentIdPlusOne = numIndices > 0 ? segmentIdsBack + 1 : 0;
+  final outputRows = lastSegmentIdPlusOne;
 
   if (outputRows < 0) {
-    throw (new Error(
-        backend_util
-            .getSparseSegmentReductionNegativeSegmentIdsErrorMessage()));
+    throw (Exception(backend_util
+        .getSparseSegmentReductionNegativeSegmentIdsErrorMessage()));
   }
 
-  const outputShape = data.shape.slice();
+  final outputShape = [...data.shape];
   outputShape[0] = outputRows;
 
-  const dataId = backend.dataIdMap.get(data.dataId).id;
-  const indicesId = backend.dataIdMap.get(indices.dataId).id;
-  const segmentIdsId = backend.dataIdMap.get(segmentIds.dataId).id;
+  final dataId = backend.dataIdMap.get(data.dataId)!.id;
+  final indicesId = backend.dataIdMap.get(indices.dataId)!.id;
+  final segmentIdsId = backend.dataIdMap.get(segmentIds.dataId)!.id;
 
-  const output = backend.makeOutput(outputShape, data.dtype);
-  const outputId = backend.dataIdMap.get(output.dataId).id;
+  final output = backend.makeOutput(outputShape, data.dtype);
+  final outputId = backend.dataIdMap.get(output.dataId)!.id;
 
-  const exceptionValues = backend.makeOutput([4], 'int32');
-  const exceptionValuesId = backend.dataIdMap.get(exceptionValues.dataId).id;
+  final exceptionValues = backend.makeOutput([4], 'int32');
+  final exceptionValuesId = backend.dataIdMap.get(exceptionValues.dataId)!.id;
 
-  wasmSparseSegmentReduction(
-      dataId, CppDType[data.dtype], data.shape[0], indicesId, segmentIdsId,
-      outputId, exceptionValuesId, isMean, 0);
+  _wasmSparseSegmentReduction([
+    dataId,
+    CppDType.values.byName(data.dtype),
+    data.shape[0],
+    indicesId,
+    segmentIdsId,
+    outputId,
+    exceptionValuesId,
+    isMean,
+    0
+  ]);
 
-  const exceptionValuesArray =
-      backend.readSync(exceptionValues.dataId) as Int32Array;
+  final exceptionValuesArray =
+      backend.readSync(exceptionValues.dataId) as Int32List;
 
-  let exceptionMessage: string;
+  final String exceptionMessage;
   switch (exceptionValuesArray[0]) {
-    case 0: {
-      exceptionMessage =
-          backend_util
-              .getSparseSegmentReductionNegativeSegmentIdsErrorMessage();
-      break;
-    }
-    case 1: {
-      exceptionMessage =
-          backend_util
-              .getSparseSegmentReductionNonIncreasingSegmentIdsErrorMessage();
-      break;
-    }
+    case 0:
+      {
+        exceptionMessage = backend_util
+            .getSparseSegmentReductionNegativeSegmentIdsErrorMessage();
+        break;
+      }
+    case 1:
+      {
+        exceptionMessage = backend_util
+            .getSparseSegmentReductionNonIncreasingSegmentIdsErrorMessage();
+        break;
+      }
     case 2:
       exceptionMessage =
           backend_util.getSparseSegmentReductionSegmentIdOutOfRangeErrorMessage(
@@ -105,7 +118,8 @@ export function sparseSegmentReduction(
     case 3:
       exceptionMessage =
           backend_util.getSparseSegmentReductionIndicesOutOfRangeErrorMessage(
-              exceptionValuesArray[1], exceptionValuesArray[2],
+              exceptionValuesArray[1],
+              exceptionValuesArray[2],
               exceptionValuesArray[3]);
       break;
     default:
@@ -113,9 +127,9 @@ export function sparseSegmentReduction(
   }
 
   backend.disposeData(exceptionValues.dataId);
-  if (exceptionMessage) {
+  if (exceptionMessage.isNotEmpty) {
     backend.disposeData(output.dataId);
-    throw new Error(exceptionMessage);
+    throw Exception(exceptionMessage);
   }
 
   return output;
