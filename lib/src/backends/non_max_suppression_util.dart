@@ -28,11 +28,14 @@
  * comparator, it should take 2 arguments to compare and return a negative,
  * zero, or a positive number.
  */
-export function binaryInsert<T>(
-    arr: T[], element: T, comparator?: (a: T, b: T) => number) {
-  const index = binarySearch(arr, element, comparator);
-  const insertionPoint = index < 0 ? -(index + 1) : index;
-  arr.splice(insertionPoint, 0, element);
+void binaryInsert<T>(
+  List<T> arr,
+  T element, [
+  int Function(T a, T b)? comparator,
+]) {
+  final index = binarySearch(arr, element, comparator);
+  final insertionPoint = index < 0 ? -(index + 1) : index;
+  arr.insert(insertionPoint, element);
 }
 
 /**
@@ -50,9 +53,16 @@ export function binaryInsert<T>(
  *    point where the target should be inserted, in the form of
  *    (-insertionPoint - 1).
  */
-export function binarySearch<T>(
-    arr: T[], target: T, comparator?: (a: T, b: T) => number) {
-  return binarySearch_(arr, target, comparator || defaultComparator);
+int binarySearch<T>(
+  List<T> arr,
+  T target, [
+  int Function(T a, T b)? comparator,
+]) {
+  return _binarySearch(
+    arr,
+    target,
+    comparator ?? Comparable.compare as dynamic,
+  );
 }
 
 /**
@@ -62,26 +72,33 @@ export function binarySearch<T>(
  * @return A negative number, zero, or a positive number as the first
  *     argument is less than, equal to, or greater than the second.
  */
-function defaultComparator<T>(a: T, b: T): number {
-  return a > b ? 1 : a < b ? -1 : 0;
-}
+// int _defaultComparator<T>(T a, T b) {
+//   return a > b
+//       ? 1
+//       : a < b
+//           ? -1
+//           : 0;
+// }
 
-function binarySearch_<T>(
-    arr: T[], target: T, comparator: (a: T, b: T) => number) {
-  let left = 0;
-  let right = arr.length;
-  let middle = 0;
-  let found = false;
+int _binarySearch<T>(
+  List<T> arr,
+  T target,
+  int Function(T a, T b) comparator,
+) {
+  int left = 0;
+  int right = arr.length;
+  int middle = 0;
+  var found = false;
   while (left < right) {
     middle = left + ((right - left) >>> 1);
-    const compareResult = comparator(target, arr[middle]);
+    final compareResult = comparator(target, arr[middle]);
     if (compareResult > 0) {
       left = middle + 1;
     } else {
       right = middle;
       // If compareResult is 0, the value is found. We record it is found,
       // and then keep looking because there may be duplicate.
-      found = !compareResult;
+      found = compareResult == 0;
     }
   }
 

@@ -23,6 +23,7 @@
 // import {scalar} from '../scalar';
 // import {tensor1d} from '../tensor1d';
 
+import 'package:tensorflow_wasm/src/backends/non_max_suppression_impl.dart';
 
 import 'image.dart';
 import '../_prelude.dart';
@@ -54,31 +55,33 @@ import 'non_max_util.dart';
  * @doc {heading: 'Operations', subheading: 'Images', namespace: 'image'}
  */
 Future<NmsPadded> nonMaxSuppressionPaddedAsync(
-    Tensor2D boxes, Tensor1D scores,
-    int maxOutputSize, {double? iouThreshold = image.defaultIouThreshold,
-    double? scoreThreshold = image.defaultScoreThreshold,
-    bool padToMaxOutputSize = false,}) async{
-      iouThreshold ??= image.defaultIouThreshold;
-      scoreThreshold ??= image.defaultScoreThreshold;
+  Tensor2D boxes,
+  Tensor1D scores,
+  int maxOutputSize, {
+  double? iouThreshold = image.defaultIouThreshold,
+  double? scoreThreshold = image.defaultScoreThreshold,
+  bool padToMaxOutputSize = false,
+}) async {
+  iouThreshold ??= image.defaultIouThreshold;
+  scoreThreshold ??= image.defaultScoreThreshold;
   final $boxes = convertToTensor(boxes, 'boxes', 'nonMaxSuppressionAsync');
   final $scores = convertToTensor(scores, 'scores', 'nonMaxSuppressionAsync');
 
-  final params = nonMaxSuppSanityCheck(
-      $boxes, $scores, maxOutputSize, iouThreshold, scoreThreshold,
-      null /* softNmsSigma */);
+  final params = nonMaxSuppSanityCheck($boxes, $scores, maxOutputSize,
+      iouThreshold, scoreThreshold, null /* softNmsSigma */);
   final $maxOutputSize = params.maxOutputSize;
   final $iouThreshold = params.iouThreshold;
   final $scoreThreshold = params.scoreThreshold;
 
-  final vals =
-      await Future.wait([$boxes.data(), $scores.data()]);
+  final vals = await Future.wait([$boxes.data(), $scores.data()]);
 
   // We call a cpu based impl directly with the typedarray data here rather
   // than a kernel because all kernels are synchronous (and thus cannot await
   // .data()).
-  const {selectedIndices, validOutputs} = nonMaxSuppressionV4Impl(
-      vals[0], vals[1], $maxOutputSize, $iouThreshold, $scoreThreshold,
-      padToMaxOutputSize);
+  final _r = nonMaxSuppressionV4Impl(vals[0].cast(), vals[1].cast(),
+      $maxOutputSize, $iouThreshold, $scoreThreshold, padToMaxOutputSize);
+  final selectedIndices = _r.selectedIndices;
+  final validOutputs = _r.validOutputs!;
 
   if ($boxes != boxes) {
     $boxes.dispose();
@@ -89,6 +92,6 @@ Future<NmsPadded> nonMaxSuppressionPaddedAsync(
 
   return NmsPadded(
     selectedIndices: tensor1d(selectedIndices, 'int32'),
-    validOutputs: scalar(validOutputs, 'int32')
+    validOutputs: scalar(validOutputs, 'int32'),
   );
 }

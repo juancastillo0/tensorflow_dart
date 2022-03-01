@@ -4,6 +4,7 @@ import 'package:tensorflow_wasm/tensorflow_wasm.dart';
 
 import '_prelude.dart';
 import '../util_base.dart' as util;
+import 'batchnorm_util.dart';
 
 /**
  * Computes the softmax normalized vector given the logits.
@@ -257,8 +258,8 @@ Tensor<R> batchNorm<R extends Rank>(
     final inputs = {
       //  FusedBatchNormInputs
       'x': x4D,
-      'scale': $scale,
-      'offset': $offset,
+      if ($scale != null) 'scale': $scale,
+      if ($offset != null) 'offset': $offset,
       'mean': $mean,
       'variance': $variance
     };

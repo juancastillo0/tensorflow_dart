@@ -22,6 +22,8 @@
 // import {nonMaxSuppSanityCheck} from '../nonmax_util';
 // import {tensor1d} from '../tensor1d';
 
+import 'package:tensorflow_wasm/src/backends/non_max_suppression_impl.dart';
+
 import '../_prelude.dart';
 import '../tensor.dart';
 import 'non_max_util.dart';
@@ -48,40 +50,42 @@ import 'image.dart';
  * @doc {heading: 'Operations', subheading: 'Images', namespace: 'image'}
  */
 Future<Tensor1D> nonMaxSuppressionAsync(
-    Tensor2D boxes, Tensor1D scores,
-    int maxOutputSize, {double? iouThreshold = image.defaultIouThreshold,
-    double? scoreThreshold =  image.defaultScoreThreshold,}) {
-      
-      return execOp('nonMaxSuppressionAsync', () async{
-      iouThreshold ??= image.defaultIouThreshold;
-      scoreThreshold ??= image.defaultScoreThreshold;
+  Tensor2D boxes,
+  Tensor1D scores,
+  int maxOutputSize, {
+  double? iouThreshold = image.defaultIouThreshold,
+  double? scoreThreshold = image.defaultScoreThreshold,
+}) {
+  return execOp('nonMaxSuppressionAsync', () async {
+    iouThreshold ??= image.defaultIouThreshold;
+    scoreThreshold ??= image.defaultScoreThreshold;
 
-      
-  final $boxes = convertToTensor(boxes, 'boxes', 'nonMaxSuppressionAsync');
-  final $scores = convertToTensor(scores, 'scores', 'nonMaxSuppressionAsync');
+    final $boxes = convertToTensor(boxes, 'boxes', 'nonMaxSuppressionAsync');
+    final $scores = convertToTensor(scores, 'scores', 'nonMaxSuppressionAsync');
 
-  final inputs = nonMaxSuppSanityCheck(
-      $boxes, $scores, maxOutputSize, iouThreshold!, scoreThreshold!, null);
-  maxOutputSize = inputs.maxOutputSize;
-  iouThreshold = inputs.iouThreshold;
-  scoreThreshold = inputs.scoreThreshold;
+    final inputs = nonMaxSuppSanityCheck(
+        $boxes, $scores, maxOutputSize, iouThreshold!, scoreThreshold!, null);
+    maxOutputSize = inputs.maxOutputSize;
+    iouThreshold = inputs.iouThreshold;
+    scoreThreshold = inputs.scoreThreshold;
 
-  final boxesAndScores = await Future.wait([$boxes.data(), $scores.data()]);
-  final boxesVals = boxesAndScores[0];
-  final scoresVals = boxesAndScores[1];
+    final boxesAndScores = await Future.wait([$boxes.data(), $scores.data()]);
+    final boxesVals = boxesAndScores[0];
+    final scoresVals = boxesAndScores[1];
 
-  // We call a cpu based impl directly with the typedarray data  here rather
-  // than a kernel because all kernels are synchronous (and thus cannot await
-  // .data()).
-  final {selectedIndices} = nonMaxSuppressionV3Impl(
-      boxesVals, scoresVals, maxOutputSize, iouThreshold, scoreThreshold);
-  if ($boxes != boxes) {
-    $boxes.dispose();
-  }
-  if ($scores != scores) {
-    $scores.dispose();
-  }
+    // We call a cpu based impl directly with the typedarray data  here rather
+    // than a kernel because all kernels are synchronous (and thus cannot await
+    // .data()).
+    final selectedIndices = nonMaxSuppressionV3Impl(boxesVals.cast(),
+            scoresVals.cast(), maxOutputSize, iouThreshold!, scoreThreshold!)
+        .selectedIndices;
+    if ($boxes != boxes) {
+      $boxes.dispose();
+    }
+    if ($scores != scores) {
+      $scores.dispose();
+    }
 
-  return tensor1d(selectedIndices, 'int32');
+    return tensor1d(selectedIndices, 'int32');
   });
 }

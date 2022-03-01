@@ -22,6 +22,8 @@
 // import {nonMaxSuppSanityCheck} from '../nonmax_util';
 // import {tensor1d} from '../tensor1d';
 
+import 'package:tensorflow_wasm/src/backends/non_max_suppression_impl.dart';
+
 import '../_prelude.dart';
 import '../tensor.dart';
 import 'non_max_util.dart';
@@ -57,20 +59,22 @@ import 'image.dart';
  * @doc {heading: 'Operations', subheading: 'Images', namespace: 'image'}
  */
 Future<NmsWithScore> nonMaxSuppressionWithScoreAsync(
-    Tensor2D boxes, Tensor1D scores,
-    int maxOutputSize, {double? iouThreshold =  image.defaultIouThreshold,
-    double? scoreThreshold = image.defaultScoreThreshold,
-    double? softNmsSigma = image.defaultSoftNmsSigma,}) async {
-      iouThreshold ??= image.defaultIouThreshold;
-      scoreThreshold ??= image.defaultScoreThreshold;
-      softNmsSigma ??= image.defaultSoftNmsSigma;
+  Tensor2D boxes,
+  Tensor1D scores,
+  int maxOutputSize, {
+  double? iouThreshold = image.defaultIouThreshold,
+  double? scoreThreshold = image.defaultScoreThreshold,
+  double? softNmsSigma = image.defaultSoftNmsSigma,
+}) async {
+  iouThreshold ??= image.defaultIouThreshold;
+  scoreThreshold ??= image.defaultScoreThreshold;
+  softNmsSigma ??= image.defaultSoftNmsSigma;
 
   final $boxes = convertToTensor(boxes, 'boxes', 'nonMaxSuppressionAsync');
   final $scores = convertToTensor(scores, 'scores', 'nonMaxSuppressionAsync');
 
-  final params = nonMaxSuppSanityCheck(
-      $boxes, $scores, maxOutputSize, iouThreshold, scoreThreshold,
-      softNmsSigma);
+  final params = nonMaxSuppSanityCheck($boxes, $scores, maxOutputSize,
+      iouThreshold, scoreThreshold, softNmsSigma);
   maxOutputSize = params.maxOutputSize;
   iouThreshold = params.iouThreshold;
   scoreThreshold = params.scoreThreshold;
@@ -83,9 +87,10 @@ Future<NmsWithScore> nonMaxSuppressionWithScoreAsync(
   // We call a cpu based impl directly with the typedarray data  here rather
   // than a kernel because all kernels are synchronous (and thus cannot await
   // .data()).
-  final {selectedIndices, selectedScores} = nonMaxSuppressionV5Impl(
-      boxesVals, scoresVals, maxOutputSize, iouThreshold, scoreThreshold,
-      softNmsSigma);
+  final _r = nonMaxSuppressionV5Impl(boxesVals.cast(), scoresVals.cast(),
+      maxOutputSize, iouThreshold, scoreThreshold, softNmsSigma);
+  final selectedIndices = _r.selectedIndices;
+  final selectedScores = _r.selectedScores!;
 
   if ($boxes != boxes) {
     $boxes.dispose();
@@ -96,6 +101,6 @@ Future<NmsWithScore> nonMaxSuppressionWithScoreAsync(
 
   return NmsWithScore(
     selectedIndices: tensor1d(selectedIndices, 'int32'),
-    selectedScores: tensor1d(selectedScores)
+    selectedScores: tensor1d(selectedScores),
   );
 }

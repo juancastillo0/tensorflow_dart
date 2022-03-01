@@ -19,6 +19,7 @@
 // import {convertToTensor} from '../tensor_util_env';
 // import {TensorLike} from '../types';
 
+import '../backends/where_impl.dart';
 import '_prelude.dart';
 
 /**

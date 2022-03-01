@@ -15,27 +15,30 @@
  * =============================================================================
  */
 
+import '../ops/buffer.dart';
+import '../tensor.dart';
+
 /** An implementation of the Where kernel shared between cpu and webgl */
 
-import {buffer} from '../ops/buffer';
-import {Tensor2D} from '../tensor';
-import {TypedArray} from '../types';
+// import {buffer} from '../ops/buffer';
+// import {Tensor2D} from '../tensor';
+// import {TypedArray} from '../types';
 
-export function whereImpl(condShape: number[], condVals: TypedArray): Tensor2D {
-  const indices = [];
-  for (let i = 0; i < condVals.length; i++) {
+Tensor2D whereImpl(List<int> condShape, List condVals) {
+  final indices = [];
+  for (int i = 0; i < condVals.length; i++) {
     if (condVals[i]) {
-      indices.push(i);
+      indices.add(i);
     }
   }
 
-  const inBuffer = buffer(condShape, 'int32');
+  final inBuffer = buffer(condShape, 'int32', null);
 
-  const out = buffer([indices.length, condShape.length], 'int32');
-  for (let i = 0; i < indices.length; i++) {
-    const loc = inBuffer.indexToLoc(indices[i]);
-    const offset = i * condShape.length;
-    out.values.set(loc, offset);
+  final out = buffer([indices.length, condShape.length], 'int32', null);
+  for (int i = 0; i < indices.length; i++) {
+    final loc = inBuffer.indexToLoc(indices[i]);
+    final offset = i * condShape.length;
+    out.values.setAll(offset, loc);
   }
   return out.toTensor() as Tensor2D;
 }

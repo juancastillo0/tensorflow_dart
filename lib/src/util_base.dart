@@ -394,11 +394,11 @@ List<int> inferFromImplicitShape(List<int> shape, int size) {
   return newShape;
 }
 
-List<int> parseAxisParam(List<int> axis, List<int> shape) {
+List<int> parseAxisParam(List<int>? axis, List<int> shape) {
   final rank = shape.length;
 
   // Normalize input
-  // axis = axis == null ? shape.map((s, i) => i) : [].concat(axis);
+  axis ??= Iterable<int>.generate(shape.length).toList();
 
   // Check for valid range
   assert(

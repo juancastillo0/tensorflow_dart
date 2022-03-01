@@ -15,79 +15,114 @@
  * =============================================================================
  */
 
-import {TypedArray} from '../types';
-import {binaryInsert} from './non_max_suppression_util';
+// import {TypedArray} from '../types';
+// import {binaryInsert} from './non_max_suppression_util';
+
+import 'dart:math' as Math;
+import 'package:collection/collection.dart';
+
+import 'non_max_suppression_util.dart';
 
 /**
  * Implementation of the NonMaxSuppression kernel shared between webgl and cpu.
  */
-interface Candidate {
-  score: number;
-  boxIndex: number;
-  suppressBeginIndex: number;
+class _Candidate {
+  double score;
+  final int boxIndex;
+  int suppressBeginIndex;
+
+  _Candidate({
+    required this.score,
+    required this.boxIndex,
+    required this.suppressBeginIndex,
+  });
 }
 
-interface NonMaxSuppressionResult {
-  selectedIndices: number[];
-  selectedScores?: number[];
-  validOutputs?: number;
+class NonMaxSuppressionResult {
+  final List<int> selectedIndices;
+  final List<double>? selectedScores;
+  final int? validOutputs;
+
+  NonMaxSuppressionResult({
+    required this.selectedIndices,
+    this.selectedScores,
+    this.validOutputs,
+  });
 }
 
-export function nonMaxSuppressionV3Impl(
-    boxes: TypedArray, scores: TypedArray, maxOutputSize: number,
-    iouThreshold: number, scoreThreshold: number): NonMaxSuppressionResult {
-  return nonMaxSuppressionImpl_(
-      boxes, scores, maxOutputSize, iouThreshold, scoreThreshold,
-      0 /* softNmsSigma */);
+NonMaxSuppressionResult nonMaxSuppressionV3Impl(
+  List<int> boxes,
+  List<double> scores,
+  int maxOutputSize,
+  double iouThreshold,
+  double scoreThreshold,
+) {
+  return _nonMaxSuppressionImpl(boxes, scores, maxOutputSize, iouThreshold,
+      scoreThreshold, 0 /* softNmsSigma */);
 }
 
-export function nonMaxSuppressionV4Impl(
-    boxes: TypedArray, scores: TypedArray, maxOutputSize: number,
-    iouThreshold: number, scoreThreshold: number,
-    padToMaxOutputSize: boolean): NonMaxSuppressionResult {
-  return nonMaxSuppressionImpl_(
-      boxes, scores, maxOutputSize, iouThreshold, scoreThreshold,
-      0 /* softNmsSigma */, false /* returnScoresTensor */,
-      padToMaxOutputSize /* padToMaxOutputSize */, true
-      /* returnValidOutputs */);
+NonMaxSuppressionResult nonMaxSuppressionV4Impl(
+  List<int> boxes,
+  List<double> scores,
+  int maxOutputSize,
+  double iouThreshold,
+  double scoreThreshold,
+  bool padToMaxOutputSize,
+) {
+  return _nonMaxSuppressionImpl(boxes, scores, maxOutputSize, iouThreshold,
+      scoreThreshold, 0 /* softNmsSigma */,
+      returnScoresTensor: false,
+      padToMaxOutputSize: padToMaxOutputSize,
+      returnValidOutputs: true);
 }
 
-export function nonMaxSuppressionV5Impl(
-    boxes: TypedArray, scores: TypedArray, maxOutputSize: number,
-    iouThreshold: number, scoreThreshold: number,
-    softNmsSigma: number): NonMaxSuppressionResult {
-  return nonMaxSuppressionImpl_(
+NonMaxSuppressionResult nonMaxSuppressionV5Impl(
+  List<int> boxes,
+  List<double> scores,
+  int maxOutputSize,
+  double iouThreshold,
+  double scoreThreshold,
+  double softNmsSigma,
+) {
+  return _nonMaxSuppressionImpl(
       boxes, scores, maxOutputSize, iouThreshold, scoreThreshold, softNmsSigma,
-      true /* returnScoresTensor */);
+      returnScoresTensor: true /* returnScoresTensor */);
 }
 
-function nonMaxSuppressionImpl_(
-    boxes: TypedArray, scores: TypedArray, maxOutputSize: number,
-    iouThreshold: number, scoreThreshold: number, softNmsSigma: number,
-    returnScoresTensor = false, padToMaxOutputSize = false,
-    returnValidOutputs = false): NonMaxSuppressionResult {
+NonMaxSuppressionResult _nonMaxSuppressionImpl(
+  List<int> boxes,
+  List<double> scores,
+  int maxOutputSize,
+  double iouThreshold,
+  double scoreThreshold,
+  double softNmsSigma, {
+  bool returnScoresTensor = false,
+  bool padToMaxOutputSize = false,
+  bool returnValidOutputs = false,
+}) {
   // The list is sorted in ascending order, so that we can always pop the
   // candidate with the largest score in O(1) time.
-  const candidates = [];
+  final candidates = <_Candidate>[];
 
-  for (let i = 0; i < scores.length; i++) {
+  for (int i = 0; i < scores.length; i++) {
     if (scores[i] > scoreThreshold) {
-      candidates.push({score: scores[i], boxIndex: i, suppressBeginIndex: 0});
+      candidates.add(
+          _Candidate(score: scores[i], boxIndex: i, suppressBeginIndex: 0));
     }
   }
 
-  candidates.sort(ascendingComparator);
+  candidates.sort(_ascendingComparator);
 
   // If softNmsSigma is 0, the outcome of this algorithm is exactly same as
   // before.
-  const scale = softNmsSigma > 0 ? (-0.5 / softNmsSigma) : 0.0;
+  final scale = softNmsSigma > 0 ? (-0.5 / softNmsSigma) : 0.0;
 
-  const selectedIndices: number[] = [];
-  const selectedScores: number[] = [];
+  final List<int> selectedIndices = [];
+  final List<double> selectedScores = [];
 
   while (selectedIndices.length < maxOutputSize && candidates.length > 0) {
-    const candidate = candidates.pop();
-    const {score: originalScore, boxIndex, suppressBeginIndex} = candidate;
+    final candidate = candidates.removeLast();
+    final originalScore = candidate.score;
 
     if (originalScore < scoreThreshold) {
       break;
@@ -99,9 +134,12 @@ function nonMaxSuppressionImpl_(
     // suppressBeginIndex to track and ensure a candidate can be suppressed
     // by a selected box no more than once. Also, if the overlap exceeds
     // iouThreshold, we simply ignore the candidate.
-    let ignoreCandidate = false;
-    for (let j = selectedIndices.length - 1; j >= suppressBeginIndex; --j) {
-      const iou = intersectionOverUnion(boxes, boxIndex, selectedIndices[j]);
+    bool ignoreCandidate = false;
+    for (int j = selectedIndices.length - 1;
+        j >= candidate.suppressBeginIndex;
+        --j) {
+      final iou =
+          intersectionOverUnion(boxes, candidate.boxIndex, selectedIndices[j]);
 
       if (iou >= iouThreshold) {
         ignoreCandidate = true;
@@ -109,7 +147,7 @@ function nonMaxSuppressionImpl_(
       }
 
       candidate.score =
-          candidate.score * suppressWeight(iouThreshold, scale, iou);
+          candidate.score * _suppressWeight(iouThreshold, scale, iou);
 
       if (candidate.score <= scoreThreshold) {
         break;
@@ -128,60 +166,56 @@ function nonMaxSuppressionImpl_(
     if (!ignoreCandidate) {
       // Candidate has passed all the tests, and is not suppressed, so
       // select the candidate.
-      if (candidate.score === originalScore) {
-        selectedIndices.push(boxIndex);
-        selectedScores.push(candidate.score);
+      if (candidate.score == originalScore) {
+        selectedIndices.add(candidate.boxIndex);
+        selectedScores.add(candidate.score);
       } else if (candidate.score > scoreThreshold) {
         // Candidate's score is suppressed but is still high enough to be
         // considered, so add back to the candidates list.
-        binaryInsert(candidates, candidate, ascendingComparator);
+        binaryInsert(candidates, candidate, _ascendingComparator);
       }
     }
   }
 
   // NonMaxSuppressionV4 feature: padding output to maxOutputSize.
-  const validOutputs = selectedIndices.length;
-  const elemsToPad = maxOutputSize - validOutputs;
+  final validOutputs = selectedIndices.length;
+  final elemsToPad = maxOutputSize - validOutputs;
 
   if (padToMaxOutputSize && elemsToPad > 0) {
-    selectedIndices.push(...new Array(elemsToPad).fill(0));
-    selectedScores.push(...new Array(elemsToPad).fill(0.0));
+    selectedIndices.addAll(List.filled(elemsToPad, 0));
+    selectedScores.addAll(List.filled(elemsToPad, 0.0));
   }
 
-  const result: NonMaxSuppressionResult = {selectedIndices};
-
-  if (returnScoresTensor) {
-    result['selectedScores'] = selectedScores;
-  }
-
-  if (returnValidOutputs) {
-    result['validOutputs'] = validOutputs;
-  }
+  final result = NonMaxSuppressionResult(
+    selectedIndices: selectedIndices,
+    selectedScores: returnScoresTensor ? selectedScores : null,
+    validOutputs: returnValidOutputs ? validOutputs : null,
+  );
 
   return result;
 }
 
-function intersectionOverUnion(boxes: TypedArray, i: number, j: number) {
-  const iCoord = boxes.subarray(i * 4, i * 4 + 4);
-  const jCoord = boxes.subarray(j * 4, j * 4 + 4);
-  const yminI = Math.min(iCoord[0], iCoord[2]);
-  const xminI = Math.min(iCoord[1], iCoord[3]);
-  const ymaxI = Math.max(iCoord[0], iCoord[2]);
-  const xmaxI = Math.max(iCoord[1], iCoord[3]);
-  const yminJ = Math.min(jCoord[0], jCoord[2]);
-  const xminJ = Math.min(jCoord[1], jCoord[3]);
-  const ymaxJ = Math.max(jCoord[0], jCoord[2]);
-  const xmaxJ = Math.max(jCoord[1], jCoord[3]);
-  const areaI = (ymaxI - yminI) * (xmaxI - xminI);
-  const areaJ = (ymaxJ - yminJ) * (xmaxJ - xminJ);
+double intersectionOverUnion(List<int> boxes, int i, int j) {
+  final iCoord = boxes.slice(i * 4, i * 4 + 4);
+  final jCoord = boxes.slice(j * 4, j * 4 + 4);
+  final yminI = Math.min(iCoord[0], iCoord[2]);
+  final xminI = Math.min(iCoord[1], iCoord[3]);
+  final ymaxI = Math.max(iCoord[0], iCoord[2]);
+  final xmaxI = Math.max(iCoord[1], iCoord[3]);
+  final yminJ = Math.min(jCoord[0], jCoord[2]);
+  final xminJ = Math.min(jCoord[1], jCoord[3]);
+  final ymaxJ = Math.max(jCoord[0], jCoord[2]);
+  final xmaxJ = Math.max(jCoord[1], jCoord[3]);
+  final areaI = (ymaxI - yminI) * (xmaxI - xminI);
+  final areaJ = (ymaxJ - yminJ) * (xmaxJ - xminJ);
   if (areaI <= 0 || areaJ <= 0) {
     return 0.0;
   }
-  const intersectionYmin = Math.max(yminI, yminJ);
-  const intersectionXmin = Math.max(xminI, xminJ);
-  const intersectionYmax = Math.min(ymaxI, ymaxJ);
-  const intersectionXmax = Math.min(xmaxI, xmaxJ);
-  const intersectionArea = Math.max(intersectionYmax - intersectionYmin, 0.0) *
+  final intersectionYmin = Math.max(yminI, yminJ);
+  final intersectionXmin = Math.max(xminI, xminJ);
+  final intersectionYmax = Math.min(ymaxI, ymaxJ);
+  final intersectionXmax = Math.min(xmaxI, xmaxJ);
+  final intersectionArea = Math.max(intersectionYmax - intersectionYmin, 0.0) *
       Math.max(intersectionXmax - intersectionXmin, 0.0);
   return intersectionArea / (areaI + areaJ - intersectionArea);
 }
@@ -190,16 +224,17 @@ function intersectionOverUnion(boxes: TypedArray, i: number, j: number) {
 // The weight is a function of similarity, the more overlap two boxes are, the
 // smaller the weight is, meaning highly overlapping boxe will be significantly
 // penalized. On the other hand, a non-overlapping box will not be penalized.
-function suppressWeight(iouThreshold: number, scale: number, iou: number) {
-  const weight = Math.exp(scale * iou * iou);
+double _suppressWeight(double iouThreshold, double scale, double iou) {
+  final weight = Math.exp(scale * iou * iou);
   return iou <= iouThreshold ? weight : 0.0;
 }
 
-function ascendingComparator(c1: Candidate, c2: Candidate) {
+int _ascendingComparator(_Candidate c1, _Candidate c2) {
   // For objects with same scores, we make the object with the larger index go
   // first. In an array that pops from the end, this means that the object with
   // the smaller index will be popped first. This ensures the same output as
   // the TensorFlow python version.
-  return (c1.score - c2.score) ||
-      ((c1.score === c2.score) && (c2.boxIndex - c1.boxIndex));
+  return (c1.score == c2.score)
+      ? (c2.boxIndex - c1.boxIndex)
+      : (c1.score - c2.score).toInt();
 }
