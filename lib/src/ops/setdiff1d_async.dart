@@ -14,10 +14,13 @@
  * limitations under the License.
  * =============================================================================
  */
-import {Tensor, TensorBuffer} from '../tensor';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
-import * as util from '../util';
+// import {Tensor, TensorBuffer} from '../tensor';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
+// import * as util from '../util';
+
+import '_prelude.dart';
+import '../util_base.dart' as util;
 
 /**
  * Computes the difference between two lists of numbers.
@@ -48,37 +51,36 @@ import * as util from '../util';
  *
  * @doc {heading: 'Tensors', subheading: 'Transformations'}
  */
-async function setdiff1dAsync_(
-    x: Tensor|TensorLike, y: Tensor|TensorLike): Promise<[Tensor, Tensor]> {
-  const $x = convertToTensor(x, 'x', 'setdiff1d');
-  const $y = convertToTensor(y, 'y', 'setdiff1d');
+Future<List<Tensor>> setdiff1dAsync(Tensor x, Tensor y) async {
+  final $x = convertToTensor(x, 'x', 'setdiff1d');
+  final $y = convertToTensor(y, 'y', 'setdiff1d');
 
-  util.assert(
-      $x.dtype === $y.dtype,
-      () => `x and y should have the same dtype, but got x (${
-          $x.dtype}) and y (${$y.dtype}).`);
+  util.assert_(
+      $x.dtype == $y.dtype,
+      () =>
+          'x and y should have the same dtype, but got x (${$x.dtype}) and y (${$y.dtype}).');
 
-  util.assert(
-      $x.rank === 1, () => `x should be 1D tensor, but got x (${$x.shape}).`);
+  util.assert_(
+      $x.rank == 1, () => 'x should be 1D tensor, but got x (${$x.shape}).');
 
-  util.assert(
-      $y.rank === 1, () => `y should be 1D tensor, but got y (${$y.shape}).`);
+  util.assert_(
+      $y.rank == 1, () => 'y should be 1D tensor, but got y (${$y.shape}).');
 
-  const xVals = await $x.data();
-  const yVals = await $y.data();
-  const ySet = new Set(yVals);
+  final xVals = await $x.data();
+  final yVals = await $y.data();
+  final ySet = yVals.toSet();
 
-  let outputSize = 0;
-  for (let i = 0; i < xVals.length; i++) {
-    if (!ySet.has(xVals[i])) {
+  int outputSize = 0;
+  for (int i = 0; i < xVals.length; i++) {
+    if (!ySet.contains(xVals[i])) {
       outputSize++;
     }
   }
 
-  const buffer = new TensorBuffer([outputSize], $x.dtype);
-  const indices = new TensorBuffer([outputSize], 'int32');
-  for (let i = 0, p = 0; i < xVals.length; i++) {
-    if (!ySet.has(xVals[i])) {
+  final buffer = TensorBuffer([outputSize], $x.dtype);
+  final indices = TensorBuffer([outputSize], 'int32');
+  for (int i = 0, p = 0; i < xVals.length; i++) {
+    if (!ySet.contains(xVals[i])) {
       buffer.values[p] = xVals[i];
       indices.values[p] = i;
       p++;
@@ -86,4 +88,3 @@ async function setdiff1dAsync_(
   }
   return [buffer.toTensor(), indices.toTensor()];
 }
-export const setdiff1dAsync = setdiff1dAsync_;

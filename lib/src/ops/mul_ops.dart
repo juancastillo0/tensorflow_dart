@@ -194,11 +194,8 @@ T log<T extends Tensor>(Tensor x) {
  *
  * @doc {heading: 'Operations', subheading: 'Basic math'}
  */
-function log1p_<T extends Tensor>(x: T|TensorLike): T {
-  const $x = convertToTensor(x, 'x', 'log1p');
-
-  const inputs: Log1pInputs = {x: $x};
-  return ENGINE.runKernel(Log1p, inputs as {} as NamedTensorMap);
+T log1p<T extends Tensor>(T x) {
+  return execOpUnary('log1p', Log1p, x);
 }
 
 /**
@@ -217,7 +214,6 @@ T exp<T extends Tensor>(Tensor x) {
   return execOpUnary('exp', Exp, x);
 }
 
-
 /**
  * Computes exponential of the input `tf.Tensor` minus one element-wise.
  * `e ^ x - 1`
@@ -231,9 +227,6 @@ T exp<T extends Tensor>(Tensor x) {
  *
  * @doc {heading: 'Operations', subheading: 'Basic math'}
  */
-function expm1_<T extends Tensor>(x: T|TensorLike): T {
-  const $x = convertToTensor(x, 'x', 'expm1');
-
-  const inputs: Expm1Inputs = {x: $x};
-  return ENGINE.runKernel(Expm1, inputs as {} as NamedTensorMap);
+T expm1<T extends Tensor>(T x) {
+  return execOpUnary('expm1', Expm1, x);
 }

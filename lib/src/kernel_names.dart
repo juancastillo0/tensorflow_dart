@@ -401,8 +401,9 @@ const ExpandDims = 'ExpandDims';
 //   dim: number;
 // }
 
-// export const Expm1 = 'Expm1';
-// export type Expm1Inputs = UnaryInputs;
+// TODO: wasm
+const Expm1 = 'Expm1';
+typedef Expm1Inputs = UnaryInputs;
 
 // export const FFT = 'FFT';
 // export type FFTInputs = Pick<NamedTensorInfoMap, 'input'>;
@@ -493,8 +494,9 @@ const LinSpace = 'LinSpace';
 const Log = 'Log';
 typedef LogInputs = UnaryInputs;
 
-// export const Log1p = 'Log1p';
-// export type Log1pInputs = UnaryInputs;
+// TODO: wasm
+const Log1p = 'Log1p';
+typedef Log1pInputs = UnaryInputs;
 
 const LogicalAnd = 'LogicalAnd';
 typedef LogicalAndInputs = BinaryInputs;
