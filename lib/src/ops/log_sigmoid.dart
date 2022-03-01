@@ -15,16 +15,20 @@
  * =============================================================================
  */
 
-import {customGrad} from '../gradients';
-import {Tensor} from '../tensor';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
+// import {customGrad} from '../gradients';
+// import {Tensor} from '../tensor';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
 
-import {mul} from './mul';
-import {neg} from './neg';
-import {op} from './operation';
-import {sigmoid} from './sigmoid';
-import {softplus} from './softplus';
+// import {mul} from './mul';
+// import {neg} from './neg';
+// import {op} from './operation';
+// import {sigmoid} from './sigmoid';
+// import {softplus} from './softplus';
+
+import '../gradients.dart';
+import '_prelude.dart';
+import 'ops.dart';
 
 /**
  * Computes log sigmoid of the input `tf.Tensor` element-wise:
@@ -39,25 +43,28 @@ import {softplus} from './softplus';
  *
  * @doc {heading: 'Operations', subheading: 'Basic math'}
  */
-function logSigmoid_<T extends Tensor>(x: T|TensorLike): T {
-  const $x = convertToTensor(x, 'x', 'logSigmoid');
+T logSigmoid<T extends Tensor>(T x) {
+  return execOp('logSigmoid', () {
+    final $x = convertToTensor(x, 'x', 'logSigmoid');
 
-  // Use a custom gradient to maintain previous implementation.
-  // There is no LogSigmoid kernel in TF so we can't use engine.runKernel
-  // directly
-  const customOp = customGrad((x: Tensor) => {
-    // TODO(yassogba) we can remove the chained softplus call here only
-    // after backends have modualrized softplus at which point we can call
-    // engine runKernel(..., Sotfplus, ...) directly.
-    const value = neg(softplus(neg(x)));
+    // Use a custom gradient to maintain previous implementation.
+    // There is no LogSigmoid kernel in TF so we can't use engine.runKernel
+    // directly
+    final customOp = customGrad((tensorInputs, _) {
+      final x = tensorInputs.first;
+      // TODO(yassogba) we can remove the chained softplus call here only
+      // after backends have modualrized softplus at which point we can call
+      // engine runKernel(..., Sotfplus, ...) directly.
+      final value = neg(softplus(neg(x))) as T;
 
-    const gradFunc = (dy: T) => {
-      const derX = mul(dy, sigmoid(neg(x)));
-      return derX;
-    };
-    return {value, gradFunc};
+      gradFunc(T dy, _) {
+        final derX = mul(dy, sigmoid(neg(x)));
+        return derX;
+      }
+
+      return Gradient<T>(value, gradFunc);
+    });
+
+    return customOp([$x]);
   });
-
-  return customOp($x) as T;
 }
-export const logSigmoid = op({logSigmoid_});

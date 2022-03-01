@@ -15,20 +15,25 @@
  * =============================================================================
  */
 
-import {Tensor} from '../tensor';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
-import {parseAxisParam} from '../util';
+// import {Tensor} from '../tensor';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
+// import {parseAxisParam} from '../util';
 
-import {add} from './add';
-import {expandShapeToKeepDim} from './axis_util';
-import {exp} from './exp';
-import {log} from './log';
-import {max} from './max';
-import {op} from './operation';
-import {reshape} from './reshape';
-import {sub} from './sub';
-import {sum} from './sum';
+// import {add} from './add';
+// import {expandShapeToKeepDim} from './axis_util';
+// import {exp} from './exp';
+// import {log} from './log';
+// import {max} from './max';
+// import {op} from './operation';
+// import {reshape} from './reshape';
+// import {sub} from './sub';
+// import {sum} from './sum';
+
+import '../util_base.dart' show parseAxisParam;
+import '_prelude.dart';
+import 'axis_util.dart';
+import 'ops.dart';
 
 /**
  * Computes the log(sum(exp(elements across the reduction dimensions)).
@@ -59,23 +64,26 @@ import {sum} from './sum';
  *
  * @doc {heading: 'Operations', subheading: 'Reduction'}
  */
-function logSumExp_<T extends Tensor>(
-    x: Tensor|TensorLike, axis: number|number[] = null, keepDims = false): T {
-  const $x = convertToTensor(x, 'x', 'logSumExp');
+T logSumExp<T extends Tensor>(
+  Tensor x, {
+  List<int>? axis, // : number|number[]
+  bool keepDims = false,
+}) {
+  return execOp('logSumExp', () {
+    final $x = convertToTensor(x, 'x', 'logSumExp');
 
-  const axes = parseAxisParam(axis, $x.shape);
-  const xMax = max($x, axes, true /* keepDims */);
-  const a = sub($x, xMax);
-  const b = exp(a);
-  const c = sum(b, axes);
-  const d = log(c);
-  const res = add(reshape(xMax, d.shape), d);
+    final axes = parseAxisParam(axis, $x.shape);
+    final xMax = max($x, axes, true /* keepDims */);
+    final a = sub($x, xMax);
+    final b = exp(a);
+    final c = sum(b, axes);
+    final d = log(c);
+    final res = add(reshape(xMax, d.shape), d);
 
-  if (keepDims) {
-    const newShape = expandShapeToKeepDim(res.shape, axes);
-    return reshape(res, newShape) as T;
-  }
-  return res as T;
+    if (keepDims) {
+      final newShape = expandShapeToKeepDim(res.shape, axes);
+      return reshape(res, newShape) as T;
+    }
+    return res as T;
+  });
 }
-
-export const logSumExp = op({logSumExp_});

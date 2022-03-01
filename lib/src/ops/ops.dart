@@ -50,6 +50,8 @@ export 'where_async.dart';
 export 'topk.dart';
 export 'in_top_k.dart';
 export 'unique.dart';
+export 'log_sigmoid.dart';
+export 'log_sum_exp.dart';
 //
 export 'round_ops.dart';
 export 'mul_ops.dart';
