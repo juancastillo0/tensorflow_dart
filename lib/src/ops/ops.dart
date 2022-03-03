@@ -54,6 +54,11 @@ export 'log_sigmoid.dart';
 export 'log_sum_exp.dart';
 export 'sparse_to_dense.dart';
 export 'setdiff1d_async.dart';
+export 'erf.dart';
+export 'einsum.dart';
+export 'max_pool_with_argmax.dart';
+export 'bincount.dart';
+export 'dense_bincount.dart';
 //
 export 'round_ops.dart';
 export 'mul_ops.dart';

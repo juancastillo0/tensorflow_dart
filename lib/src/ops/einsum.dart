@@ -15,14 +15,18 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../engine';
-import {Einsum, EinsumAttrs} from '../kernel_names';
-import {NamedAttrMap} from '../kernel_registry';
-import {Tensor} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {convertToTensor} from '../tensor_util_env';
+// import {ENGINE} from '../engine';
+// import {Einsum, EinsumAttrs} from '../kernel_names';
+// import {NamedAttrMap} from '../kernel_registry';
+// import {Tensor} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {convertToTensor} from '../tensor_util_env';
 
-import {op} from './operation';
+// import {op} from './operation';
+
+import 'package:collection/collection.dart';
+
+import '_prelude.dart';
 
 /**
  * Tensor contraction over specified indices and outer product.
@@ -100,12 +104,13 @@ import {op} from './operation';
  *
  * @doc {heading: 'Tensors', subheading: 'Matrices'}
  */
-export function einsum_(equation: string, ...tensors: Tensor[]): Tensor {
-  const $tensors =
-      tensors.map((t, i) => convertToTensor(t, `tensors${i}`, 'einsum'));
-  const attrs: EinsumAttrs = {equation};
-  return ENGINE.runKernel(
-      Einsum, $tensors as {} as NamedTensorMap, attrs as {} as NamedAttrMap);
+Tensor einsum(String equation, List<Tensor> tensors) {
+  return execOp('einsum', () {
+    final $tensors = Map.fromIterables(
+      Iterable.generate(tensors.length, (i) => '$i'),
+      tensors.mapIndexed((i, t) => convertToTensor(t, 'tensors${i}', 'einsum')),
+    );
+    final attrs = {'equation': equation}; // : EinsumAttrs
+    return ENGINE.runKernel(Einsum, $tensors, attrs) as Tensor;
+  });
 }
-
-export const einsum = op({einsum_});

@@ -15,16 +15,19 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../engine';
-import {Bincount, BincountAttrs, BincountInputs} from '../kernel_names';
-import {NamedAttrMap} from '../kernel_registry';
-import {Tensor1D} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
-import * as util from '../util';
+// import {ENGINE} from '../engine';
+// import {Bincount, BincountAttrs, BincountInputs} from '../kernel_names';
+// import {NamedAttrMap} from '../kernel_registry';
+// import {Tensor1D} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
+// import * as util from '../util';
 
-import {op} from './operation';
+// import {op} from './operation';
+
+import '../util_base.dart' as util;
+import '_prelude.dart';
 
 /**
  * Outputs a vector with length `size` and the same dtype as `weights`.
@@ -43,27 +46,28 @@ import {op} from './operation';
  *
  * @doc {heading: 'Operations', subheading: 'Reduction'}
  */
-function bincount_<T extends Tensor1D>(
-    x: T|TensorLike, weights: T|TensorLike, size: number): T {
-  const $x = convertToTensor(x, 'x', 'bincount');
-  const $weights = convertToTensor(weights, 'weights', 'bincount');
+T bincount<T extends Tensor1D>(T x, T weights, int size) {
+  return execOp('bincount', () {
+    final $x = convertToTensor(x, 'x', 'bincount');
+    final $weights = convertToTensor(weights, 'weights', 'bincount');
 
-  util.assert(
-      $x.dtype === 'int32',
-      () => `Error in bincount: input ` +
-          `dtype must be int32, but got ${$x.dtype}`);
-  util.assert(size >= 0, () => `size must be non-negative, but got ${size}.`);
-  util.assert(
-      $weights.size === $x.size || $weights.size === 0,
-      () => `Error in bincount: weights must have the same size as input or` +
-          `0-length, but got input shape: ${$x.shape}, weights shape: ` +
-          `${$weights.shape}.`);
+    util.assert_(
+        $x.dtype == 'int32',
+        () =>
+            'Error in bincount: input ' +
+            'dtype must be int32, but got ${$x.dtype}');
+    util.assert_(
+        size >= 0, () => 'size must be non-negative, but got ${size}.');
+    util.assert_(
+        $weights.size == $x.size || $weights.size == 0,
+        () =>
+            'Error in bincount: weights must have the same size as input or' +
+            '0-length, but got input shape: ${$x.shape}, weights shape: ' +
+            '${$weights.shape}.');
 
-  const inputs: BincountInputs = {x: $x, weights: $weights};
-  const attrs: BincountAttrs = {size};
+    final inputs = {'x': $x, 'weights': $weights}; // : BincountInputs
+    final attrs = {'size': size}; // : BincountAttrs
 
-  return ENGINE.runKernel(
-      Bincount, inputs as {} as NamedTensorMap, attrs as {} as NamedAttrMap);
+    return ENGINE.runKernel(Bincount, inputs, attrs) as T;
+  });
 }
-
-export const bincount = op({bincount_});

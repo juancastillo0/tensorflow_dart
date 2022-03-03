@@ -15,23 +15,20 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../engine';
-import {Erf, ErfInputs} from '../kernel_names';
-import {Tensor} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
-import * as util from '../util';
+// import {ENGINE} from '../engine';
+// import {Erf, ErfInputs} from '../kernel_names';
+// import {Tensor} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
+// import * as util from '../util';
 
-import {cast} from './cast';
-import {op} from './operation';
+// import {cast} from './cast';
+// import {op} from './operation';
 
-export const ERF_P = 0.3275911;
-export const ERF_A1 = 0.254829592;
-export const ERF_A2 = -0.284496736;
-export const ERF_A3 = 1.421413741;
-export const ERF_A4 = -1.453152027;
-export const ERF_A5 = 1.061405429;
+import '../util_base.dart' as util;
+import '_prelude.dart';
+import 'cast.dart';
 
 /**
  * Computes gause error function of the input `tf.Tensor` element-wise:
@@ -46,17 +43,17 @@ export const ERF_A5 = 1.061405429;
  *
  * @doc {heading: 'Operations', subheading: 'Basic math'}
  */
-function erf_<T extends Tensor>(x: T|TensorLike): T {
-  let $x = convertToTensor(x, 'x', 'erf');
-  util.assert(
-      $x.dtype === 'int32' || $x.dtype === 'float32',
-      () => 'Input dtype must be `int32` or `float32`.');
+T erf<T extends Tensor>(T x) {
+  return execOp('erf', () {
+    var $x = convertToTensor(x, 'x', 'erf');
+    util.assert_($x.dtype == 'int32' || $x.dtype == 'float32',
+        () => 'Input dtype must be `int32` or `float32`.');
 
-  if ($x.dtype === 'int32') {
-    $x = cast($x, 'float32');
-  }
+    if ($x.dtype == 'int32') {
+      $x = cast($x, 'float32');
+    }
 
-  const inputs: ErfInputs = {x: $x};
-  return ENGINE.runKernel(Erf, inputs as {} as NamedTensorMap);
+    final inputs = {'x': $x};
+    return ENGINE.runKernel(Erf, inputs) as T;
+  });
 }
-export const erf = op({erf_});

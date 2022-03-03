@@ -15,15 +15,17 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../engine';
-import {MaxPoolWithArgmax, MaxPoolWithArgmaxAttrs, MaxPoolWithArgmaxInputs} from '../kernel_names';
-import {NamedAttrMap} from '../kernel_registry';
-import {Tensor, Tensor4D} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
+// import {ENGINE} from '../engine';
+// import {MaxPoolWithArgmax, MaxPoolWithArgmaxAttrs, MaxPoolWithArgmaxInputs} from '../kernel_names';
+// import {NamedAttrMap} from '../kernel_registry';
+// import {Tensor, Tensor4D} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
 
-import {op} from './operation';
+// import {op} from './operation';
+
+import '_prelude.dart';
 
 /**
  * Computes the 2D max pooling of an image with Argmax index.
@@ -58,22 +60,38 @@ import {op} from './operation';
  *
  * @doc {heading: 'Operations', subheading: 'Convolution'}
  */
-function maxPoolWithArgmax_<T extends Tensor4D>(
-    x: T|TensorLike, filterSize: [number, number]|number,
-    strides: [number, number]|number, pad: 'valid'|'same'|number,
-    includeBatchInIndex = false): NamedTensorMap {
-  const $x = convertToTensor(x, 'x', 'maxPoolWithArgmax');
+MaxPoolWithArgmaxResult maxPoolWithArgmax<T extends Tensor4D>(
+  T x, {
+  required List<int> filterSize, //: [number, number]|number,
+  required List<int> strides, //: [number, number]|number,
+  required Object pad, // : 'valid'|'same'|number,
+  bool includeBatchInIndex = false,
+}) {
+  return execOp('maxPoolWithArgmax', () {
+    final $x = convertToTensor(x, 'x', 'maxPoolWithArgmax');
 
-  const inputs: MaxPoolWithArgmaxInputs = {x: $x};
-  const attrs:
-      MaxPoolWithArgmaxAttrs = {filterSize, strides, pad, includeBatchInIndex};
+    final inputs = {'x': $x}; //MaxPoolWithArgmaxInputs
+    final attrs = {
+      'filterSize': filterSize,
+      'strides': strides,
+      'pad': pad,
+      'includeBatchInIndex': includeBatchInIndex,
+    }; //MaxPoolWithArgmaxAttrs
 
-  // tslint:disable-next-line: no-unnecessary-type-assertion
-  const result = ENGINE.runKernel(
-                     MaxPoolWithArgmax, inputs as {} as NamedTensorMap,
-                     attrs as {} as NamedAttrMap) as Tensor[];
+    // tslint:disable-next-line: no-unnecessary-type-assertion
+    final result =
+        ENGINE.runKernel(MaxPoolWithArgmax, inputs, attrs) as List<Tensor>;
 
-  return {result: result[0], indexes: result[1]};
+    return MaxPoolWithArgmaxResult(result: result[0], indexes: result[1]);
+  });
 }
 
-export const maxPoolWithArgmax = op({maxPoolWithArgmax_});
+class MaxPoolWithArgmaxResult {
+  final Tensor result;
+  final Tensor indexes;
+
+  MaxPoolWithArgmaxResult({
+    required this.result,
+    required this.indexes,
+  });
+}

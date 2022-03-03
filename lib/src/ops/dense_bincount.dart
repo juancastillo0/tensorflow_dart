@@ -15,16 +15,19 @@
  * =============================================================================
  */
 
-import {ENGINE} from '../engine';
-import {DenseBincount, DenseBincountAttrs, DenseBincountInputs} from '../kernel_names';
-import {NamedAttrMap} from '../kernel_registry';
-import {Tensor1D, Tensor2D} from '../tensor';
-import {NamedTensorMap} from '../tensor_types';
-import {convertToTensor} from '../tensor_util_env';
-import {TensorLike} from '../types';
-import * as util from '../util';
+// import {ENGINE} from '../engine';
+// import {DenseBincount, DenseBincountAttrs, DenseBincountInputs} from '../kernel_names';
+// import {NamedAttrMap} from '../kernel_registry';
+// import {Tensor1D, Tensor2D} from '../tensor';
+// import {NamedTensorMap} from '../tensor_types';
+// import {convertToTensor} from '../tensor_util_env';
+// import {TensorLike} from '../types';
+// import * as util from '../util';
 
-import {op} from './operation';
+// import {op} from './operation';
+
+import '../util_base.dart' as util;
+import '_prelude.dart';
 
 /**
  * Outputs a vector with length `size` and the same dtype as `weights`.
@@ -45,34 +48,44 @@ import {op} from './operation';
  *
  * @doc {heading: 'Operations', subheading: 'Reduction'}
  */
-function denseBincount_<T extends Tensor1D|Tensor2D>(
-    x: T|TensorLike, weights: T|TensorLike, size: number,
-    binaryOutput = false): T {
-  const $x = convertToTensor(x, 'x', 'denseBincount');
-  const $weights = convertToTensor(weights, 'weights', 'denseBincount');
+T denseBincount<
+    T extends Tensor1D
+//|Tensor2D
+    >(
+  T x,
+  T weights,
+  int size, {
+  bool binaryOutput = false,
+}) {
+  return execOp('denseBincount', () {
+    final $x = convertToTensor(x, 'x', 'denseBincount');
+    final $weights = convertToTensor(weights, 'weights', 'denseBincount');
 
-  util.assert(
-      $x.dtype === 'int32',
-      () => `Error in denseBincount: input ` +
-          `dtype must be int32, but got ${$x.dtype}`);
-  util.assert(
-      $x.rank <= 2,
-      () => `Error in denseBincount: input must be at most rank 2, but got ` +
-          `rank ${$x.rank}.`);
-  util.assert(size >= 0, () => `size must be non-negative, but got ${size}.`);
-  util.assert(
-      $weights.size === $x.size || $weights.size === 0,
-      () =>
-          `Error in denseBincount: weights must have the same shape as x or ` +
-          `0-length, but got x shape: ${$x.shape}, weights shape: ` +
-          `${$weights.shape}.`);
+    util.assert_(
+        $x.dtype == 'int32',
+        () =>
+            'Error in denseBincount: input ' +
+            'dtype must be int32, but got ${$x.dtype}');
+    util.assert_(
+        $x.rank <= 2,
+        () =>
+            'Error in denseBincount: input must be at most rank 2, but got ' +
+            'rank ${$x.rank}.');
+    util.assert_(
+        size >= 0, () => 'size must be non-negative, but got ${size}.');
+    util.assert_(
+        $weights.size == $x.size || $weights.size == 0,
+        () =>
+            'Error in denseBincount: weights must have the same shape as x or ' +
+            '0-length, but got x shape: ${$x.shape}, weights shape: ' +
+            '${$weights.shape}.');
 
-  const inputs: DenseBincountInputs = {x: $x, weights: $weights};
-  const attrs: DenseBincountAttrs = {size, binaryOutput};
+    final inputs = {'x': $x, 'weights': $weights}; // : DenseBincountInputs
+    final attrs = {
+      'size': size,
+      'binaryOutput': binaryOutput,
+    }; // : DenseBincountAttrs
 
-  return ENGINE.runKernel(
-      DenseBincount, inputs as {} as NamedTensorMap,
-      attrs as {} as NamedAttrMap);
+    return ENGINE.runKernel(DenseBincount, inputs, attrs) as T;
+  });
 }
-
-export const denseBincount = op({denseBincount_});
