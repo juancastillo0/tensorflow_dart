@@ -25,6 +25,7 @@ import 'package:tensorflow_wasm/src/util_base.dart' as util;
 
 // Expects flags from URL in the format ?tfjsflags=FLAG1:1,FLAG2:true.
 const TENSORFLOWJS_FLAGS_PREFIX = 'tfjsflags';
+const kIsWeb = identical(0, 0.0);
 
 typedef FlagValue = Object; // number|boolean;
 typedef FlagEvaluationFn = FutureOr<FlagValue> Function();

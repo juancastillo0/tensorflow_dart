@@ -155,7 +155,8 @@ class BinaryInputs {
   const BinaryInputs(this.a, this.b);
 }
 
-// export const Bincount = 'Bincount';
+// TODO: wasm
+const Bincount = 'Bincount';
 // export type BincountInputs = Pick<NamedTensorInfoMap, 'x'|'weights'>;
 // export interface BincountAttrs {
 //   size: number;
@@ -282,7 +283,8 @@ const CropAndResize = 'CropAndResize';
 //   extrapolationValue: number;
 // }
 
-// export const DenseBincount = 'DenseBincount';
+// TODO: wasm
+const DenseBincount = 'DenseBincount';
 // export type DenseBincountInputs = Pick<NamedTensorInfoMap, 'x'|'weights'>;
 // export interface DenseBincountAttrs {
 //   size: number;
@@ -374,7 +376,8 @@ const DepthwiseConv2dNativeBackpropInput = 'DepthwiseConv2dNativeBackpropInput';
 const RealDiv = 'RealDiv';
 typedef RealDivInputs = BinaryInputs;
 
-// export const Einsum = 'Einsum';
+// TODO: wasm
+const Einsum = 'Einsum';
 // export type EinsumInputs = TensorInfo[];
 // export interface EinsumAttrs {
 //   equation: string;
@@ -386,8 +389,9 @@ typedef EluInputs = UnaryInputs;
 // export const EluGrad = 'EluGrad';
 // export type EluGradInputs = Pick<NamedTensorInfoMap, 'dy'|'y'>;
 
-// export const Erf = 'Erf';
-// export type ErfInputs = UnaryInputs;
+// TODO: wasm
+const Erf = 'Erf';
+typedef ErfInputs = UnaryInputs;
 
 const Equal = 'Equal';
 typedef EqualInputs = BinaryInputs;
@@ -579,8 +583,9 @@ typedef MaxPoolInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 //   dimRoundingMode?: 'floor'|'round'|'ceil';
 // }
 
-// export const MaxPoolWithArgmax = 'MaxPoolWithArgmax';
-// export type MaxPoolWithArgmaxInputs = Pick<NamedTensorInfoMap, 'x'>;
+// TODO: wasm
+const MaxPoolWithArgmax = 'MaxPoolWithArgmax';
+typedef MaxPoolWithArgmaxInputs = UnaryInputs; // Pick<NamedTensorInfoMap, 'x'>;
 // export interface MaxPoolWithArgmaxAttrs {
 //   filterSize: [number, number]|number;
 //   strides: [number, number]|number;
