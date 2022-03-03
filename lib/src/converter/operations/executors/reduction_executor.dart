@@ -161,7 +161,9 @@ List<Tensor> executeOp(
         final binaryOutput =
             getParamValue('binaryOutput', node, tensorMap, context) as bool;
 
-        return [tfOps.denseBincount(x, weights, size, binaryOutput)];
+        return [
+          tfOps.denseBincount(x, weights, size, binaryOutput: binaryOutput)
+        ];
       }
     default:
       throw StateError('Node type ${node.op} is not implemented');

@@ -305,7 +305,7 @@ List<Tensor> executeOp(
       {
         final stride =
             getParamValue('strides', node, tensorMap, context) as List<int>;
-        final pad = getParamValue('pad', node, tensorMap, context);
+        final pad = getParamValue('pad', node, tensorMap, context)!;
         final kernelSize =
             getParamValue('kernelSize', node, tensorMap, context) as List<int>;
         final includeBatchInIndex =
@@ -313,11 +313,10 @@ List<Tensor> executeOp(
                 as bool;
         final p = tfOps.maxPoolWithArgmax(
             getParamValue('x', node, tensorMap, context) as Tensor4D,
-            [kernelSize[1], kernelSize[2]],
-            [stride[1], stride[2]],
-            pad //as 'valid' | 'same'
-            ,
-            includeBatchInIndex);
+            filterSize: [kernelSize[1], kernelSize[2]],
+            strides: [stride[1], stride[2]],
+            pad: pad, //as 'valid' | 'same'
+            includeBatchInIndex: includeBatchInIndex);
 
         return [p.result, p.indexes];
       }

@@ -49,10 +49,13 @@ List<Tensor> executeOp(
 
     case 'Einsum':
       return [
-        tfOps.einsum([
+        tfOps.einsum(
           getParamValue('equation', node, tensorMap, context) as String,
-          ...getParamValue('tensors', node, tensorMap, context) as List<Tensor>
-        ])
+          [
+            ...getParamValue('tensors', node, tensorMap, context)
+                as List<Tensor>
+          ],
+        )
       ];
 
     case 'Transpose':
