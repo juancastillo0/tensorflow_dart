@@ -47,6 +47,7 @@ import 'package:tensorflow_wasm/src/tensor_util.dart';
 
 import 'backend.dart';
 import 'global_util.dart';
+import 'io/io.dart';
 import 'kernel_registry.dart';
 import 'util_base.dart' as util;
 import 'util_base.dart' show log;
@@ -1498,6 +1499,7 @@ Engine _getOrMakeEngine() {
     setEnvironmentGlobal(environment);
     setUpOpHandler();
     setUpFlags();
+    setUpIo();
   }
   final engine = ns.tfengine!;
 

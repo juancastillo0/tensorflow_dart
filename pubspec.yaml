@@ -16,6 +16,8 @@ dependencies:
   logging: ^1.0.2
   collection:
   json_annotation:
+  path:
+  cross_file:
 
 dev_dependencies:
   lints: ^1.0.0

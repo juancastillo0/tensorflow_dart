@@ -317,6 +317,28 @@ ByteBuffer concatenateTypedArrays(List<TypedData> xs) {
 //      typeof btoa == 'undefined');
 
 /**
+ * Convert a Buffer or an Array of Buffers to an ArrayBuffer.
+ *
+ * If the input is an Array of Buffers, they will be concatenated in the
+ * specified order to form the output ArrayBuffer.
+ */
+ByteBuffer toArrayBuffer(List<Uint8List> buf) {
+  // An Array of Buffers.
+  int totalLength = 0;
+  for (final buffer in buf) {
+    totalLength += buffer.lengthInBytes;
+  }
+
+  final view = Uint8List(totalLength);
+  int pos = 0;
+  for (final buffer in buf) {
+    view.setAll(pos, buffer);
+    pos += buffer.lengthInBytes;
+  }
+  return view.buffer;
+}
+
+/**
  * Calculate the byte length of a JavaScript string.
  *
  * Note that a JavaScript string can contain wide characters, therefore the

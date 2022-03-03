@@ -23,6 +23,61 @@ export 'types.dart';
 export 'http.dart';
 export 'weights_loader.dart';
 export 'io_utils.dart';
+export 'browser_files.dart';
+export 'indexed_db.dart';
+export 'file_system.dart';
+export 'passthrough.dart';
+
+import 'io.dart';
+
+void setUpIo() {
+  IORouterRegistry.registerSaveRouter(browserDownloadsRouter);
+  IORouterRegistry.registerSaveRouter(nodeFileSystemRouter);
+  IORouterRegistry.registerLoadRouter(nodeFileSystemRouter);
+  IORouterRegistry.registerSaveRouter(httpRouter);
+  IORouterRegistry.registerLoadRouter(httpRouter);
+  IORouterRegistry.registerSaveRouter(indexedDBRouter);
+  IORouterRegistry.registerLoadRouter(indexedDBRouter);
+}
+
+typedef ModelUri = List<String>; // string|string[]
+
+class ModelUrl {
+  const ModelUrl._();
+  const factory ModelUrl.single(String path) = SingleModelUrl;
+
+  const factory ModelUrl.combined({
+    required String topologyPath,
+    required String weightManifestPath,
+  }) = CombinedModelUrl;
+
+  bool get isSingle => this is SingleModelUrl;
+
+  T when<T>({
+    required T Function(String path) path,
+    required T Function(CombinedModelUrl path) paths,
+  }) {
+    final v = this;
+    if (v is CombinedModelUrl) return paths(v);
+    return path((v as SingleModelUrl).path);
+  }
+}
+
+class CombinedModelUrl extends ModelUrl {
+  final String topologyPath;
+  final String weightManifestPath;
+
+  const CombinedModelUrl({
+    required this.topologyPath,
+    required this.weightManifestPath,
+  }) : super._();
+}
+
+class SingleModelUrl extends ModelUrl {
+  final String path;
+
+  const SingleModelUrl(this.path) : super._();
+}
 
 /*
 import './indexed_db';

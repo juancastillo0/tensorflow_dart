@@ -15,13 +15,22 @@
  * =============================================================================
  */
 
-import '../flags';
+// import '../flags';
 
-import {env} from '../environment';
+// import {env} from '../environment';
 
-import {getModelArtifactsInfoForJSON} from './io_utils';
-import {IORouter, IORouterRegistry} from './router_registry';
-import {IOHandler, ModelArtifacts, ModelArtifactsInfo, ModelStoreManager, SaveResult} from './types';
+// import {getModelArtifactsInfoForJSON} from './io_utils';
+// import {IORouter, IORouterRegistry} from './router_registry';
+// import {IOHandler, ModelArtifacts, ModelArtifactsInfo, ModelStoreManager, SaveResult} from './types';
+
+import 'dart:async';
+import 'dart:typed_data';
+
+import 'io.dart';
+
+import '../environment.dart';
+import 'package:universal_html/indexed_db.dart' as idb;
+import 'package:universal_html/html.dart' as html;
 
 const DATABASE_NAME = 'tensorflowjs';
 const DATABASE_VERSION = 1;
@@ -38,41 +47,41 @@ const INFO_STORE_NAME = 'model_info_store';
 /**
  * Delete the entire database for tensorflow.js, including the models store.
  */
-export async function deleteDatabase(): Promise<void> {
-  const idbFactory = getIndexedDBFactory();
+Future<void> deleteDatabase() async {
+  final idbFactory = _getIndexedDBFactory();
 
-  return new Promise<void>((resolve, reject) => {
-    const deleteRequest = idbFactory.deleteDatabase(DATABASE_NAME);
-    deleteRequest.onsuccess = () => resolve();
-    deleteRequest.onerror = error => reject(error);
-  });
+  // return new Future<void>((resolve, reject) => {
+  await idbFactory.deleteDatabase(DATABASE_NAME);
+  // deleteRequest.onsuccess = () => resolve();
+  // deleteRequest.onerror = error => reject(error);
+  // });
 }
 
-function getIndexedDBFactory(): IDBFactory {
+idb.IdbFactory _getIndexedDBFactory() {
   if (!env().getBool('IS_BROWSER')) {
     // TODO(cais): Add more info about what IOHandler subtypes are available.
     //   Maybe point to a doc page on the web and/or automatically determine
     //   the available IOHandlers and print them in the error message.
-    throw new Error(
+    throw Exception(
         'Failed to obtain IndexedDB factory because the current environment' +
-        'is not a web browser.');
+            'is not a web browser.');
   }
   // tslint:disable-next-line:no-any
-  const theWindow: any = typeof window === 'undefined' ? self : window;
-  const factory = theWindow.indexedDB || theWindow.mozIndexedDB ||
-      theWindow.webkitIndexedDB || theWindow.msIndexedDB ||
-      theWindow.shimIndexedDB;
-  if (factory == null) {
-    throw new Error(
+  // final theWindow: any = typeof window === 'undefined' ? self : window;
+  // final factory = theWindow.indexedDB || theWindow.mozIndexedDB ||
+  //     theWindow.webkitIndexedDB || theWindow.msIndexedDB ||
+  //     theWindow.shimIndexedDB;
+  if (html.window.indexedDB == null || !idb.IdbFactory.supported) {
+    throw Exception(
         'The current browser does not appear to support IndexedDB.');
   }
-  return factory;
+  return html.window.indexedDB!;
 }
 
-function setUpDatabase(openRequest: IDBRequest) {
-  const db = openRequest.result as IDBDatabase;
-  db.createObjectStore(MODEL_STORE_NAME, {keyPath: 'modelPath'});
-  db.createObjectStore(INFO_STORE_NAME, {keyPath: 'modelPath'});
+void _setUpDatabase(idb.Request openRequest) {
+  final db = openRequest.result as idb.Database;
+  db.createObjectStore(MODEL_STORE_NAME, keyPath: 'modelPath');
+  db.createObjectStore(INFO_STORE_NAME, keyPath: 'modelPath');
 }
 
 /**
@@ -80,36 +89,34 @@ function setUpDatabase(openRequest: IDBRequest) {
  *
  * See the doc string of `browserIndexedDB` for more details.
  */
-export class BrowserIndexedDB implements IOHandler {
-  protected readonly indexedDB: IDBFactory;
-  protected readonly modelPath: string;
+class BrowserIndexedDB implements IOHandler {
+  final idb.IdbFactory indexedDB;
+  final String modelPath;
 
-  static readonly URL_SCHEME = 'indexeddb://';
+  static const URL_SCHEME = 'indexeddb://';
 
-  constructor(modelPath: string) {
-    this.indexedDB = getIndexedDBFactory();
-
-    if (modelPath == null || !modelPath) {
-      throw new Error(
+  BrowserIndexedDB(this.modelPath) : indexedDB = _getIndexedDBFactory() {
+    if (modelPath == null || modelPath.isEmpty) {
+      throw Exception(
           'For IndexedDB, modelPath must not be null, undefined or empty.');
     }
-    this.modelPath = modelPath;
   }
-
-  async save(modelArtifacts: ModelArtifacts): Promise<SaveResult> {
+  late final save = _save;
+  Future<SaveResult> _save(ModelArtifacts modelArtifacts) async {
     // TODO(cais): Support saving GraphDef models.
-    if (modelArtifacts.modelTopology instanceof ArrayBuffer) {
-      throw new Error(
+    if (modelArtifacts.modelTopology is ByteBuffer) {
+      throw Exception(
           'BrowserLocalStorage.save() does not support saving model topology ' +
-          'in binary formats yet.');
+              'in binary formats yet.');
     }
 
-    return this.databaseAction(this.modelPath, modelArtifacts) as
-        Promise<SaveResult>;
+    return this._databaseAction(this.modelPath, modelArtifacts)
+        as Future<SaveResult>;
   }
 
-  async load(): Promise<ModelArtifacts> {
-    return this.databaseAction(this.modelPath) as Promise<ModelArtifacts>;
+  late final load = _load;
+  Future<ModelArtifacts> _load() async {
+    return this._databaseAction(this.modelPath) as Future<ModelArtifacts>;
   }
 
   /**
@@ -123,104 +130,96 @@ export class BrowserIndexedDB implements IOHandler {
    * @param modelPath A unique string path for the model.
    * @param modelArtifacts If specified, it will be the model artifacts to be
    *   stored in IndexedDB.
-   * @returns A `Promise` of `SaveResult`, if the action is put, or a `Promise`
+   * @returns A `Future` of `SaveResult`, if the action is put, or a `Future`
    *   of `ModelArtifacts`, if the action is get.
    */
-  private databaseAction(modelPath: string, modelArtifacts?: ModelArtifacts):
-      Promise<ModelArtifacts|SaveResult> {
-    return new Promise<ModelArtifacts|SaveResult>((resolve, reject) => {
-      const openRequest = this.indexedDB.open(DATABASE_NAME, DATABASE_VERSION);
-      openRequest.onupgradeneeded = () => setUpDatabase(openRequest);
+  Future<Object>
+      // ModelArtifacts|SaveResult
+      _databaseAction(String modelPath,
+          [ModelArtifacts? modelArtifacts]) async {
+    final db = await this.indexedDB.open(
+          DATABASE_NAME,
+          version: DATABASE_VERSION,
+          onUpgradeNeeded: (e) => _setUpDatabase(e.target),
+        );
 
-      openRequest.onsuccess = () => {
-        const db = openRequest.result;
-
-        if (modelArtifacts == null) {
-          // Read model out from object store.
-          const modelTx = db.transaction(MODEL_STORE_NAME, 'readonly');
-          const modelStore = modelTx.objectStore(MODEL_STORE_NAME);
-          const getRequest = modelStore.get(this.modelPath);
-          getRequest.onsuccess = () => {
-            if (getRequest.result == null) {
-              db.close();
-              return reject(new Error(
-                  `Cannot find model with path '${this.modelPath}' ` +
-                  `in IndexedDB.`));
-            } else {
-              resolve(getRequest.result.modelArtifacts);
-            }
-          };
-          getRequest.onerror = error => {
-            db.close();
-            return reject(getRequest.error);
-          };
-          modelTx.oncomplete = () => db.close();
-        } else {
-          // Put model into object store.
-          const modelArtifactsInfo: ModelArtifactsInfo =
-              getModelArtifactsInfoForJSON(modelArtifacts);
-          // First, put ModelArtifactsInfo into info store.
-          const infoTx = db.transaction(INFO_STORE_NAME, 'readwrite');
-          let infoStore = infoTx.objectStore(INFO_STORE_NAME);
-          const putInfoRequest =
-              infoStore.put({modelPath: this.modelPath, modelArtifactsInfo});
-          let modelTx: IDBTransaction;
-          putInfoRequest.onsuccess = () => {
-            // Second, put model data into model store.
-            modelTx = db.transaction(MODEL_STORE_NAME, 'readwrite');
-            const modelStore = modelTx.objectStore(MODEL_STORE_NAME);
-            const putModelRequest = modelStore.put({
-              modelPath: this.modelPath,
-              modelArtifacts,
-              modelArtifactsInfo
-            });
-            putModelRequest.onsuccess = () => resolve({modelArtifactsInfo});
-            putModelRequest.onerror = error => {
-              // If the put-model request fails, roll back the info entry as
-              // well.
-              infoStore = infoTx.objectStore(INFO_STORE_NAME);
-              const deleteInfoRequest = infoStore.delete(this.modelPath);
-              deleteInfoRequest.onsuccess = () => {
-                db.close();
-                return reject(putModelRequest.error);
-              };
-              deleteInfoRequest.onerror = error => {
-                db.close();
-                return reject(putModelRequest.error);
-              };
-            };
-          };
-          putInfoRequest.onerror = error => {
-            db.close();
-            return reject(putInfoRequest.error);
-          };
-          infoTx.oncomplete = () => {
-            if (modelTx == null) {
-              db.close();
-            } else {
-              modelTx.oncomplete = () => db.close();
-            }
-          };
+    if (modelArtifacts == null) {
+      // Read model out from object store.
+      final modelTx = db.transaction(MODEL_STORE_NAME, 'readonly');
+      modelTx.onComplete.first.then((value) => db.close());
+      final modelStore = modelTx.objectStore(MODEL_STORE_NAME);
+      try {
+        final result = await modelStore.getObject(this.modelPath);
+        if (result == null) {
+          throw Exception("Cannot find model with path '${this.modelPath}' " +
+              "in IndexedDB.");
         }
-      };
-      openRequest.onerror = error => reject(openRequest.error);
-    });
+        return result['modelArtifacts'];
+      } catch (e) {
+        db.close();
+        rethrow;
+      }
+    } else {
+      // Put model into object store.
+      final ModelArtifactsInfo modelArtifactsInfo =
+          getModelArtifactsInfoForJSON(modelArtifacts);
+      // First, put ModelArtifactsInfo into info store.
+      final infoTx = db.transaction(INFO_STORE_NAME, 'readwrite');
+      idb.Transaction? modelTx;
+      infoTx.onComplete.first.then((value) {
+        if (modelTx == null) {
+          db.close();
+        } else {
+          modelTx.onComplete.first.then((_) => db.close());
+        }
+      });
+      var infoStore = infoTx.objectStore(INFO_STORE_NAME);
+      try {
+        final putInfoRequest = await infoStore.put({
+          'modelPath': this.modelPath,
+          'modelArtifactsInfo': modelArtifactsInfo
+        });
+
+        // Second, put model data into model store.
+        modelTx = db.transaction(MODEL_STORE_NAME, 'readwrite');
+        final modelStore = modelTx.objectStore(MODEL_STORE_NAME);
+        try {
+          final putModelRequest = await modelStore.put({
+            'modelPath': this.modelPath,
+            'modelArtifacts': modelArtifacts,
+            'modelArtifactsInfo': modelArtifactsInfo
+          });
+          return {'modelArtifactsInfo': modelArtifactsInfo};
+        } catch (error) {
+          // If the put-model request fails, roll back the info entry as
+          // well.
+          infoStore = infoTx.objectStore(INFO_STORE_NAME);
+          try {
+            await infoStore.delete(this.modelPath);
+          } catch (_) {}
+          db.close();
+          rethrow;
+        }
+      } catch (e) {
+        db.close();
+        rethrow;
+      }
+    }
   }
 }
 
-export const indexedDBRouter: IORouter = (url: string|string[]) => {
+IOHandler? indexedDBRouter(List<String> url, LoadOptions? _) {
   if (!env().getBool('IS_BROWSER')) {
     return null;
   } else {
-    if (!Array.isArray(url) && url.startsWith(BrowserIndexedDB.URL_SCHEME)) {
-      return browserIndexedDB(url.slice(BrowserIndexedDB.URL_SCHEME.length));
+    if (url.length == 1 && url.first.startsWith(BrowserIndexedDB.URL_SCHEME)) {
+      return browserIndexedDB(
+          url.first.substring(BrowserIndexedDB.URL_SCHEME.length));
     } else {
       return null;
     }
   }
-};
-IORouterRegistry.registerSaveRouter(indexedDBRouter);
-IORouterRegistry.registerLoadRouter(indexedDBRouter);
+}
 
 /**
  * Creates a browser IndexedDB IOHandler for saving and loading models.
@@ -239,116 +238,119 @@ IORouterRegistry.registerLoadRouter(indexedDBRouter);
  * @returns An instance of `BrowserIndexedDB` (sublcass of `IOHandler`),
  *   which can be used with, e.g., `tf.Model.save`.
  */
-export function browserIndexedDB(modelPath: string): IOHandler {
-  return new BrowserIndexedDB(modelPath);
+IOHandler browserIndexedDB(String modelPath) {
+  return BrowserIndexedDB(modelPath);
 }
 
-function maybeStripScheme(key: string) {
-  return key.startsWith(BrowserIndexedDB.URL_SCHEME) ?
-      key.slice(BrowserIndexedDB.URL_SCHEME.length) :
-      key;
+String _maybeStripScheme(String key) {
+  return key.startsWith(BrowserIndexedDB.URL_SCHEME)
+      ? key.substring(BrowserIndexedDB.URL_SCHEME.length)
+      : key;
 }
 
-export class BrowserIndexedDBManager implements ModelStoreManager {
-  private indexedDB: IDBFactory;
+class BrowserIndexedDBManager implements ModelStoreManager {
+  final idb.IdbFactory indexedDB;
 
-  constructor() {
-    this.indexedDB = getIndexedDBFactory();
-  }
+  BrowserIndexedDBManager() : this.indexedDB = _getIndexedDBFactory();
 
-  async listModels(): Promise<{[path: string]: ModelArtifactsInfo}> {
-    return new Promise<{[path: string]: ModelArtifactsInfo}>(
-        (resolve, reject) => {
-          const openRequest =
-              this.indexedDB.open(DATABASE_NAME, DATABASE_VERSION);
-          openRequest.onupgradeneeded = () => setUpDatabase(openRequest);
+  Future<Map<String, ModelArtifactsInfo>> listModels() async {
+    final db = await this.indexedDB.open(
+          DATABASE_NAME,
+          version: DATABASE_VERSION,
+          onUpgradeNeeded: (e) => _setUpDatabase(e.target),
+        );
 
-          openRequest.onsuccess = () => {
-            const db = openRequest.result;
-            const tx = db.transaction(INFO_STORE_NAME, 'readonly');
-            const store = tx.objectStore(INFO_STORE_NAME);
-            // tslint:disable:max-line-length
-            // Need to cast `store` as `any` here because TypeScript's DOM
-            // library does not have the `getAll()` method even though the
-            // method is supported in the latest version of most mainstream
-            // browsers:
-            // https://developer.mozilla.org/en-US/docs/Web/API/IDBObjectStore/getAll
-            // tslint:enable:max-line-length
-            // tslint:disable-next-line:no-any
-            const getAllInfoRequest = (store as any).getAll() as IDBRequest;
-            getAllInfoRequest.onsuccess = () => {
-              const out: {[path: string]: ModelArtifactsInfo} = {};
-              for (const item of getAllInfoRequest.result) {
-                out[item.modelPath] = item.modelArtifactsInfo;
-              }
-              resolve(out);
-            };
-            getAllInfoRequest.onerror = error => {
-              db.close();
-              return reject(getAllInfoRequest.error);
-            };
-            tx.oncomplete = () => db.close();
-          };
-          openRequest.onerror = error => reject(openRequest.error);
-        });
-  }
-
-  async removeModel(path: string): Promise<ModelArtifactsInfo> {
-    path = maybeStripScheme(path);
-    return new Promise<ModelArtifactsInfo>((resolve, reject) => {
-      const openRequest = this.indexedDB.open(DATABASE_NAME, DATABASE_VERSION);
-      openRequest.onupgradeneeded = () => setUpDatabase(openRequest);
-
-      openRequest.onsuccess = () => {
-        const db = openRequest.result;
-        const infoTx = db.transaction(INFO_STORE_NAME, 'readwrite');
-        const infoStore = infoTx.objectStore(INFO_STORE_NAME);
-
-        const getInfoRequest = infoStore.get(path);
-        let modelTx: IDBTransaction;
-        getInfoRequest.onsuccess = () => {
-          if (getInfoRequest.result == null) {
-            db.close();
-            return reject(new Error(
-                `Cannot find model with path '${path}' ` +
-                `in IndexedDB.`));
-          } else {
-            // First, delete the entry in the info store.
-            const deleteInfoRequest = infoStore.delete(path);
-            const deleteModelData = () => {
-              // Second, delete the entry in the model store.
-              modelTx = db.transaction(MODEL_STORE_NAME, 'readwrite');
-              const modelStore = modelTx.objectStore(MODEL_STORE_NAME);
-              const deleteModelRequest = modelStore.delete(path);
-              deleteModelRequest.onsuccess = () =>
-                  resolve(getInfoRequest.result.modelArtifactsInfo);
-              deleteModelRequest.onerror = error =>
-                  reject(getInfoRequest.error);
-            };
-            // Proceed with deleting model data regardless of whether deletion
-            // of info data succeeds or not.
-            deleteInfoRequest.onsuccess = deleteModelData;
-            deleteInfoRequest.onerror = error => {
-              deleteModelData();
-              db.close();
-              return reject(getInfoRequest.error);
-            };
-          }
-        };
-        getInfoRequest.onerror = error => {
-          db.close();
-          return reject(getInfoRequest.error);
-        };
-
-        infoTx.oncomplete = () => {
-          if (modelTx == null) {
-            db.close();
-          } else {
-            modelTx.oncomplete = () => db.close();
-          }
-        };
-      };
-      openRequest.onerror = error => reject(openRequest.error);
+    final tx = db.transaction(INFO_STORE_NAME, 'readonly');
+    tx.onComplete.first.then((_) => db.close());
+    final store = tx.objectStore(INFO_STORE_NAME);
+    // tslint:disable:max-line-length
+    // Need to cast `store` as `any` here because TypeScript's DOM
+    // library does not have the `getAll()` method even though the
+    // method is supported in the latest version of most mainstream
+    // browsers:
+    // https://developer.mozilla.org/en-US/docs/Web/API/IDBObjectStore/getAll
+    // tslint:enable:max-line-length
+    // tslint:disable-next-line:no-any
+    final getAllInfoRequest = store.getAll(null);
+    final comp = Completer<Map<String, ModelArtifactsInfo>>();
+    getAllInfoRequest.onSuccess.first.then((e) {
+      final Map<String, ModelArtifactsInfo> out = {};
+      for (final item in getAllInfoRequest.result) {
+        out[item['modelPath']] = item['modelArtifactsInfo'];
+      }
+      comp.complete(out);
     });
+    getAllInfoRequest.onError.first.then((error) {
+      db.close();
+      return comp.completeError(getAllInfoRequest.error ?? error);
+    });
+    return comp.future;
+  }
+
+  Future<ModelArtifactsInfo> removeModel(String path) async {
+    path = _maybeStripScheme(path);
+
+    final db = await this.indexedDB.open(
+          DATABASE_NAME,
+          version: DATABASE_VERSION,
+          onUpgradeNeeded: (e) => _setUpDatabase(e.target),
+        );
+
+    final infoTx = db.transaction(INFO_STORE_NAME, 'readwrite');
+
+    final completer = Completer<ModelArtifactsInfo>();
+
+    void reject(Object error) {
+      completer.completeError(error);
+    }
+
+    idb.Transaction? modelTx;
+    infoTx.onComplete.first.then((value) {
+      if (modelTx == null) {
+        db.close();
+      } else {
+        modelTx!.onComplete.first.then((_) => db.close());
+      }
+    });
+    final infoStore = infoTx.objectStore(INFO_STORE_NAME);
+
+    final getInfoRequest = infoStore.getKey(path);
+
+    getInfoRequest.onSuccess.first.then((_) async {
+      if (getInfoRequest.result == null) {
+        db.close();
+        return reject(Exception(
+            "Cannot find model with path '${path}' " + "in IndexedDB."));
+      } else {
+        void deleteModelData() {
+          // Second, delete the entry in the model store.
+          modelTx = db.transaction(MODEL_STORE_NAME, 'readwrite');
+          final modelStore = modelTx!.objectStore(MODEL_STORE_NAME);
+          modelStore
+              .delete(path)
+              .then((value) =>
+                  completer.complete(getInfoRequest.result.modelArtifactsInfo))
+              .onError((error, stackTrace) => reject(error!));
+        }
+
+        try {
+          // First, delete the entry in the info store.
+          await infoStore.delete(path);
+          deleteModelData();
+        } catch (error) {
+          // Proceed with deleting model data regardless of whether deletion
+          // of info data succeeds or not.
+          deleteModelData();
+          db.close();
+          return reject(error);
+        }
+      }
+    });
+    getInfoRequest.onError.first.then((error) {
+      db.close();
+      return reject(error);
+    });
+
+    return completer.future;
   }
 }

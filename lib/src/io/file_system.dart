@@ -15,37 +15,47 @@
  * =============================================================================
  */
 
-import * as tf from '@tensorflow/tfjs';
-import * as fs from 'fs';
-import {dirname, join, resolve} from 'path';
-import {promisify} from 'util';
-import {getModelArtifactsInfoForJSON, toArrayBuffer} from './io_utils';
+// import * as tf from '@tensorflow/tfjs';
+// import * as fs from 'fs';
+// import {dirname, join, resolve} from 'path';
+// import {promisify} from 'util';
+// import {getModelArtifactsInfoForJSON, toArrayBuffer} from './io_utils';
 
-const stat = promisify(fs.stat);
-const writeFile = promisify(fs.writeFile);
-const readFile = promisify(fs.readFile);
-const mkdir = promisify(fs.mkdir);
+// const stat = promisify(fs.stat);
+// const writeFile = promisify(fs.writeFile);
+// const readFile = promisify(fs.readFile);
+// const mkdir = promisify(fs.mkdir);
 
-function doesNotExistHandler(name: string): (e: NodeJS.ErrnoException) =>
-    never {
-  return e => {
-    switch (e.code) {
-      case 'ENOENT':
-        throw new Error(`${name} ${e.path} does not exist: loading failed`);
-      default:
-        throw e;
-    }
-  };
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:path/path.dart' as p;
+import '../util_base.dart' as util;
+
+import 'io.dart';
+
+Future<Uint8List> readFile(String path) {
+  return File(path).readAsBytes();
 }
 
-export class NodeFileSystem implements tf.io.IOHandler {
-  static readonly URL_SCHEME = 'file://';
+Future<String> readFileString(String path) {
+  return File(path).readAsString();
+}
 
-  protected readonly path: string|string[];
+Never _doesNotExistHandler(String name, String path) {
+  throw Exception('${name} ${path} does not exist: loading failed');
+}
 
-  readonly MODEL_JSON_FILENAME = 'model.json';
-  readonly WEIGHTS_BINARY_FILENAME = 'weights.bin';
-  readonly MODEL_BINARY_FILENAME = 'tensorflowjs.pb';
+bool isComposedUrl(ModelUri uri) => uri.length >= 2;
+
+class NodeFileSystem implements IOHandler {
+  static const URL_SCHEME = 'file://';
+
+  late final ModelUri path;
+
+  static const MODEL_JSON_FILENAME = 'model.json';
+  static const WEIGHTS_BINARY_FILENAME = 'weights.bin';
+  static const MODEL_BINARY_FILENAME = 'tensorflowjs.pb';
 
   /**
    * Constructor of the NodeFileSystem IOHandler.
@@ -65,182 +75,193 @@ export class NodeFileSystem implements tf.io.IOHandler {
    *       .pb file and the second path should point to the weight manifest
    *       JSON file.
    */
-  constructor(path: string|string[]) {
-    if (Array.isArray(path)) {
-      tf.util.assert(
-          path.length === 2,
-          () => 'file paths must have a length of 2, ' +
-              `(actual length is ${path.length}).`);
-      this.path = path.map(p => resolve(p));
-    } else {
-      this.path = resolve(path);
+  NodeFileSystem(ModelUri path) {
+    if (isComposedUrl(path)) {
+      util.assert_(
+          path.length == 2,
+          () =>
+              'file paths must have a length of 2, ' +
+              '(actual length is ${path.length}).');
+      this.path = path.map((p_) => p.canonicalize(p_)).toList();
     }
+    //  else {
+    //   this.path = p.canonicalize(path);
+    // }
   }
 
-  async save(modelArtifacts: tf.io.ModelArtifacts): Promise<tf.io.SaveResult> {
-    if (Array.isArray(this.path)) {
-      throw new Error('Cannot perform saving to multiple paths.');
+  late final save = _save;
+  Future<SaveResult> _save(ModelArtifacts modelArtifacts) async {
+    if (isComposedUrl(this.path)) {
+      throw Exception('Cannot perform saving to multiple paths.');
     }
 
     await this.createOrVerifyDirectory();
 
-    if (modelArtifacts.modelTopology instanceof ArrayBuffer) {
-      throw new Error(
+    if (modelArtifacts.modelTopology is ByteBuffer) {
+      throw Exception(
           'NodeFileSystem.save() does not support saving model topology ' +
-          'in binary format yet.');
+              'in binary format yet.');
       // TODO(cais, nkreeger): Implement this. See
       //   https://github.com/tensorflow/tfjs/issues/343
     } else {
-      const weightsBinPath = join(this.path, this.WEIGHTS_BINARY_FILENAME);
-      const weightsManifest = [{
-        paths: [this.WEIGHTS_BINARY_FILENAME],
-        weights: modelArtifacts.weightSpecs
-      }];
-      const modelJSON: tf.io.ModelJSON = {
-        modelTopology: modelArtifacts.modelTopology,
-        weightsManifest,
+      final weightsBinPath = p.join(this.path.first, WEIGHTS_BINARY_FILENAME);
+      final weightsManifest = [
+        WeightsManifestGroupConfig(
+          paths: [WEIGHTS_BINARY_FILENAME],
+          weights: modelArtifacts.weightSpecs!,
+        )
+      ];
+      final modelJSON = ModelJSON(
+        modelTopology: modelArtifacts.modelTopology as Map,
+        weightsManifest: weightsManifest,
         format: modelArtifacts.format,
         generatedBy: modelArtifacts.generatedBy,
-        convertedBy: modelArtifacts.convertedBy
-      };
-      if (modelArtifacts.trainingConfig != null) {
-        modelJSON.trainingConfig = modelArtifacts.trainingConfig;
-      }
-      if (modelArtifacts.signature != null) {
-        modelJSON.signature = modelArtifacts.signature;
-      }
-      if (modelArtifacts.userDefinedMetadata != null) {
-        modelJSON.userDefinedMetadata = modelArtifacts.userDefinedMetadata;
-      }
-      const modelJSONPath = join(this.path, this.MODEL_JSON_FILENAME);
-      await writeFile(modelJSONPath, JSON.stringify(modelJSON), 'utf8');
-      await writeFile(
-          weightsBinPath, Buffer.from(modelArtifacts.weightData), 'binary');
+        convertedBy: modelArtifacts.convertedBy,
+        trainingConfig: modelArtifacts.trainingConfig,
+        signature: modelArtifacts.signature,
+        userDefinedMetadata: modelArtifacts.userDefinedMetadata,
+      );
 
-      return {
-        // TODO(cais): Use explicit tf.io.ModelArtifactsInfo type below once it
+      final modelJSONPath = p.join(this.path.first, MODEL_JSON_FILENAME);
+      await File(modelJSONPath).writeAsString(jsonEncode(modelJSON));
+      await File(weightsBinPath)
+          .writeAsBytes(modelArtifacts.weightData!.asUint8List());
+
+      return SaveResult(
+        // TODO(cais): Use explicit ModelArtifactsInfo type below once it
         // is available.
         // tslint:disable-next-line:no-any
-        modelArtifactsInfo: getModelArtifactsInfoForJSON(modelArtifacts) as any
-      };
+        modelArtifactsInfo: getModelArtifactsInfoForJSON(modelArtifacts),
+      );
     }
   }
-  async load(): Promise<tf.io.ModelArtifacts> {
-    return Array.isArray(this.path) ? this.loadBinaryModel() :
-                                      this.loadJSONModel();
+
+  late final load = _load;
+  Future<ModelArtifacts> _load() async {
+    return isComposedUrl(this.path)
+        ? this.loadBinaryModel()
+        : this.loadJSONModel();
   }
 
-  protected async loadBinaryModel(): Promise<tf.io.ModelArtifacts> {
-    const topologyPath = this.path[0];
-    const weightManifestPath = this.path[1];
-    const topology =
-        await stat(topologyPath).catch(doesNotExistHandler('Topology Path'));
-    const weightManifest =
-        await stat(weightManifestPath)
-            .catch(doesNotExistHandler('Weight Manifest Path'));
+  Future<ModelArtifacts> loadBinaryModel() async {
+    final topologyPath = this.path[0];
+    final weightManifestPath = this.path[1];
+    final topology = await FileStat.stat(topologyPath);
+    final weightManifest = await FileStat.stat(weightManifestPath);
 
     // `this.path` can be either a directory or a file. If it is a file, assume
     // it is model.json file.
-    if (!topology.isFile()) {
-      throw new Error('File specified for topology is not a file!');
+    if (topology.type != FileSystemEntityType.file) {
+      if (topology.type == FileSystemEntityType.notFound) {
+        _doesNotExistHandler('Topology Path', topologyPath);
+      }
+      throw Exception('File specified for topology is not a file!');
     }
-    if (!weightManifest.isFile()) {
-      throw new Error('File specified for the weight manifest is not a file!');
+    if (weightManifest.type != FileSystemEntityType.file) {
+      if (weightManifest.type == FileSystemEntityType.notFound) {
+        _doesNotExistHandler('Weight Manifest Path', weightManifestPath);
+      }
+      throw Exception('File specified for the weight manifest is not a file!');
     }
 
-    const modelTopology = await readFile(this.path[0]);
-    const weightsManifest = JSON.parse(await readFile(this.path[1], 'utf8'));
+    final modelTopology = await readFile(this.path[0]);
+    final weightsManifest = jsonDecode(await readFileString(this.path[1]));
 
-    const modelArtifacts: tf.io.ModelArtifacts = {
-      modelTopology,
-    };
-    const [weightSpecs, weightData] =
-        await this.loadWeights(weightsManifest, this.path[1]);
+    final weight = await this._loadWeights(weightsManifest, this.path[1]);
 
-    modelArtifacts.weightSpecs = weightSpecs;
-    modelArtifacts.weightData = weightData;
+    final modelArtifacts = ModelArtifacts(
+      modelTopology: modelTopology,
+      weightSpecs: weight.specs,
+      weightData: weight.data,
+    );
 
     return modelArtifacts;
   }
 
-  protected async loadJSONModel(): Promise<tf.io.ModelArtifacts> {
-    const path = this.path as string;
-    const info = await stat(path).catch(doesNotExistHandler('Path'));
+  Future<ModelArtifacts> loadJSONModel() async {
+    final path = this.path as String;
+    final info = await FileStat.stat(path);
 
     // `path` can be either a directory or a file. If it is a file, assume
     // it is model.json file.
-    if (info.isFile()) {
-      const modelJSON = JSON.parse(await readFile(path, 'utf8'));
-      return tf.io.getModelArtifactsForJSON(
-          modelJSON,
-          (weightsManifest) => this.loadWeights(weightsManifest, path));
+    if (info.type == FileSystemEntityType.file) {
+      final modelJSON = jsonDecode(await readFileString(path));
+      return getModelArtifactsForJSON(ModelJSON.fromJson(modelJSON),
+          (weightsManifest) => this._loadWeights(weightsManifest, path));
     } else {
-      throw new Error(
+      if (info.type == FileSystemEntityType.notFound) {
+        _doesNotExistHandler('Path', path);
+      }
+      throw Exception(
           'The path to load from must be a file. Loading from a directory ' +
-          'is not supported.');
+              'is not supported.');
     }
   }
 
-  private async loadWeights(
-      weightsManifest: tf.io.WeightsManifestConfig,
-      path: string): Promise<[tf.io.WeightsManifestEntry[], ArrayBuffer]> {
-    const dirName = dirname(path);
-    const buffers: Buffer[] = [];
-    const weightSpecs: tf.io.WeightsManifestEntry[] = [];
-    for (const group of weightsManifest) {
-      for (const path of group.paths) {
-        const weightFilePath = join(dirName, path);
-        const buffer = await readFile(weightFilePath)
-                           .catch(doesNotExistHandler('Weight file'));
-        buffers.push(buffer);
+  Future<EncodedWeights> _loadWeights(
+    WeightsManifestConfig weightsManifest,
+    String path,
+  ) async {
+    final dirName = p.dirname(path);
+    final buffers = <Uint8List>[];
+    final weightSpecs = <WeightsManifestEntry>[];
+    for (final group in weightsManifest) {
+      for (final path in group.paths) {
+        final weightFilePath = p.join(dirName, path);
+
+        final buffer = await readFile(weightFilePath);
+        buffers.add(buffer);
       }
-      weightSpecs.push(...group.weights);
+      weightSpecs.addAll(group.weights);
     }
-    return [weightSpecs, toArrayBuffer(buffers)];
+    return EncodedWeights(specs: weightSpecs, data: toArrayBuffer(buffers));
   }
 
   /**
    * For each item in `this.path`, creates a directory at the path or verify
    * that the path exists as a directory.
    */
-  protected async createOrVerifyDirectory() {
-    const paths = Array.isArray(this.path) ? this.path : [this.path];
-    for (const path of paths) {
+  Future<void> createOrVerifyDirectory() async {
+    final paths =
+        this.path; // isComposedUrl(this.path) ? this.path : [this.path];
+    for (final path in paths) {
       try {
-        await mkdir(path);
+        await Directory(path).create(recursive: true);
       } catch (e) {
-        if (e.code === 'EEXIST') {
-          if ((await stat(path)).isFile()) {
-            throw new Error(
-                `Path ${path} exists as a file. The path must be ` +
-                `nonexistent or point to a directory.`);
+        if (e is FileSystemException) {
+          if ((await FileStat.stat(path)).type == FileSystemEntityType.file) {
+            throw Exception('Path ${path} exists as a file. The path must be ' +
+                'nonexistent or point to a directory.');
           }
           // else continue, the directory exists
         } else {
-          throw e;
+          rethrow;
         }
       }
     }
   }
 }
 
-export const nodeFileSystemRouter = (url: string|string[]) => {
-  if (Array.isArray(url)) {
+NodeFileSystem? nodeFileSystemRouter(ModelUri url, LoadOptions? _) {
+  if (isComposedUrl(url)) {
     if (url.every(
-            urlElement => urlElement.startsWith(NodeFileSystem.URL_SCHEME))) {
-      return new NodeFileSystem(url.map(
-          urlElement => urlElement.slice(NodeFileSystem.URL_SCHEME.length)));
+        (urlElement) => urlElement.startsWith(NodeFileSystem.URL_SCHEME))) {
+      return NodeFileSystem(url
+          .map((urlElement) =>
+              urlElement.substring(NodeFileSystem.URL_SCHEME.length))
+          .toList());
     } else {
       return null;
     }
   } else {
-    if (url.startsWith(NodeFileSystem.URL_SCHEME)) {
-      return new NodeFileSystem(url.slice(NodeFileSystem.URL_SCHEME.length));
+    if (url.first.startsWith(NodeFileSystem.URL_SCHEME)) {
+      return NodeFileSystem(
+          [url.first.substring(NodeFileSystem.URL_SCHEME.length)]);
     } else {
       return null;
     }
   }
-};
+}
 // Registration of `nodeFileSystemRouter` is done in index.ts.
 
 /**
@@ -262,6 +283,6 @@ export const nodeFileSystemRouter = (url: string|string[]) => {
  *        .pb file and the second path should point to the weight manifest
  *       JSON file.
  */
-export function fileSystem(path: string|string[]): NodeFileSystem {
-  return new NodeFileSystem(path);
+NodeFileSystem fileSystem(ModelUri path) {
+  return NodeFileSystem(path);
 }

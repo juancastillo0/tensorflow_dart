@@ -110,7 +110,7 @@ class HTTPRequest implements IOHandler {
 
     // TODO:  final init = Object.assign({method: this.DEFAULT_METHOD}, this.requestInit);
     final init = http.MultipartRequest(
-      this.requestInit.method ?? DEFAULT_METHOD,
+      this.requestInit.method,
       Uri.parse(this.path),
     );
     if (this.requestInit != null) {
@@ -303,11 +303,6 @@ IOHandler? httpRouter(List<String> url, LoadOptions? loadOptions) {
     }
   }
   return null;
-}
-
-void setUpIo() {
-  IORouterRegistry.registerSaveRouter(httpRouter);
-  IORouterRegistry.registerLoadRouter(httpRouter);
 }
 
 /**

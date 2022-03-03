@@ -582,11 +582,21 @@ typedef SaveHandler = Future<SaveResult> Function(ModelArtifacts modelArtifact);
  * that support only saving or loading.
  */
 // tslint:disable-next-line:interface-name
-class IOHandler {
+abstract class IOHandler {
+  SaveHandler? get save;
+  LoadHandler? get load;
+
+  factory IOHandler({
+    SaveHandler? save,
+    LoadHandler? load,
+  }) = _IOHandler;
+}
+
+class _IOHandler implements IOHandler {
   final SaveHandler? save;
   final LoadHandler? load;
 
-  IOHandler({
+  _IOHandler({
     this.save,
     this.load,
   });
@@ -602,26 +612,26 @@ class IOHandler {
  * - Listing the models stored in the store.
  * - Deleting a model from the store.
  */
-// export interface ModelStoreManager {
-//   /**
-//    * List all models in the model store.
-//    *
-//    * @returns A dictionary mapping paths of existing models to their
-//    *   model artifacts info. Model artifacts info include type of the model's
-//    *   topology, byte sizes of the topology, weights, etc.
-//    */
-//   listModels(): Promise<{[path: string]: ModelArtifactsInfo}>;
+abstract class ModelStoreManager {
+  /**
+   * List all models in the model store.
+   *
+   * @returns A dictionary mapping paths of existing models to their
+   *   model artifacts info. Model artifacts info include type of the model's
+   *   topology, byte sizes of the topology, weights, etc.
+   */
+  Future<Map<String, ModelArtifactsInfo>> listModels();
 
-//   /**
-//    * Remove a model specified by `path`.
-//    *
-//    * @param path
-//    * @returns ModelArtifactsInfo of the deleted model (if and only if deletion
-//    *   is successful).
-//    * @throws Error if deletion fails, e.g., if no model exists at `path`.
-//    */
-//   removeModel(path: string): Promise<ModelArtifactsInfo>;
-// }
+  /**
+   * Remove a model specified by `path`.
+   *
+   * @param path
+   * @returns ModelArtifactsInfo of the deleted model (if and only if deletion
+   *   is successful).
+   * @throws Error if deletion fails, e.g., if no model exists at `path`.
+   */
+  Future<ModelArtifactsInfo> removeModel(String path);
+}
 
 /**
  * Callback for the progress of a long-running action such as an HTTP
