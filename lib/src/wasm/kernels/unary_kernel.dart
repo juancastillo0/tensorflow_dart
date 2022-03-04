@@ -59,7 +59,7 @@ KernelConfig createUnaryKernelConfig(String kernelName, [DataType? outType]) {
         return out;
       }
 
-      wasmFunc([xId, CppDType.values.byName(x.dtype), outId]);
+      wasmFunc([xId, CppDType.values.byName(x.dtype).index, outId]);
       return out;
     },
   );

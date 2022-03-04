@@ -67,7 +67,8 @@ Tensor makeTensor(
           ? inferred != sizeFromShape(shape.sublist(i))
           : true;
       assert(
-          inferredShape[i] == shape[i] || !flatDimsDontMatch,
+          i < shape.length && inferredShape[i] == shape[i] ||
+              !flatDimsDontMatch,
           () =>
               'Error creating a new Tensor. Inferred shape ' +
               '(${inferredShape}) does not match the provided ' +

@@ -559,7 +559,9 @@ class ModelJSON {
       generatedBy: map['generatedBy'],
       convertedBy: map['convertedBy'],
       signature: map['signature'],
-      userDefinedMetadata: Map<String, Map>.from(map['userDefinedMetadata']),
+      userDefinedMetadata: map['userDefinedMetadata'] == null
+          ? null
+          : Map<String, Map>.from(map['userDefinedMetadata']),
       modelInitializer: map['modelInitializer'],
     );
   }

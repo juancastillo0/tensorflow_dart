@@ -33,7 +33,26 @@ TensorInfo cast({
   final out = backend.makeOutput(x.shape, dtype);
   final inVals = backend.typedArrayFromHeap(x);
   final outVals = backend.typedArrayFromHeap(out);
-  (outVals as List).setAll(0, inVals as List);
+  if (x.dtype == 'int32' && dtype == 'float32') {
+    (outVals as List<double>)
+        .setAll(0, (inVals as List<int>).map((e) => e.toDouble()));
+  } else if (x.dtype == 'float32' && dtype == 'int32') {
+    (outVals as List<int>)
+        .setAll(0, (inVals as List<double>).map((e) => e.toInt()));
+  } else if ((x.dtype == 'int32' || x.dtype == 'float32') && dtype == 'bool') {
+    (outVals as List<int>)
+        .setAll(0, (inVals as List<num>).map((e) => e == 0 ? 0 : 1));
+  } else if (x.dtype == 'bool' && (dtype == 'int32' || dtype == 'float32')) {
+    if (dtype == 'int32') {
+      (outVals as List<int>)
+          .setAll(0, (inVals as List<int>).map((e) => e == 0 ? 0 : 1));
+    } else {
+      (outVals as List<double>)
+          .setAll(0, (inVals as List<int>).map((e) => e.toDouble()));
+    }
+  } else {
+    (outVals as List).setAll(0, inVals as List);
+  }
   return out;
 }
 

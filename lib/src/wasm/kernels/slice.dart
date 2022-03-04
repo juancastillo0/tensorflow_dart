@@ -56,8 +56,13 @@ TensorInfo slice({
           .slice(flatOffset, flatOffset + util.sizeFromShape(size_));
     } else {
       final outVals = backend.typedArrayFromHeap(out) as List;
-      outVals.setAll(
-          flatOffset + util.sizeFromShape(size_), xVals.slice(flatOffset));
+      List.copyRange(
+        outVals,
+        0,
+        xVals,
+        flatOffset,
+        flatOffset + util.sizeFromShape(size_),
+      );
     }
 
     return out;

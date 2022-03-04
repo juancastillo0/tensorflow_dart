@@ -164,11 +164,13 @@ List<int> maskToAxes(int mask) {
 bool _intBool(int value) => value != 0;
 
 /** Computes the output shape given the strided slice params. */
-List<int> computeSliceOutShape(List<int> begin, List<int> end, List<int> strides) {
-  final size = <int>[];
-  for (int axis = 0; axis < begin.length; axis++) {
-    size[axis] = ((end[axis] - begin[axis]) / strides[axis]).ceil();
-  }
+List<int> computeSliceOutShape(
+    List<int> begin, List<int> end, List<int> strides) {
+  final size = List.generate(
+    begin.length,
+    (axis) => ((end[axis] - begin[axis]) / strides[axis]).ceil(),
+  );
+
   return size;
 }
 
@@ -204,10 +206,8 @@ int _unnormalizeAxis(
 }
 
 List<int> _getElidedAxes(int numElidedAxes, int ellipsisInsertionIndex) {
-  final elidedAxes = <int>[];
-  for (int i = 0; i < numElidedAxes; i++) {
-    elidedAxes.add(ellipsisInsertionIndex + i);
-  }
+  final elidedAxes =
+      List.generate(numElidedAxes, (i) => ellipsisInsertionIndex + i);
   return elidedAxes;
 }
 
@@ -481,7 +481,7 @@ SliceInfo sliceInfo(
     List<int> xShape,
     List<int> begin,
     List<int> end,
-    List<int> strides,
+    List<int>? strides,
     int beginMask,
     int endMask,
     int ellipsisMask,

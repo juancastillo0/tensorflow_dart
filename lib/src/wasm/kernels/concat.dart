@@ -35,7 +35,7 @@ import 'reshape.dart';
 TensorInfo concat({
   required ConcatInputs inputs,
   required BackendWasm backend,
-  Map<String, Object?>? attrs,
+  NamedAttrMap? attrs,
 }) {
   final _axis = attrs!['axis'];
   final axis = util.parseAxisParam(
@@ -120,8 +120,13 @@ TensorInfo concat({
     for (int i = 0; i < inVals.length; i++) {
       final innerDim = innerDims[i];
       final inOffset = b * innerDim;
-      final vals = (inVals[i] as List).slice(inOffset, inOffset + innerDim);
-      (outVals as List).setAll(outOffset, vals);
+      List.copyRange(
+        outVals as List,
+        outOffset,
+        inVals[i] as List,
+        inOffset,
+        inOffset + innerDim,
+      );
       outOffset += innerDim;
     }
   }

@@ -719,23 +719,26 @@ bool eitherStridesOrDilationsAreOne(
   return tupleValuesAreOne(strides) || tupleValuesAreOne(dilations);
 }
 
-// /**
-//  * Convert Conv2D dataFormat from 'NHWC'|'NCHW' to
-//  *    'channelsLast'|'channelsFirst'
-//  * @param dataFormat in 'NHWC'|'NCHW' mode
-//  * @return dataFormat in 'channelsLast'|'channelsFirst' mode
-//  * @throws unknown dataFormat
-//  */
-// export function convertConv2DDataFormat(dataFormat: 'NHWC'|'NCHW'):
-//     'channelsLast'|'channelsFirst' {
-//   if (dataFormat === 'NHWC') {
-//     return 'channelsLast';
-//   } else if (dataFormat === 'NCHW') {
-//     return 'channelsFirst';
-//   } else {
-//     throw Exception(`Unknown dataFormat ${dataFormat}`);
-//   }
-// }
+/**
+ * Convert Conv2D dataFormat from 'NHWC'|'NCHW' to
+ *    'channelsLast'|'channelsFirst'
+ * @param dataFormat in 'NHWC'|'NCHW' mode
+ * @return dataFormat in 'channelsLast'|'channelsFirst' mode
+ * @throws unknown dataFormat
+ */
+
+String convertConv2DDataFormat(String dataFormat //: 'NHWC'|'NCHW'):
+    )
+// 'channelsLast'|'channelsFirst'
+{
+  if (dataFormat == 'NHWC') {
+    return 'channelsLast';
+  } else if (dataFormat == 'NCHW') {
+    return 'channelsFirst';
+  } else {
+    throw Exception('Unknown dataFormat ${dataFormat}');
+  }
+}
 
 /**
  * Check validity of pad when using dimRoundingMode.
