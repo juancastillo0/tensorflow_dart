@@ -64,105 +64,105 @@ List<List<int>>? _uint8ListListToJson(List<Uint8List>? json) => json;
 enum DataType {
   // Not a legal value for DataType.  Used to indicate a DataType field
   // has not been set.
-  @JsonValue(0)
+  // @JsonValue(0)
   DT_INVALID, // = 0,
 
   // Data types that all computation devices are expected to be
   // capable to support.
-  @JsonValue(1)
+  // @JsonValue(1)
   DT_FLOAT, // = 1,
-  @JsonValue(2)
+  // @JsonValue(2)
   DT_DOUBLE, // = 2,
-  @JsonValue(3)
+  // @JsonValue(3)
   DT_INT32, // = 3,
-  @JsonValue(4)
+  // @JsonValue(4)
   DT_UINT8, // = 4,
-  @JsonValue(5)
+  // @JsonValue(5)
   DT_INT16, // = 5,
-  @JsonValue(6)
+  // @JsonValue(6)
   DT_INT8, // = 6,
-  @JsonValue(7)
+  // @JsonValue(7)
   DT_STRING, // = 7,
-  @JsonValue(8)
+  // @JsonValue(8)
   DT_COMPLEX64, // = 8,  // Single-precision complex
-  @JsonValue(9)
+  // @JsonValue(9)
   DT_INT64, // = 9,
-  @JsonValue(10)
+  // @JsonValue(10)
   DT_BOOL, // = 10,
-  @JsonValue(11)
+  // @JsonValue(11)
   DT_QINT8, // = 11,     // Quantized int8
-  @JsonValue(12)
+  // @JsonValue(12)
   DT_QUINT8, // = 12,    // Quantized uint8
-  @JsonValue(13)
+  // @JsonValue(13)
   DT_QINT32, // = 13,    // Quantized int32
-  @JsonValue(14)
+  // @JsonValue(14)
   DT_BFLOAT16, // = 14,  // Float32 truncated to 16 bits.  Only for cast ops.
-  @JsonValue(15)
+  // @JsonValue(15)
   DT_QINT16, // = 15,    // Quantized int16
-  @JsonValue(16)
+  // @JsonValue(16)
   DT_QUINT16, // = 16,   // Quantized uint16
-  @JsonValue(17)
+  // @JsonValue(17)
   DT_UINT16, // = 17,
-  @JsonValue(18)
+  // @JsonValue(18)
   DT_COMPLEX128, // = 18,  // Double-precision complex
-  @JsonValue(19)
+  // @JsonValue(19)
   DT_HALF, // = 19,
-  @JsonValue(20)
+  // @JsonValue(20)
   DT_RESOURCE, // = 20,
-  @JsonValue(21)
+  // @JsonValue(21)
   DT_VARIANT, // = 21,  // Arbitrary C++ data types
-  @JsonValue(22)
+  // @JsonValue(22)
   DT_UINT32, // = 22,
-  @JsonValue(23)
+  // @JsonValue(23)
   DT_UINT64, // = 23,
 
   // Do not use!  These are only for parameters.  Every enum above
   // should have a corresponding value below (verified by types_test).
-  @JsonValue(101)
+  // @JsonValue(101)
   DT_FLOAT_REF, // = 101,
-  @JsonValue(102)
+  // @JsonValue(102)
   DT_DOUBLE_REF, // = 102,
-  @JsonValue(103)
+  // @JsonValue(103)
   DT_INT32_REF, // = 103,
-  @JsonValue(104)
+  // @JsonValue(104)
   DT_UINT8_REF, // = 104,
-  @JsonValue(105)
+  // @JsonValue(105)
   DT_INT16_REF, // = 105,
-  @JsonValue(106)
+  // @JsonValue(106)
   DT_INT8_REF, // = 106,
-  @JsonValue(107)
+  // @JsonValue(107)
   DT_STRING_REF, // = 107,
-  @JsonValue(108)
+  // @JsonValue(108)
   DT_COMPLEX64_REF, // = 108,
-  @JsonValue(109)
+  // @JsonValue(109)
   DT_INT64_REF, // = 109,
-  @JsonValue(110)
+  // @JsonValue(110)
   DT_BOOL_REF, // = 110,
-  @JsonValue(111)
+  // @JsonValue(111)
   DT_QINT8_REF, // = 111,
-  @JsonValue(112)
+  // @JsonValue(112)
   DT_QUINT8_REF, // = 112,
-  @JsonValue(113)
+  // @JsonValue(113)
   DT_QINT32_REF, // = 113,
-  @JsonValue(114)
+  // @JsonValue(114)
   DT_BFLOAT16_REF, // = 114,
-  @JsonValue(115)
+  // @JsonValue(115)
   DT_QINT16_REF, // = 115,
-  @JsonValue(116)
+  // @JsonValue(116)
   DT_QUINT16_REF, // = 116,
-  @JsonValue(117)
+  // @JsonValue(117)
   DT_UINT16_REF, // = 117,
-  @JsonValue(118)
+  // @JsonValue(118)
   DT_COMPLEX128_REF, // = 118,
-  @JsonValue(119)
+  // @JsonValue(119)
   DT_HALF_REF, // = 119,
-  @JsonValue(120)
+  // @JsonValue(120)
   DT_RESOURCE_REF, // = 120,
-  @JsonValue(121)
+  // @JsonValue(121)
   DT_VARIANT_REF, // = 121,
-  @JsonValue(122)
+  // @JsonValue(122)
   DT_UINT32_REF, // = 122,
-  @JsonValue(123)
+  // @JsonValue(123)
   DT_UINT64_REF, // = 123,
 }
 
@@ -283,7 +283,7 @@ class IAttrValue {
   final Object? i; // number|string
 
   /** AttrValue f */
-  final int? f;
+  final double? f;
 
   /** AttrValue b */
   final bool? b;

@@ -76,7 +76,7 @@ class ExecutionContext {
     ExecutionContextInfo(id: 0, frameName: '', iterationId: 0)
   ];
   int _lastId = 0;
-  late final List<String> _currentContextIds;
+  late List<String> _currentContextIds;
 
   final NamedTensorsMap weightMap;
   final TensorArrayMap tensorArrayMap;
@@ -196,7 +196,7 @@ class ExecutionContext {
     }
   }
 
-  List<Tensor>? getWeight(String name) {
+  List<Tensor?>? getWeight(String name) {
     return this.weightMap[name];
   }
 

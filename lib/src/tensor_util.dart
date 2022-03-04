@@ -65,7 +65,7 @@ bool isTensorInList(Tensor tensor, List<Tensor> tensorList) {
  */
 List<Tensor> getTensorsInContainer(TensorContainer result) {
   final list = <Tensor>[];
-  final seen = <Map?>{};
+  final seen = <dynamic>{};
   _walkTensorContainer(result, list, seen);
   return list;
 }
@@ -73,7 +73,7 @@ List<Tensor> getTensorsInContainer(TensorContainer result) {
 void _walkTensorContainer(
   TensorContainer container,
   List<Tensor> list,
-  Set<Map<dynamic, dynamic>?> seen,
+  Set<dynamic> seen,
 ) {
   if (container == null) {
     return;

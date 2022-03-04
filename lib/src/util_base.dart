@@ -644,57 +644,56 @@ List<int> computeStrides(List<int> shape) {
   return strides;
 }
 
-List createNestedArray(
+List<T> createNestedArray<T>(
   int offset,
   List<int> shape,
   List a, {
   bool isComplex = false,
 }) {
-  final ret = [];
+  final List<T> ret;
   if (shape.length == 1) {
     final d = shape[0] * (isComplex ? 2 : 1);
-    for (int i = 0; i < d; i++) {
-      ret[i] = a[offset + i];
-    }
+    ret = List.generate(d, (i) => a[offset + i]);
   } else {
     final d = shape[0];
     final rest = shape.sublist(1);
     final len = rest.reduce((acc, c) => acc * c) * (isComplex ? 2 : 1);
-    for (int i = 0; i < d; i++) {
-      ret[i] = createNestedArray(
+    ret = List.generate(
+      d,
+      (i) => createNestedArray(
         offset + i * len,
         rest,
         a,
         isComplex: isComplex,
-      );
-    }
+      ) as T,
+    );
   }
   return ret;
 }
 
 // Provide a nested array of TypedArray in given shape.
-Object toNestedArray(List<int> shape, List a, {bool isComplex = false}) {
+T toNestedArray<T>(List<int> shape, List a, {bool isComplex = false}) {
   if (shape.length == 0) {
     // Scalar type should return a single number.
-    return a[0];
+    return [a[0]] as T;
   }
   final size = shape.reduce((acc, c) => acc * c) * (isComplex ? 2 : 1);
   if (size == 0) {
     // A tensor with shape zero should be turned into empty list.
-    return [];
+    return [] as T;
   }
   if (size != a.length) {
     throw Exception(
         "[${shape}] does not match the input size ${a.length}${isComplex ? ' for a complex tensor' : ''}.");
   }
 
-  return createNestedArray(0, shape, a, isComplex: isComplex);
+  return createNestedArray(0, shape, a, isComplex: isComplex) as T;
 }
 
 List<num> makeOnesTypedArray<D extends DataType>(int size, D dtype) {
   final array = makeZerosTypedArray(size, dtype);
   for (int i = 0; i < array.length; i++) {
-    array[i] = 1;
+    array[i] = dtype == 'int32' ? 1 : 1.0;
   }
   return array;
 }

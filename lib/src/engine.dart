@@ -1495,8 +1495,8 @@ Engine _getOrMakeEngine() {
   final ns = getGlobalNamespace();
   if (ns.tfengine == null) {
     final environment = Environment(ns);
-    ns.tfengine = Engine(environment);
     setEnvironmentGlobal(environment);
+    ns.tfengine = Engine(environment);
     setUpOpHandler();
     setUpFlags();
     setUpIo();

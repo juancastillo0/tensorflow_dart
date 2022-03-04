@@ -50,7 +50,7 @@ class TensorArray {
   final String name;
   final DataType dtype;
   int maxSize; // private
-  List<int> elementShape; // private
+  List<int>? elementShape; // private
   final bool identicalElementShapes;
   final bool dynamicSize;
   final bool clearAfterRead;
@@ -76,7 +76,7 @@ class TensorArray {
   }
 
   /**
-   * Dispose the tensors and idTensor and mark the TensoryArray as closed.
+   * Dispose the tensors and idTensor and mark the TensorArray as closed.
    */
   void clearAndClose([Set<int>? keepIds]) {
     this.tensors.forEach((tensor) {
@@ -153,11 +153,11 @@ class TensorArray {
 
     // Set the shape for the first time write to unknow shape tensor array
     if (this.size() == 0 &&
-        (this.elementShape == null || this.elementShape.length == 0)) {
+        (this.elementShape == null || this.elementShape!.length == 0)) {
       this.elementShape = tensor.shape;
     }
 
-    assertShapesMatchAllowUndefinedSize(this.elementShape, tensor.shape,
+    assertShapesMatchAllowUndefinedSize(this.elementShape!, tensor.shape,
         'TensorArray ${this.name}: Could not write to TensorArray index ${index}.');
 
     if (t.read == true) {
@@ -212,8 +212,8 @@ class TensorArray {
       indices = indices.sublistRelaxed(0, this.size());
     }
 
-    if (indices!.length == 0) {
-      return tensor([], [0, ...this.elementShape]);
+    if (indices.length == 0) {
+      return tensor([], [0, ...this.elementShape!]);
     }
 
     // Read all the PersistentTensors into a vector to keep track of
@@ -221,7 +221,7 @@ class TensorArray {
     final tensors = this.readMany(indices);
 
     assertShapesMatchAllowUndefinedSize(
-        this.elementShape, tensors[0].shape, 'TensorArray shape mismatch: ');
+        this.elementShape!, tensors[0].shape, 'TensorArray shape mismatch: ');
 
     return stack(tensors, 0);
   }
@@ -236,14 +236,14 @@ class TensorArray {
     }
 
     if (this.size() == 0) {
-      return tensor([], [0, ...this.elementShape]);
+      return tensor([], [0, ...this.elementShape!]);
     }
 
     final List<int> indices = List<int>.generate(this.size(), (index) => index);
     // Collect all the tensors from the tensors array.
     final tensors = this.readMany(indices);
 
-    assertShapesMatchAllowUndefinedSize(this.elementShape, tensors[0].shape,
+    assertShapesMatchAllowUndefinedSize(this.elementShape!, tensors[0].shape,
         'TensorArray shape mismatch: tensor array shape (${this.elementShape}) vs first tensor shape (${tensors[0].shape})');
 
     return tf.concat(tensors, 0);
@@ -312,7 +312,7 @@ class TensorArray {
         final previousLength = (i == 0) ? 0 : cumulativeLengths[i - 1];
         final indices = [0, previousLength, 0];
         final sizes = [1, length[i], elementPerRow];
-        tensors[i] = reshape(slice(tensor, indices, sizes), this.elementShape);
+        tensors[i] = reshape(slice(tensor, indices, sizes), this.elementShape!);
       }
       return tensors;
     });

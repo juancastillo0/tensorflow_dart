@@ -77,7 +77,7 @@ class GraphModel implements InferenceModel {
   late final io.ModelArtifacts _artifacts;
   GraphExecutor? _initializer;
   final ResourceManager _resourceManager;
-  late final tensorflow.ISignatureDef _signature;
+  late final tensorflow.ISignatureDef? _signature;
 
   final ModelHandler _modelUrl;
   final io.LoadOptions _loadOptions;
@@ -111,7 +111,7 @@ class GraphModel implements InferenceModel {
     return this._artifacts.userDefinedMetadata;
   }
 
-  tensorflow.ISignatureDef get modelSignature {
+  tensorflow.ISignatureDef? get modelSignature {
     return this._signature;
   }
 
@@ -180,11 +180,12 @@ class GraphModel implements InferenceModel {
     final graph = tensorflow.IGraphDef.fromJson(
         this._artifacts.modelTopology as Map<String, dynamic>);
 
-    final Map<String, Object?> signature =
+    final Map<String, Object?>? signature =
         (this._artifacts.userDefinedMetadata?['signature'] ??
-                this._artifacts.signature)!
-            .cast();
-    this._signature = tensorflow.ISignatureDef.fromJson(signature);
+                this._artifacts.signature)
+            ?.cast();
+    this._signature =
+        signature == null ? null : tensorflow.ISignatureDef.fromJson(signature);
 
     this._version =
         '${graph.versions!.producer}.${graph.versions!.minConsumer}';

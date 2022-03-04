@@ -57,6 +57,11 @@ class ModelTensorInfo {
     required this.dtype,
     this.tfDtype,
   });
+
+  @override
+  String toString() {
+    return 'ModelTensorInfo(name: $name, shape: $shape, dtype: $dtype, tfDtype: $tfDtype)';
+  }
 }
 
 /**
