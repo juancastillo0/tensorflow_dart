@@ -15,89 +15,118 @@
  * =============================================================================
  */
 
-import {backend_util, Conv2D, Conv2DAttrs, Conv2DInputs, KernelConfig, KernelFunc, Tensor4D} from '@tensorflow/tfjs-core';
+// import {backend_util, Conv2D, Conv2DAttrs, Conv2DInputs, KernelConfig, KernelFunc, Tensor4D} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
+import '_prelude.dart';
+import 'package:tensorflow_wasm/backend_util.dart' as backend_util;
 
-let wasmConv2d: (
-    xId: number, batchSize: number, inputHeight: number, inputWidth: number,
-    filterId: number, filterHeight: number, filterWidth: number, padTop: number,
-    padRight: number, padBottom: number, padLeft: number, isSamePad: number,
-    dilationHeight: number, dilationWidth: number, strideHeight: number,
-    strideWidth: number, inputChannels: number, outputChannels: number,
-    outId: number) => void;
+late final Function(List) wasmConv2d;
+// : (
+//     xId: number, batchSize: number, inputHeight: number, inputWidth: number,
+//     filterId: number, filterHeight: number, filterWidth: number, padTop: number,
+//     padRight: number, padBottom: number, padLeft: number, isSamePad: number,
+//     dilationHeight: number, dilationWidth: number, strideHeight: number,
+//     strideWidth: number, inputChannels: number, outputChannels: number,
+//     outId: number) => void;
 
-function setup(backend: BackendWasm) {
+void _setup(BackendWasm backend) {
   wasmConv2d = backend.wasm.cwrap(Conv2D, null /* void */, [
-    'number',  // xId
-    'number',  // batchSize
-    'number',  // inputHeight
-    'number',  // inputWidth
-    'number',  // filterId
-    'number',  // filterHeight
-    'number',  // filterWidth
-    'number',  // padTop
-    'number',  // padRight
-    'number',  // padBottom
-    'number',  // padLeft
-    'number',  // isSamePad
-    'number',  // dilationHeight
-    'number',  // dilationWidth
-    'number',  // strideHeight
-    'number',  // strideWidth
-    'number',  // inputChannels
-    'number',  // outputChannels
-    'number',  // outId
+    'number', // xId
+    'number', // batchSize
+    'number', // inputHeight
+    'number', // inputWidth
+    'number', // filterId
+    'number', // filterHeight
+    'number', // filterWidth
+    'number', // padTop
+    'number', // padRight
+    'number', // padBottom
+    'number', // padLeft
+    'number', // isSamePad
+    'number', // dilationHeight
+    'number', // dilationWidth
+    'number', // strideHeight
+    'number', // strideWidth
+    'number', // inputChannels
+    'number', // outputChannels
+    'number', // outId
   ]);
 }
 
-function conv2d(
-    args: {inputs: Conv2DInputs, backend: BackendWasm, attrs: Conv2DAttrs}) {
-  const {inputs, attrs, backend} = args;
+TensorInfo conv2d({
+  required NamedTensorInfoMap inputs,
+  required BackendWasm backend,
+  NamedAttrMap? attrs,
+}) {
+  final x = inputs['x']!;
+  final filter = inputs['filter']!;
 
-  const {x, filter} = inputs;
-  const xId = backend.dataIdMap.get(x.dataId).id;
-  const filterId = backend.dataIdMap.get(filter.dataId).id;
+  final xId = backend.dataIdMap.get(x.dataId)!.id;
+  final filterId = backend.dataIdMap.get(filter.dataId)!.id;
 
-  const {strides, dilations, pad, dimRoundingMode, dataFormat} = attrs;
-  const $dataFormat = backend_util.convertConv2DDataFormat(dataFormat);
-  const convInfo = backend_util.computeConv2DInfo(
+  final strides = attrs!['strides'] as List<int>;
+  final dilations = attrs['dilations'] as List<int>;
+  final pad = attrs['pad']!;
+  final dimRoundingMode = attrs['dimRoundingMode'] as String?;
+  final dataFormat = attrs['dataFormat'] as String;
+
+  final $dataFormat = backend_util.convertConv2DDataFormat(dataFormat);
+  final convInfo = backend_util.computeConv2DInfo(
       (x as Tensor4D).shape, (filter as Tensor4D).shape, strides, dilations,
-      pad, dimRoundingMode, false, $dataFormat);
+      pad: pad,
+      roundingMode: dimRoundingMode,
+      depthwise: false,
+      dataFormat: $dataFormat);
 
-  const filterHeight = convInfo.filterHeight;
-  const filterWidth = convInfo.filterWidth;
-  const padTop = convInfo.padInfo.top;
-  const padRight = convInfo.padInfo.right;
-  const padBottom = convInfo.padInfo.bottom;
-  const padLeft = convInfo.padInfo.left;
-  const dilationHeight = convInfo.dilationHeight;
-  const dilationWidth = convInfo.dilationWidth;
-  const strideHeight = convInfo.strideHeight;
-  const strideWidth = convInfo.strideWidth;
-  const inputChannels = convInfo.inChannels;
-  const outputChannels = convInfo.outChannels;
-  const isSamePad = convInfo.padInfo.type === 'SAME' ? 1 : 0;
+  final filterHeight = convInfo.filterHeight;
+  final filterWidth = convInfo.filterWidth;
+  final padTop = convInfo.padInfo.top;
+  final padRight = convInfo.padInfo.right;
+  final padBottom = convInfo.padInfo.bottom;
+  final padLeft = convInfo.padInfo.left;
+  final dilationHeight = convInfo.dilationHeight;
+  final dilationWidth = convInfo.dilationWidth;
+  final strideHeight = convInfo.strideHeight;
+  final strideWidth = convInfo.strideWidth;
+  final inputChannels = convInfo.inChannels;
+  final outputChannels = convInfo.outChannels;
+  final isSamePad = convInfo.padInfo.type == backend_util.PadType.SAME ? 1 : 0;
 
-  if (convInfo.dataFormat !== 'channelsLast') {
-    throw new Error(
-        `wasm backend Conv2D does not support dataFormat:'` +
-        `${convInfo.dataFormat}'. Please use 'channelsLast'.`);
+  if (convInfo.dataFormat != 'channelsLast') {
+    throw Exception("wasm backend Conv2D does not support dataFormat:'" +
+        "${convInfo.dataFormat}'. Please use 'channelsLast'.");
   }
 
-  const out = backend.makeOutput(convInfo.outShape, 'float32');
-  const outId = backend.dataIdMap.get(out.dataId).id;
-  wasmConv2d(
-      xId, x.shape[0], x.shape[1], x.shape[2], filterId, filterHeight,
-      filterWidth, padTop, padRight, padBottom, padLeft, isSamePad,
-      dilationHeight, dilationWidth, strideHeight, strideWidth, inputChannels,
-      outputChannels, outId);
+  final out = backend.makeOutput(convInfo.outShape, 'float32');
+  final outId = backend.dataIdMap.get(out.dataId)!.id;
+  wasmConv2d([
+    xId,
+    x.shape[0],
+    x.shape[1],
+    x.shape[2],
+    filterId,
+    filterHeight,
+    filterWidth,
+    padTop,
+    padRight,
+    padBottom,
+    padLeft,
+    isSamePad,
+    dilationHeight,
+    dilationWidth,
+    strideHeight,
+    strideWidth,
+    inputChannels,
+    outputChannels,
+    outId
+  ]);
   return out;
 }
 
-export const conv2DConfig: KernelConfig = {
+final conv2DConfig = KernelConfigG(
   kernelName: Conv2D,
   backendName: 'wasm',
-  setupFunc: setup,
-  kernelFunc: conv2d as {} as KernelFunc
-};
+  setupFunc: _setup,
+  kernelFunc: conv2d,
+);

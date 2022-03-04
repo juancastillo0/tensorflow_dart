@@ -7,8 +7,11 @@ import 'package:tensorflow_wasm/src/wasm/kernels/avg_pool.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/base_kernels.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/batch_mat_mul.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/batch_to_space_nd.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/cast.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/clip_by_value.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/concat.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/conv2d.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/conv2d_backprop_input.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/crop_and_resize.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/cumsum.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/depth_to_space.dart';
@@ -52,6 +55,7 @@ import 'package:tensorflow_wasm/src/wasm/kernels/sparse_segment_mean.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/sparse_segment_sum.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/split_v.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/step.dart';
+import 'package:tensorflow_wasm/src/wasm/kernels/strided_slice.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/sum.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/tile.dart';
 import 'package:tensorflow_wasm/src/wasm/kernels/top_k.dart';
@@ -156,9 +160,10 @@ void registerAllKernels() {
     meanConfig,
     avgPoolConfig,
     maxPoolConfig,
-
-    // Conv2D
-    // Conv2DBackpropInput
+    stridedSliceConfig,
+    castConfig,
+    conv2DConfig,
+    conv2DBackpropInputConfig,
     sparseFillEmptyRowsConfig,
     sparseReshapeConfig,
     sparseSegmentMeanConfig,

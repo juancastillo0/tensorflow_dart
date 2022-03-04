@@ -15,114 +15,148 @@
  * =============================================================================
  */
 
-import {backend_util, Conv2DBackpropInput, Conv2DBackpropInputAttrs, Conv2DBackpropInputInputs, KernelConfig, KernelFunc, TensorInfo, util} from '@tensorflow/tfjs-core';
+// import {backend_util, Conv2DBackpropInput, Conv2DBackpropInputAttrs, Conv2DBackpropInputInputs, KernelConfig, KernelFunc, TensorInfo, util} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
+// import {BackendWasm} from '../backend_wasm';
+import '_prelude.dart';
+import 'package:tensorflow_wasm/backend_util.dart' as backend_util;
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
 
-let wasmConv2DBackpropInput: (
-    dyId: number, filterId: number, batchSize: number, filterHeight: number,
-    filterWidth: number, inHeight: number, inWidth: number, inChannels: number,
-    outHeight: number, outWidth: number, outChannels: number,
-    strideHeight: number, strideWidth: number, topPad: number, leftPad: number,
-    fltS0: number, fltS1: number, fltS2: number, xBatchStride: number,
-    xRowStride: number, xColStride: number, xChannelStride: number,
-    yBatchStride: number, yRowStride: number, yColStride: number,
-    yChannelStride: number, outId: number) => void;
+late final Function(List) _wasmConv2DBackpropInput;
+// : (
+//     dyId: number, filterId: number, batchSize: number, filterHeight: number,
+//     filterWidth: number, inHeight: number, inWidth: number, inChannels: number,
+//     outHeight: number, outWidth: number, outChannels: number,
+//     strideHeight: number, strideWidth: number, topPad: number, leftPad: number,
+//     fltS0: number, fltS1: number, fltS2: number, xBatchStride: number,
+//     xRowStride: number, xColStride: number, xChannelStride: number,
+//     yBatchStride: number, yRowStride: number, yColStride: number,
+//     yChannelStride: number, outId: number) => void;
 
-function setup(backend: BackendWasm): void {
-  wasmConv2DBackpropInput = backend.wasm.cwrap(Conv2DBackpropInput, null, [
-    'number',  // dyId
-    'number',  // filterId
-    'number',  // batchSize
-    'number',  // filterHeight
-    'number',  // filterWidth
-    'number',  // inHeight
-    'number',  // inWidth
-    'number',  // inChannels
-    'number',  // outHeight
-    'number',  // outWidth
-    'number',  // outChannels
-    'number',  // strideHeight
-    'number',  // strideWidth
-    'number',  // topPad
-    'number',  // leftPad
-    'number',  // fltS0
-    'number',  // fltS1
-    'number',  // fltS2
-    'number',  // xBatchStride
-    'number',  // xRowStride
-    'number',  // xColStride
-    'number',  // xChannelStride
-    'number',  // yBatchStride
-    'number',  // yRowStride
-    'number',  // yColStride
-    'number',  // yChannelStride
-    'number',  // outId
+void _setup(BackendWasm backend) {
+  _wasmConv2DBackpropInput = backend.wasm.cwrap(Conv2DBackpropInput, null, [
+    'number', // dyId
+    'number', // filterId
+    'number', // batchSize
+    'number', // filterHeight
+    'number', // filterWidth
+    'number', // inHeight
+    'number', // inWidth
+    'number', // inChannels
+    'number', // outHeight
+    'number', // outWidth
+    'number', // outChannels
+    'number', // strideHeight
+    'number', // strideWidth
+    'number', // topPad
+    'number', // leftPad
+    'number', // fltS0
+    'number', // fltS1
+    'number', // fltS2
+    'number', // xBatchStride
+    'number', // xRowStride
+    'number', // xColStride
+    'number', // xChannelStride
+    'number', // yBatchStride
+    'number', // yRowStride
+    'number', // yColStride
+    'number', // yChannelStride
+    'number', // outId
   ]);
 }
 
-function conv2DBackpropInput(args: {
-  backend: BackendWasm,
-  inputs: Conv2DBackpropInputInputs,
-  attrs: Conv2DBackpropInputAttrs
-}): TensorInfo {
-  const {backend, inputs, attrs} = args;
-  const {dy, filter} = inputs;
-  const {strides, pad, dataFormat, dimRoundingMode, inputShape} = attrs;
+TensorInfo conv2DBackpropInput({
+  required NamedTensorInfoMap inputs,
+  required BackendWasm backend,
+  NamedAttrMap? attrs,
+}) {
+  final dy = inputs['dy']!;
+  final filter = inputs['filter']!;
 
-  const dilations = 1;
+  final strides = attrs!['strides'] as List<int>;
+  final inputShape = attrs['inputShape'] as List<int>;
+  final pad = attrs['pad']!;
+  final dimRoundingMode = attrs['dimRoundingMode'] as String?;
+  final dataFormat = attrs['dataFormat'] as String;
 
-  const $dataFormat = backend_util.convertConv2DDataFormat(dataFormat);
-  const convInfo = backend_util.computeConv2DInfo(
-      inputShape, filter.shape as [number, number, number, number], strides,
-      dilations, pad, dimRoundingMode, false /* depthwise */, $dataFormat);
-  const {
+  final dilations = 1;
+
+  final $dataFormat = backend_util.convertConv2DDataFormat(dataFormat);
+  final convInfo = backend_util.computeConv2DInfo(
+      inputShape, filter.shape, strides, [dilations, dilations],
+      pad: pad,
+      roundingMode: dimRoundingMode,
+      depthwise: false /* depthwise */,
+      dataFormat: $dataFormat);
+
+  final batchSize = convInfo.batchSize;
+  final filterHeight = convInfo.filterHeight;
+  final filterWidth = convInfo.filterWidth;
+  final inChannels = convInfo.inChannels;
+  final inHeight = convInfo.inHeight;
+  final inWidth = convInfo.inWidth;
+  final outChannels = convInfo.outChannels;
+  final outHeight = convInfo.outHeight;
+  final outWidth = convInfo.outWidth;
+  final strideHeight = convInfo.strideHeight;
+  final strideWidth = convInfo.strideWidth;
+
+  final topPad = filterHeight - 1 - convInfo.padInfo.top;
+  final leftPad = filterWidth - 1 - convInfo.padInfo.left;
+
+  final isChannelsLast = convInfo.dataFormat == 'channelsLast';
+  final dxStrides = util.computeStrides(convInfo.inShape);
+  final dyStrides = util.computeStrides(dy.shape);
+  final fltStrides = util.computeStrides(filter.shape);
+  final xBatchStride = dxStrides[0];
+  final xRowStride = isChannelsLast ? dxStrides[1] : dxStrides[2];
+  final xColStride = isChannelsLast ? dxStrides[2] : 1;
+  final xChannelStride = isChannelsLast ? 1 : dxStrides[1];
+  final yBatchStride = dyStrides[0];
+  final yRowStride = isChannelsLast ? dyStrides[1] : dyStrides[2];
+  final yColStride = isChannelsLast ? dyStrides[2] : 1;
+  final yChannelStride = isChannelsLast ? 1 : dyStrides[1];
+
+  final out = backend.makeOutput(convInfo.inShape, 'float32');
+  final outId = backend.dataIdMap.get(out.dataId)!.id;
+  final dyId = backend.dataIdMap.get(dy.dataId)!.id;
+  final filterId = backend.dataIdMap.get(filter.dataId)!.id;
+
+  _wasmConv2DBackpropInput([
+    dyId,
+    filterId,
     batchSize,
     filterHeight,
     filterWidth,
-    inChannels,
     inHeight,
     inWidth,
-    outChannels,
+    inChannels,
     outHeight,
     outWidth,
+    outChannels,
     strideHeight,
-    strideWidth
-  } = convInfo;
-
-  const topPad = filterHeight - 1 - convInfo.padInfo.top;
-  const leftPad = filterWidth - 1 - convInfo.padInfo.left;
-
-  const isChannelsLast = convInfo.dataFormat === 'channelsLast';
-  const dxStrides = util.computeStrides(convInfo.inShape);
-  const dyStrides = util.computeStrides(dy.shape);
-  const [fltS0, fltS1, fltS2] = util.computeStrides(filter.shape);
-  const xBatchStride = dxStrides[0];
-  const xRowStride = isChannelsLast ? dxStrides[1] : dxStrides[2];
-  const xColStride = isChannelsLast ? dxStrides[2] : 1;
-  const xChannelStride = isChannelsLast ? 1 : dxStrides[1];
-  const yBatchStride = dyStrides[0];
-  const yRowStride = isChannelsLast ? dyStrides[1] : dyStrides[2];
-  const yColStride = isChannelsLast ? dyStrides[2] : 1;
-  const yChannelStride = isChannelsLast ? 1 : dyStrides[1];
-
-  const out = backend.makeOutput(convInfo.inShape, 'float32');
-  const outId = backend.dataIdMap.get(out.dataId).id;
-  const dyId = backend.dataIdMap.get(dy.dataId).id;
-  const filterId = backend.dataIdMap.get(filter.dataId).id;
-
-  wasmConv2DBackpropInput(
-      dyId, filterId, batchSize, filterHeight, filterWidth, inHeight, inWidth,
-      inChannels, outHeight, outWidth, outChannels, strideHeight, strideWidth,
-      topPad, leftPad, fltS0, fltS1, fltS2, xBatchStride, xRowStride,
-      xColStride, xChannelStride, yBatchStride, yRowStride, yColStride,
-      yChannelStride, outId);
+    strideWidth,
+    topPad,
+    leftPad,
+    fltStrides[0],
+    fltStrides[1],
+    fltStrides[2],
+    xBatchStride,
+    xRowStride,
+    xColStride,
+    xChannelStride,
+    yBatchStride,
+    yRowStride,
+    yColStride,
+    yChannelStride,
+    outId
+  ]);
   return out;
 }
 
-export const conv2DBackpropInputConfig: KernelConfig = {
+final conv2DBackpropInputConfig = KernelConfigG(
   kernelName: Conv2DBackpropInput,
   backendName: 'wasm',
-  setupFunc: setup,
-  kernelFunc: conv2DBackpropInput as {} as KernelFunc
-};
+  setupFunc: _setup,
+  kernelFunc: conv2DBackpropInput,
+);

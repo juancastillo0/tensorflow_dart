@@ -15,104 +15,127 @@
  * =============================================================================
  */
 
-import {KernelConfig, KernelFunc, slice_util, StridedSlice, StridedSliceAttrs, StridedSliceInputs, TensorInfo, util} from '@tensorflow/tfjs-core';
+// import {KernelConfig, KernelFunc, slice_util, StridedSlice, StridedSliceAttrs, StridedSliceInputs, TensorInfo, util} from '@tensorflow/tfjs-core';
 
-import {BackendWasm} from '../backend_wasm';
-import {reshape} from './Reshape';
-import {slice} from './Slice';
+// import {BackendWasm} from '../backend_wasm';
+// import {reshape} from './Reshape';
+// import {slice} from './Slice';
+import 'package:tensorflow_wasm/backend_util.dart' as backend_util;
+import '../../util_base.dart' as util;
+import 'dart:typed_data';
 
-let wasmStridedSlice: (
-    xId: number, xStridesBytes: Uint8Array, xRank: number,
-    beginBytes: Uint8Array, endBytes: Uint8Array, stridesBytes: Uint8Array,
-    outShapeBytes: Uint8Array, outStridesBytes: Uint8Array,
-    outShapeLength: number, outId: number) => void;
+import '_prelude.dart';
+import 'reshape.dart';
+import 'slice.dart';
 
-function setup(backend: BackendWasm): void {
-  wasmStridedSlice = backend.wasm.cwrap(StridedSlice, null /*void*/, [
-    'number',  // xId
-    'array',   // xStrides
-    'number',  // xRank
-    'array',   // beginBytes
-    'array',   // endBytes
-    'array',   // stridesBytes
-    'array',   // outShapeBytes
-    'array',   // outStridesBytes
-    'number',  // outShapeLength
-    'number',  // outId
+late final Function(List) _wasmStridedSlice;
+// : (
+//     xId: number, xStridesBytes: Uint8Array, xRank: number,
+//     beginBytes: Uint8Array, endBytes: Uint8Array, stridesBytes: Uint8Array,
+//     outShapeBytes: Uint8Array, outStridesBytes: Uint8Array,
+//     outShapeLength: number, outId: number) => void;
+
+void setup(BackendWasm backend) {
+  _wasmStridedSlice = backend.wasm.cwrap(StridedSlice, null /*void*/, [
+    'number', // xId
+    'array', // xStrides
+    'number', // xRank
+    'array', // beginBytes
+    'array', // endBytes
+    'array', // stridesBytes
+    'array', // outShapeBytes
+    'array', // outStridesBytes
+    'number', // outShapeLength
+    'number', // outId
   ]);
 }
 
-export function stridedSlice(args: {
-  backend: BackendWasm,
-  inputs: StridedSliceInputs,
-  attrs: StridedSliceAttrs
-}): TensorInfo {
-  const {backend, inputs, attrs} = args;
-  const {x} = inputs;
+TensorInfo stridedSlice({
+  required NamedTensorInfoMap inputs,
+  StridedSliceAttrs? attrs,
+  required BackendWasm backend,
+}) {
+  final x = inputs['x']!;
 
-  const {
-    begin,
-    end,
-    strides,
-    beginMask,
-    endMask,
-    ellipsisMask,
-    newAxisMask,
-    shrinkAxisMask
-  } = attrs;
+  final begin = attrs!.begin;
+  final end = attrs.end;
+  final strides = attrs.strides;
+  final beginMask = attrs.beginMask;
+  final endMask = attrs.endMask;
+  final ellipsisMask = attrs.ellipsisMask;
+  final newAxisMask = attrs.newAxisMask;
+  final shrinkAxisMask = attrs.shrinkAxisMask;
 
-  const {
-    finalShapeSparse,
-    finalShape,
-    isIdentity,
-    sliceDim0,
-    isSimpleSlice,
-    begin: $begin,
-    end: $end,
-    strides: $strides
-  } =
-      slice_util.sliceInfo(
-          x.shape, begin, end, strides, beginMask, endMask, ellipsisMask,
-          newAxisMask, shrinkAxisMask);
+  final info = backend_util.sliceInfo(x.shape, begin, end, strides, beginMask,
+      endMask, ellipsisMask, newAxisMask, shrinkAxisMask);
 
-  let result;
+  final finalShapeSparse = info.finalShapeSparse;
+  final finalShape = info.finalShape;
+  final isIdentity = info.isIdentity;
+  final sliceDim0 = info.sliceDim0;
+  final isSimpleSlice = info.isSimpleSlice;
+  final $begin = info.begin;
+  final $end = info.end;
+  final $strides = info.strides;
+
+  final TensorInfo result;
 
   if (isIdentity) {
     // Optimization #1, slice is a no-op plus reshape
-    result = reshape({inputs: {x}, backend, attrs: {shape: finalShape}});
+    result = reshape(
+        inputs: {'x': x}, backend: backend, attrs: {'shape': finalShape});
   } else if (sliceDim0 || isSimpleSlice) {
     // Optimization #2, slice is memory contiguous (only occurs in dim 0)
-    util.assert(
-        x.shape.length >= 1,
-        () => `Input must have rank at least 1, got: ${x.shape.length}`);
+    util.assert_(x.shape.length >= 1,
+        () => 'Input must have rank at least 1, got: ${x.shape.length}');
 
-    const size = slice_util.computeOutShape($begin, $end, $strides);
+    final size = backend_util.computeSliceOutShape($begin, $end, $strides);
     // To tolerate begin[0] > end[0] (a 0-output slice), we min(begin, end).
-    const sliced = slice({inputs: {x}, backend, attrs: {begin: $begin, size}});
-    result =
-        reshape({inputs: {x: sliced}, backend, attrs: {shape: finalShape}});
+    final sliced = slice(
+      inputs: {'x': x},
+      backend: backend,
+      attrs: {'begin': $begin, 'size': size},
+    );
+    result = reshape(
+      inputs: {'x': sliced},
+      backend: backend,
+      attrs: {'shape': finalShape},
+    );
     backend.disposeData(sliced.dataId);
   } else {
-    const out = backend.makeOutput(finalShapeSparse, 'float32');
+    final out = backend.makeOutput(finalShapeSparse, 'float32');
 
-    const xId = backend.dataIdMap.get(x.dataId).id;
-    const xStridesBytes =
-        new Uint8Array(new Int32Array(util.computeStrides(x.shape)).buffer);
-    const beginBytes = new Uint8Array(new Int32Array($begin).buffer);
-    const endBytes = new Uint8Array(new Int32Array($end).buffer);
-    const stridesBytes = new Uint8Array(new Int32Array($strides).buffer);
+    final xId = backend.dataIdMap.get(x.dataId)!.id;
+    final xStridesBytes =
+        Uint8List.view(Int32List.fromList(util.computeStrides(x.shape)).buffer);
+    final beginBytes = Uint8List.view(Int32List.fromList($begin).buffer);
+    final endBytes = Uint8List.view(Int32List.fromList($end).buffer);
+    final stridesBytes = Uint8List.view(Int32List.fromList($strides).buffer);
 
-    const outputShapeBytes =
-        new Uint8Array(new Int32Array(finalShapeSparse).buffer);
-    const outStridesBytes = new Uint8Array(
-        new Int32Array(util.computeStrides(finalShapeSparse)).buffer);
-    const outId = backend.dataIdMap.get(out.dataId).id;
+    final outputShapeBytes =
+        Uint8List.view(Int32List.fromList(finalShapeSparse).buffer);
+    final outStridesBytes = Uint8List.view(
+        Int32List.fromList(util.computeStrides(finalShapeSparse)).buffer);
+    final outId = backend.dataIdMap.get(out.dataId)!.id;
 
-    wasmStridedSlice(
-        xId, xStridesBytes, x.shape.length, beginBytes, endBytes, stridesBytes,
-        outputShapeBytes, outStridesBytes, finalShapeSparse.length, outId);
+    _wasmStridedSlice([
+      xId,
+      xStridesBytes,
+      x.shape.length,
+      beginBytes,
+      endBytes,
+      stridesBytes,
+      outputShapeBytes,
+      outStridesBytes,
+      finalShapeSparse.length,
+      outId
+    ]);
 
-    result = reshape({inputs: {x: out}, backend, attrs: {shape: finalShape}});
+    result = reshape(
+      inputs: {'x': out},
+      backend: backend,
+      attrs: {'shape': finalShape},
+    );
 
     backend.disposeData(out.dataId);
   }
@@ -120,9 +143,9 @@ export function stridedSlice(args: {
   return result;
 }
 
-export const stridedSliceConfig: KernelConfig = {
+final stridedSliceConfig = KernelConfigG(
   kernelName: StridedSlice,
   backendName: 'wasm',
   setupFunc: setup,
-  kernelFunc: stridedSlice as {} as KernelFunc
-};
+  kernelFunc: stridedSlice,
+);
