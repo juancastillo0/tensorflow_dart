@@ -29,7 +29,7 @@ import 'package:tensorflow_wasm/src/util_base.dart' as util;
 import 'package:tensorflow_wasm/tensorflow_wasm.dart' as tfOps;
 import '_prelude.dart';
 
-List<Tensor> executeOp(
+List<Tensor?> executeOp(
   Node node,
   NamedTensorsMap tensorMap,
   ExecutionContext context,

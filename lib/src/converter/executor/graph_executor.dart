@@ -55,12 +55,12 @@ class GraphExecutor implements FunctionExecutor {
   final Map<String, List<Node>> _compiledMap = {};
   NamedTensorsMap _weightMap = {};
   List<int> _weightIds = [];
-  final ISignatureDef _signature;
+  final ISignatureDef? _signature;
   final List<Node> _inputs;
   final List<Node> _outputs;
-  final List<Node> _initNodes; // Internal init nodes to start initialization.
+  final List<Node>? _initNodes; // Internal init nodes to start initialization.
   final SEPERATOR = ',';
-  final Map<String, Graph> _functions;
+  final Map<String, Graph>? _functions;
   final Map<String, FunctionExecutor> _functionExecutorMap = {};
   ResourceManager? _resourceManager;
   final NamedTensorsMap _intermediateTensors = {};
@@ -82,7 +82,8 @@ class GraphExecutor implements FunctionExecutor {
 
   set weightMap(NamedTensorsMap weightMap) {
     final weightIds = weightMap.values
-        .expand((tensors) => tensors.map((tensor) => tensor.id))
+        .expand((tensors) => tensors.map((tensor) => tensor?.id))
+        .whereType<int>()
         .toList();
     this._weightIds = weightIds;
     this._weightMap = weightMap;
@@ -101,7 +102,8 @@ class GraphExecutor implements FunctionExecutor {
       return ModelTensorInfo(
         name: node.name,
         shape: node.attrParams['shape']?.value as List<int>?,
-        dtype: node.attrParams['dtype']!.value as DataType,
+        // TODO: should the default be float32?
+        dtype: node.attrParams['dtype']?.value as DataType? ?? 'float32',
       );
     }).toList();
   }
@@ -111,7 +113,8 @@ class GraphExecutor implements FunctionExecutor {
       return ModelTensorInfo(
         name: node.name,
         shape: node.attrParams['shape']?.value as List<int>?,
-        dtype: node.attrParams['dtype']!.value as DataType,
+        // TODO: should the default be float32?
+        dtype: node.attrParams['dtype']?.value as DataType? ?? 'float32',
       );
     }).toList();
   }
@@ -129,9 +132,10 @@ class GraphExecutor implements FunctionExecutor {
     }).toList();
   }
 
-  Map<String, ISignatureDef> get functions {
-    return this._functions.keys.fold({}, (map, key) {
-      map[key] = this._functions[key]!.signature!;
+  Map<String, ISignatureDef>? get functions {
+    return this._functions?.keys.fold<Map<String, ISignatureDef>>({},
+        (map, key) {
+      map[key] = this._functions![key]!.signature!;
       return map;
     });
   }
@@ -149,9 +153,9 @@ class GraphExecutor implements FunctionExecutor {
   GraphExecutor(this.graph, this.parent)
       : this._outputs = graph.outputs,
         this._inputs = graph.inputs,
-        this._initNodes = graph.initNodes!,
-        this._signature = graph.signature!,
-        this._functions = graph.functions! {
+        this._initNodes = graph.initNodes,
+        this._signature = graph.signature,
+        this._functions = graph.functions {
     // create sub-graph executors
     if (graph.functions != null) {
       graph.functions!.entries.forEach((e) {
@@ -278,7 +282,8 @@ class GraphExecutor implements FunctionExecutor {
 
   Set<int> _getFrozenTensorIds(NamedTensorsMap tensorMap) {
     final ids = tensorMap.values
-        .expand((tensors) => tensors.map((tensor) => tensor.id))
+        .expand((tensors) => tensors.map((tensor) => tensor?.id))
+        .whereType<int>()
         .toSet();
     return ids;
   }
@@ -368,7 +373,7 @@ class GraphExecutor implements FunctionExecutor {
     this
         ._intermediateTensors
         .values
-        .forEach((tensors) => tensors.forEach((tensor) => tensor.dispose()));
+        .forEach((tensors) => tensors.forEach((tensor) => tensor?.dispose()));
     this._disposeTensorsMap();
   }
 
@@ -394,7 +399,7 @@ class GraphExecutor implements FunctionExecutor {
 
   void _resetIntermediateTensors() {
     for (final key in this._intermediateTensors.keys.toList()) {
-      this._intermediateTensors[key]!.forEach((tensor) => tensor.dispose());
+      this._intermediateTensors[key]!.forEach((tensor) => tensor?.dispose());
       this._intermediateTensors.remove(key);
     }
   }
@@ -417,8 +422,8 @@ class GraphExecutor implements FunctionExecutor {
     NamedTensorMap inputs,
     List<String> outputs, [
     bool isFunctionExecution = false,
-    TensorArrayMap tensorArrayMap = const {},
-    TensorListMap tensorListMap = const {},
+    TensorArrayMap? tensorArrayMap,
+    TensorListMap? tensorListMap,
   ]) async {
     if (!isFunctionExecution) {
       inputs = this._mapInputs(inputs);
@@ -436,8 +441,8 @@ class GraphExecutor implements FunctionExecutor {
     }
     this._resetIntermediateTensors();
 
-    final context = ExecutionContext(this.weightMap, tensorArrayMap,
-        tensorListMap, this.functionExecutorMap);
+    final context = ExecutionContext(this.weightMap, tensorArrayMap ?? {},
+        tensorListMap ?? {}, this.functionExecutorMap);
 
     // Graph with control flow op requires runtime evaluation of the execution
     // order, while without control flow the execution order is pre-determined
@@ -532,8 +537,10 @@ class GraphExecutor implements FunctionExecutor {
     final NamedTensorsMap tensorsMap = {...this.weightMap};
     inputs.keys.forEach((name) {
       final node = parseNodeName(name);
-      final tensors = <Tensor>[];
-      tensors[node.index] = inputs[name]!;
+      final tensors = List.generate(
+        node.index + 1,
+        (index) => index == node.index ? inputs[name] : null,
+      );
       tensorsMap[node.nodeName] = tensors;
     });
     final intermediateTensorConsumerCount = <int, int>{};
@@ -577,7 +584,7 @@ class GraphExecutor implements FunctionExecutor {
     return tensorsMap;
   }
 
-  List<Future<List<Tensor>>> _processStack(
+  List<Future<List<Tensor?>>> _processStack(
     List<Node> inputNodes,
     List<NodeWithContexts> stack,
     ExecutionContext context,
@@ -588,7 +595,7 @@ class GraphExecutor implements FunctionExecutor {
     Map<int, int> intermediateTensorConsumerCount,
     Set<String> usedNodes,
   ) {
-    final List<Future<List<Tensor>>> promises = [];
+    final List<Future<List<Tensor?>>> promises = [];
     while (stack.length > 0) {
       final item = stack.removeLast();
       context.currentContext = item.contexts;
@@ -613,7 +620,7 @@ class GraphExecutor implements FunctionExecutor {
           nodeName = getNodeNameAndIndex(item.node.name, context).nodeName;
         }
         final currentContext = context.currentContext;
-        if (tensors is Future<List<Tensor>>) {
+        if (tensors is Future<List<Tensor?>>) {
           promises.add(tensors.then((t) {
             tensorMap[nodeName] = t;
             context.currentContext = currentContext;
@@ -684,7 +691,7 @@ class GraphExecutor implements FunctionExecutor {
     this
         .weightMap
         .values
-        .forEach((tensors) => tensors.forEach((tensor) => tensor.dispose()));
+        .forEach((tensors) => tensors.forEach((tensor) => tensor?.dispose()));
   }
 
   void _checkInputShapeAndType(NamedTensorMap inputs) {
@@ -694,10 +701,10 @@ class GraphExecutor implements FunctionExecutor {
       final node = this.graph.nodes[nodeName]!;
       if (node.attrParams['shape']?.value != null) {
         final shape = node.attrParams['shape']!.value as List<int>;
-        int index = 0;
+        int index = -1;
         final match = shape.length == input.shape.length &&
             input.shape
-                .every((dim) => shape[index++] == -1 || shape[index] == dim);
+                .every((dim) => shape[++index] == -1 || shape[index] == dim);
         util.assert_(
             match,
             () =>
@@ -719,7 +726,7 @@ class GraphExecutor implements FunctionExecutor {
   NamedTensorMap _mapInputs(NamedTensorMap inputs) {
     final NamedTensorMap result = {};
     for (final inputName in inputs.keys) {
-      final tensor = this._signature.inputs?[inputName];
+      final tensor = this._signature?.inputs?[inputName];
       if (tensor != null) {
         result[tensor.name!] = inputs[inputName]!;
       } else {
@@ -743,7 +750,7 @@ class GraphExecutor implements FunctionExecutor {
   List<String> _mapOutputs(List<String>? outputs) {
     if (outputs == null) return this.outputNodes;
     return outputs.map((name) {
-      final tensor = this._signature.outputs?[name];
+      final tensor = this._signature?.outputs?[name];
       if (tensor != null) {
         return tensor.name!;
       }

@@ -73,7 +73,7 @@ typedef GradSaveFunc = void Function(List<Tensor> save);
 
 typedef NamedTensorMap = Map<String, Tensor>;
 
-typedef NamedTensorsMap = Map<String, List<Tensor>>;
+typedef NamedTensorsMap = Map<String, List<Tensor?>>;
 
 /**
  * @docalias void|number|string|TypedArray|Tensor|Tensor[]|{[key:

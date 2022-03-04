@@ -130,7 +130,7 @@ Tensor? getTensor(
  * @param name Node input name
  * @param tensorsMap Tensors map keyed by the node
  */
-List<Tensor>? getTensorsForCurrentContenxt(
+List<Tensor?>? getTensorsForCurrentContenxt(
   String name,
   NamedTensorsMap tensorsMap,
   ExecutionContext context,

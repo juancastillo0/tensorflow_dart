@@ -60,13 +60,13 @@ import 'package:tensorflow_wasm/tensorflow_wasm.dart' as tfc;
  * @param context contains tensors and information for running the current node.
  * @param resourceManager Optional. Contains global resources of the model.
  */
-FutureOr<List<tfc.Tensor>> executeOp(
+FutureOr<List<tfc.Tensor?>> executeOp(
   Node node,
   NamedTensorsMap tensorMap,
   ExecutionContext context, [
   ResourceManager? resourceManager,
 ]) {
-  FutureOr<List<Tensor>> _d(
+  FutureOr<List<Tensor?>> _d(
     Node node,
     NamedTensorsMap tensorMap,
     ExecutionContext context,
@@ -77,7 +77,10 @@ FutureOr<List<tfc.Tensor>> executeOp(
       case 'basic_math':
         return tfc.tidy(() => basicMath.executeOp(node, tensorMap, context));
       case 'control':
-        return control.executeOp(node, tensorMap, context);
+        // TODO:
+        return control
+            .executeOp(node, tensorMap, context)
+            .then((value) => value!);
       case 'convolution':
         return tfc.tidy(() => convolution.executeOp(node, tensorMap, context));
       case 'creation':
