@@ -76,14 +76,14 @@ class NodeFileSystem implements IOHandler {
    *       JSON file.
    */
   NodeFileSystem(ModelUri path) {
-    if (isComposedUrl(path)) {
-      util.assert_(
-          path.length == 2,
-          () =>
-              'file paths must have a length of 2, ' +
-              '(actual length is ${path.length}).');
-      this.path = path.map((p_) => p.canonicalize(p_)).toList();
-    }
+    // if (isComposedUrl(path)) {
+    util.assert_(
+        path.length == 1 || path.length == 2,
+        () =>
+            'file paths must have a length of 1 or 2, ' +
+            '(actual length is ${path.length}).');
+    this.path = path.map((p_) => p.canonicalize(p_)).toList();
+    // }
     //  else {
     //   this.path = p.canonicalize(path);
     // }
@@ -179,7 +179,7 @@ class NodeFileSystem implements IOHandler {
   }
 
   Future<ModelArtifacts> loadJSONModel() async {
-    final path = this.path as String;
+    final path = this.path.first;
     final info = await FileStat.stat(path);
 
     // `path` can be either a directory or a file. If it is a file, assume
