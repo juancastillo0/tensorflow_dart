@@ -51,8 +51,7 @@ List<Tensor> executeOp(
       }
     case 'Squeeze':
       {
-        final axis =
-            getParamValue('axis', node, tensorMap, context) as List<int>;
+        final axis = getParamValueList<int>('axis', node, tensorMap, context);
         return [
           tfOps.squeeze(
               getParamValue('x', node, tensorMap, context) as Tensor, axis)
@@ -63,7 +62,7 @@ List<Tensor> executeOp(
       {
         return [
           tfOps.reshape(getParamValue('x', node, tensorMap, context) as Tensor,
-              getParamValue('shape', node, tensorMap, context) as List<int>)
+              getParamValueList<int>('shape', node, tensorMap, context)!)
         ];
       }
     case 'MirrorPad':
@@ -71,8 +70,8 @@ List<Tensor> executeOp(
         return [
           tfOps.mirrorPad(
             getParamValue('x', node, tensorMap, context) as Tensor,
-            getParamValue('padding', node, tensorMap, context)
-                as List<List<int>>, // Array<[number, number]>,
+            getParamValueList<List<int>>('padding', node, tensorMap,
+                context)!, // Array<[number, number]>,
             mode: getParamValue('mode', node, tensorMap, context)
                 as String, //'reflect' | 'symmetric'
           )
@@ -84,8 +83,8 @@ List<Tensor> executeOp(
         return [
           tfOps.pad(
               getParamValue('x', node, tensorMap, context) as Tensor,
-              getParamValue('padding', node, tensorMap, context)
-                  as List<List<int>>, //Array<[number, number]>,
+              getParamValueList<List<int>>('padding', node, tensorMap,
+                  context)!, //Array<[number, number]>,
               constantValue:
                   getParamValue('constantValue', node, tensorMap, context)
                       as double)
@@ -94,9 +93,9 @@ List<Tensor> executeOp(
     case 'SpaceToBatchND':
       {
         final blockShape =
-            getParamValue('blockShape', node, tensorMap, context) as List<int>;
-        final paddings = getParamValue('paddings', node, tensorMap, context)
-            as List<List<int>>;
+            getParamValueList<int>('blockShape', node, tensorMap, context)!;
+        final paddings =
+            getParamValueList<List<int>>('paddings', node, tensorMap, context)!;
         return [
           tfOps.spaceToBatchND(
               getParamValue('x', node, tensorMap, context) as Tensor,
@@ -107,9 +106,9 @@ List<Tensor> executeOp(
     case 'BatchToSpaceND':
       {
         final blockShape =
-            getParamValue('blockShape', node, tensorMap, context) as List<int>;
+            getParamValueList<int>('blockShape', node, tensorMap, context)!;
         final crops =
-            getParamValue('crops', node, tensorMap, context) as List<List<int>>;
+            getParamValueList<List<int>>('crops', node, tensorMap, context)!;
         return [
           tfOps.batchToSpaceND(
               getParamValue('x', node, tensorMap, context) as Tensor,
@@ -136,7 +135,7 @@ List<Tensor> executeOp(
         return [
           tfOps.broadcastTo(
               getParamValue('x', node, tensorMap, context) as Tensor,
-              getParamValue('shape', node, tensorMap, context) as List<int>)
+              getParamValueList<int>('shape', node, tensorMap, context)!)
         ];
       }
     case 'BroadcastArgs':

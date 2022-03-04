@@ -36,8 +36,7 @@ List<Tensor> executeOp(
   switch (node.op) {
     case 'Max':
       {
-        final axis =
-            getParamValue('axis', node, tensorMap, context) as List<int>;
+        final axis = getParamValueList<int>('axis', node, tensorMap, context)!;
         final keepDims =
             getParamValue('keepDims', node, tensorMap, context) as bool;
         return [
@@ -47,8 +46,7 @@ List<Tensor> executeOp(
       }
     case 'Mean':
       {
-        final axis =
-            getParamValue('axis', node, tensorMap, context) as List<int>;
+        final axis = getParamValueList<int>('axis', node, tensorMap, context);
         final keepDims =
             getParamValue('keepDims', node, tensorMap, context) as bool;
         return [
@@ -58,8 +56,7 @@ List<Tensor> executeOp(
       }
     case 'Min':
       {
-        final axis =
-            getParamValue('axis', node, tensorMap, context) as List<int>;
+        final axis = getParamValueList<int>('axis', node, tensorMap, context);
         final keepDims =
             getParamValue('keepDims', node, tensorMap, context) as bool;
         return [
@@ -69,8 +66,7 @@ List<Tensor> executeOp(
       }
     case 'Sum':
       {
-        final axis =
-            getParamValue('axis', node, tensorMap, context) as List<int>;
+        final axis = getParamValueList<int>('axis', node, tensorMap, context);
         final keepDims =
             getParamValue('keepDims', node, tensorMap, context) as bool;
         return [
@@ -80,8 +76,7 @@ List<Tensor> executeOp(
       }
     case 'All':
       {
-        final axis =
-            getParamValue('axis', node, tensorMap, context) as List<int>;
+        final axis = getParamValueList<int>('axis', node, tensorMap, context);
         final keepDims =
             getParamValue('keepDims', node, tensorMap, context) as bool;
         return [
@@ -91,8 +86,7 @@ List<Tensor> executeOp(
       }
     case 'Any':
       {
-        final axis =
-            getParamValue('axis', node, tensorMap, context) as List<int>;
+        final axis = getParamValueList<int>('axis', node, tensorMap, context);
         final keepDims =
             getParamValue('keepDims', node, tensorMap, context) as bool;
         return [
@@ -118,8 +112,7 @@ List<Tensor> executeOp(
       }
     case 'Prod':
       {
-        final axis =
-            getParamValue('axis', node, tensorMap, context) as List<int>;
+        final axis = getParamValueList<int>('axis', node, tensorMap, context);
         final keepDims =
             getParamValue('keepDims', node, tensorMap, context) as bool;
         return [

@@ -30,10 +30,27 @@ import 'package:collection/collection.dart';
 // import {ResourceManager} from '../../executor/resource_manager';
 // import {Node, ValueType} from '../types';
 
-ValueType? getParamValue(
+List<T>? getParamValueList<T>(
   String paramName,
   Node node,
-  NamedTensorsMap tensorMap,
+  Map<String, List<Tensor?>> tensorMap,
+  ExecutionContext context, [
+  ResourceManager? resourceManager,
+]) {
+  return (getParamValue(
+    paramName,
+    node,
+    tensorMap,
+    context,
+    resourceManager,
+  ) as List?)
+      ?.cast();
+}
+
+T getParamValue<T extends ValueType?>(
+  String paramName,
+  Node node,
+  Map<String, List<Tensor?>> tensorMap,
   ExecutionContext context, [
   ResourceManager? resourceManager,
 ]) {
@@ -51,13 +68,14 @@ ValueType? getParamValue(
         tensorMap,
         context,
         resourceManager,
-      );
+      ) as T;
     }
     if (inputParam.type == 'tensors') {
       final inputs = node.inputNames.slice(start, end);
 
       return inputs
-          .map((name) => getTensor(name, tensorMap, context, resourceManager));
+          .map((name) => getTensor(name, tensorMap, context, resourceManager)!)
+          .toList() as T;
     }
     final tensor = getTensor(
       node.inputNames.slice(start)[0],
@@ -66,12 +84,14 @@ ValueType? getParamValue(
       resourceManager,
     )!;
     final data = tensor.dataSync();
-    return inputParam.type == 'number'
-        ? data[0]
-        : util.toNestedArray(tensor.shape, data);
+    if (inputParam.type == 'number') {
+      return data[0];
+    } else {
+      return util.toNestedArray(tensor.shape, data) as T;
+    }
   }
   final attrParam = node.attrParams[paramName];
-  return attrParam?.value;
+  return attrParam?.value as T;
 }
 
 /**
@@ -143,7 +163,9 @@ NodeName getNodeNameAndIndex(
 }
 
 String getNodeNameWithContextId(String name, [String? contextId]) {
-  return contextId != null ? '${name}-${contextId}' : name;
+  return contextId != null && contextId.isNotEmpty
+      ? '${name}-${contextId}'
+      : name;
 }
 
 class NodeName {

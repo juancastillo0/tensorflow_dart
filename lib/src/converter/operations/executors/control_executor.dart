@@ -167,7 +167,7 @@ Future<List<Tensor?>?> executeOp(
             getParamValue('dtype', node, tensorMap, context) as DataType;
         final elementShape =
             getParamValue('elementShape', node, tensorMap, context)
-                as List<int>;
+                as List<int>?;
         final dynamicSize =
             getParamValue('dynamicSize', node, tensorMap, context) as bool;
         final clearAfterRead =

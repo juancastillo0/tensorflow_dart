@@ -57,7 +57,7 @@ _ConvParams fusedConvAndDepthWiseParams(
   ExecutionContext context,
 ) {
   final params =
-      (getParamValue('fusedOps', node, tensorMap, context) as List<String>);
+      getParamValueList<String>('fusedOps', node, tensorMap, context)!;
   final extraOp = params[0];
   final activationFunc = params[1];
 
@@ -83,15 +83,14 @@ _ConvParams fusedConvAndDepthWiseParams(
     throw Exception(
         'FusedConv2d and DepthwiseConv2d with FusedBatchNorm is not supported');
   }
-  final stride =
-      getParamValue('strides', node, tensorMap, context) as List<int>;
+  final stride = getParamValueList<int>('strides', node, tensorMap, context)!;
   final pad = getPadding(node, tensorMap, context)!;
   final dataFormat =
       (getParamValue('dataFormat', node, tensorMap, context) as String)
           .toUpperCase();
   final dilations =
-      getParamValue('dilations', node, tensorMap, context) as List<int>;
-  final _a = getParamValue('args', node, tensorMap, context) as List<Tensor>;
+      getParamValueList<int>('dilations', node, tensorMap, context)!;
+  final _a = getParamValueList<Tensor>('args', node, tensorMap, context)!;
 
   Tensor? biasArg = _a[0];
   Tensor preluArg = _a[1];
@@ -140,13 +139,13 @@ List<Tensor> executeOp(
     case 'Conv2D':
       {
         final stride =
-            getParamValue('strides', node, tensorMap, context) as List<int>;
+            getParamValueList<int>('strides', node, tensorMap, context)!;
         final pad = getPadding(node, tensorMap, context)!;
         final dataFormat =
             (getParamValue('dataFormat', node, tensorMap, context) as String)
                 .toUpperCase();
         final dilations =
-            getParamValue('dilations', node, tensorMap, context) as List<int>;
+            getParamValueList<int>('dilations', node, tensorMap, context)!;
         return [
           tfOps.conv2d(
             getParamValue('x', node, tensorMap, context)
@@ -205,9 +204,9 @@ List<Tensor> executeOp(
     case 'Conv2dTranspose':
       {
         final shape =
-            getParamValue('outputShape', node, tensorMap, context) as List<int>;
+            getParamValueList<int>('outputShape', node, tensorMap, context)!;
         final stride =
-            getParamValue('strides', node, tensorMap, context) as List<int>;
+            getParamValueList<int>('strides', node, tensorMap, context)!;
         final pad = getPadding(node, tensorMap, context)!;
         return [
           tfOps.conv2dTranspose(
@@ -223,10 +222,10 @@ List<Tensor> executeOp(
     case 'DepthwiseConv2d':
       {
         final stride =
-            getParamValue('strides', node, tensorMap, context) as List<int>;
+            getParamValueList<int>('strides', node, tensorMap, context)!;
         final pad = getPadding(node, tensorMap, context)!;
         final dilations =
-            getParamValue('dilations', node, tensorMap, context) as List<int>;
+            getParamValueList<int>('dilations', node, tensorMap, context)!;
         final dataFormat =
             (getParamValue('dataFormat', node, tensorMap, context) as String)
                 .toUpperCase();
