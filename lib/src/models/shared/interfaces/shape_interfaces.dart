@@ -14,51 +14,95 @@
  * limitations under the License.
  * =============================================================================
  */
-import * as tf from '@tensorflow/tfjs-core';
+// import * as tf from '@tensorflow/tfjs-core';
 
-import {Keypoint} from './common_interfaces';
+// import {Keypoint} from './common_interfaces';
+
+import 'package:tensorflow_wasm/tensorflow_wasm.dart' as tf;
+
+import 'common_interfaces.dart';
 
 /**
  * A rectangle that contains center point, height, width and rotation info.
  * Can be normalized or non-normalized.
  */
-export interface Rect {
-  xCenter: number;
-  yCenter: number;
-  height: number;
-  width: number;
-  rotation?: number;
+class Rect {
+  final int xCenter;
+  final int yCenter;
+  final int height;
+  final int width;
+  final double? rotation;
+
+  const Rect({
+    required this.xCenter,
+    required this.yCenter,
+    required this.height,
+    required this.width,
+    this.rotation,
+  });
 }
 
-export interface BoundingBox {
-  xMin: number;
-  yMin: number;
-  xMax: number;
-  yMax: number;
-  width: number;
-  height: number;
+class BoundingBox {
+  final int xMin;
+  final int yMin;
+  final int xMax;
+  final int yMax;
+  final int width;
+  final int height;
+
+  const BoundingBox({
+    required this.xMin,
+    required this.yMin,
+    required this.xMax,
+    required this.yMax,
+    required this.width,
+    required this.height,
+  });
 }
 
-export interface AnchorTensor {
-  x: tf.Tensor1D;
-  y: tf.Tensor1D;
-  w: tf.Tensor1D;
-  h: tf.Tensor1D;
+class AnchorTensor {
+  final tf.Tensor1D x;
+  final tf.Tensor1D y;
+  final tf.Tensor1D w;
+  final tf.Tensor1D h;
+
+  const AnchorTensor({
+    required this.x,
+    required this.y,
+    required this.w,
+    required this.h,
+  });
 }
 
-export interface LocationData {
-  boundingBox?: BoundingBox;
-  relativeBoundingBox?: BoundingBox;
-  relativeKeypoints?: Keypoint[];
+class LocationData {
+  final BoundingBox boundingBox;
+  final BoundingBox relativeBoundingBox;
+  final List<Keypoint> relativeKeypoints;
+
+  const LocationData({
+    required this.boundingBox,
+    required this.relativeBoundingBox,
+    required this.relativeKeypoints,
+  });
 }
 
-export interface Detection {
-  score?: number[];
-  locationData: LocationData;  // Location data corresponding to all
-                               // detected labels above.
-  label?: string[];  // i-th label or labelid has a score encoded by the i-th
-                     // element in score. Either string or integer labels must
-                     // be used but not both.
-  labelId?: number[];
-  ind?: number;
+class Detection {
+  final List<double>? score;
+  // Location data corresponding to all
+  // detected labels above.
+  final LocationData locationData;
+  // i-th label or labelid has a score encoded by the i-th
+  // element in score. Either string or integer labels must
+  // be used but not both.
+  final List<String>? label;
+  final List<int>? labelId;
+  final int? ind;
+
+  const Detection({
+    this.score,
+    required this.locationData,
+    this.label,
+    this.labelId,
+    this.ind,
+  });
 }

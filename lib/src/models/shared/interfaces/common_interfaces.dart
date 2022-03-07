@@ -15,58 +15,96 @@
  * =============================================================================
  */
 
-import {Tensor3D} from '@tensorflow/tfjs-core';
+// import {Tensor3D} from '@tensorflow/tfjs-core';
 
-export type PixelInput = Tensor3D|ImageData|HTMLVideoElement|HTMLImageElement|
-    HTMLCanvasElement|ImageBitmap;
+import 'package:tensorflow_wasm/tensorflow_wasm.dart' show Tensor3D;
 
-export interface InputResolution {
-  width: number;
-  height: number;
+typedef PixelInput = Object;
+//  Tensor3D|ImageData|HTMLVideoElement|HTMLImageElement|
+//     HTMLCanvasElement|ImageBitmap;
+
+class InputResolution {
+  final int width;
+  final int height;
+
+  const InputResolution({
+    required this.width,
+    required this.height,
+  });
 }
 
 /**
  * A keypoint that contains coordinate information.
  */
-export interface Keypoint {
-  x: number;
-  y: number;
-  z?: number;
-  score?: number;  // The probability of a keypoint's visibility.
-  name?: string;
+class Keypoint {
+  final double x;
+  final double y;
+  final double? z;
+  final double? score; // The probability of a keypoint's visibility.
+  final String? name;
+
+  const Keypoint({
+    required this.x,
+    required this.y,
+    this.z,
+    this.score,
+    this.name,
+  });
 }
 
-export interface ImageSize {
-  height: number;
-  width: number;
+class ImageSize {
+  final int height;
+  final int width;
+
+  ImageSize({
+    required this.height,
+    required this.width,
+  });
 }
 
-export interface Padding {
-  top: number;
-  bottom: number;
-  left: number;
-  right: number;
+class Padding {
+  final int top;
+  final int bottom;
+  final int left;
+  final int right;
+
+  Padding({
+    required this.top,
+    required this.bottom,
+    required this.left,
+    required this.right,
+  });
 }
 
-export type ValueTransform = {
-  scale: number,
-  offset: number
-};
+class ValueTransform {
+  final double scale;
+  final double offset;
 
-export interface WindowElement {
-  distance: number;
-  duration: number;
+  ValueTransform({
+    required this.scale,
+    required this.offset,
+  });
 }
 
-export interface KeypointsFilter {
-  apply(landmarks: Keypoint[], microSeconds: number, objectScale: number):
-      Keypoint[];
-  reset(): void;
+class WindowElement {
+  final double distance;
+  final double duration;
+
+  WindowElement({
+    required this.distance,
+    required this.duration,
+  });
 }
 
-export interface Mask {
-  toCanvasImageSource():
-      Promise<CanvasImageSource>; /* RGBA image of same size as input, where
+abstract class KeypointsFilter {
+  List<Keypoint> apply(
+      List<Keypoint> landmarks, double microSeconds, double objectScale);
+  void reset();
+}
+
+abstract class Mask {
+  Future<CanvasImageSource>
+      toCanvasImageSource(); /* RGBA image of same size as input, where
                             mask semantics are green and blue are always set to
                             0. Different red values denote different body
                             parts(see maskValueToBodyPart explanation below).
@@ -74,8 +112,8 @@ export interface Mask {
                             pixel being a foreground pixel (0 being lowest
                             probability and 255 being highest).*/
 
-  toImageData():
-      Promise<ImageData>; /* 1 dimensional array of size image width * height *
+  Future<ImageData>
+      toImageData(); /* 1 dimensional array of size image width * height *
                     4, where each pixel is represented by RGBA in that order.
                     For each pixel, the semantics are green and blue are always
                     set to 0, and different red values denote different body
@@ -84,30 +122,39 @@ export interface Mask {
                     foreground pixel (0 being lowest probability and 255 being
                     highest). */
 
-  toTensor():
-      Promise<Tensor3D>; /* RGBA image of same size as input, where mask
+  Future<Tensor3D>
+      toTensor(); /* RGBA image of same size as input, where mask
                    semantics are green and blue are always set to 0. Different
                    red values denote different body parts (see
                    maskValueToBodyPart explanation below). Different alpha
                    values denote the probability of pixel being a foreground
                    pixel (0 being lowest probability and 255 being highest).*/
 
-  getUnderlyingType(): 'canvasimagesource'|'imagedata'|
-      'tensor'; /* determines which type the mask currently stores in its
+  // 'canvasimagesource'|'imagedata'| 'tensor'
+  String
+      getUnderlyingType(); /* determines which type the mask currently stores in its
                    implementation so that conversion can be avoided */
 }
 
-export interface Segmentation {
-  maskValueToLabel: (maskValue: number) =>
-      string; /* Maps a foreground pixel’s red value to the segmented part name
+abstract class Segmentation {
+  String maskValueToLabel(
+      double
+          maskValue); /* Maps a foreground pixel’s red value to the segmented part name
                  of that pixel. Should throw error for unsupported input
                  values.*/
-  mask: Mask;
+  Mask get mask;
 }
 
-export type Color = {
-  r: number,
-  g: number,
-  b: number,
-  a: number,
-};
+class Color {
+  final int r;
+  final int g;
+  final int b;
+  final int a;
+
+  const Color({
+    required this.r,
+    required this.g,
+    required this.b,
+    required this.a,
+  });
+}
