@@ -1,5 +1,4 @@
 import 'package:tensorflow_wasm/src/backend.dart';
-import 'package:tensorflow_wasm/src/engine.dart';
 import 'package:tensorflow_wasm/src/environment.dart';
 import 'package:tensorflow_wasm/src/tensor.dart';
 import 'package:tensorflow_wasm/src/util_base.dart' as util;
