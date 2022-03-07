@@ -15,75 +15,70 @@
  * =============================================================================
  */
 
-import {DEFAULT_MPHANDS_DETECTOR_MODEL_URL_FULL, DEFAULT_MPHANDS_DETECTOR_MODEL_URL_LITE, DEFAULT_MPHANDS_ESTIMATION_CONFIG, DEFAULT_MPHANDS_LANDMARK_MODEL_URL_FULL, DEFAULT_MPHANDS_LANDMARK_MODEL_URL_LITE, DEFAULT_MPHANDS_MODEL_CONFIG} from './constants';
-import {MediaPipeHandsTfjsEstimationConfig, MediaPipeHandsTfjsModelConfig} from './types';
+// import {DEFAULT_MPHANDS_DETECTOR_MODEL_URL_FULL, DEFAULT_MPHANDS_DETECTOR_MODEL_URL_LITE, DEFAULT_MPHANDS_ESTIMATION_CONFIG, DEFAULT_MPHANDS_LANDMARK_MODEL_URL_FULL, DEFAULT_MPHANDS_LANDMARK_MODEL_URL_LITE, DEFAULT_MPHANDS_MODEL_CONFIG} from './constants';
+// import {MediaPipeHandsTfjsEstimationConfig, MediaPipeHandsTfjsModelConfig} from './types';
 
-export function validateModelConfig(modelConfig: MediaPipeHandsTfjsModelConfig):
-    MediaPipeHandsTfjsModelConfig {
-  if (modelConfig == null) {
-    return {...DEFAULT_MPHANDS_MODEL_CONFIG};
-  }
+import 'constants.dart';
+import 'types.dart';
 
-  const config: MediaPipeHandsTfjsModelConfig = {...modelConfig};
+MediaPipeHandsTfjsModelConfig validateModelConfig(
+    MediaPipeHandsTfjsModelConfig modelConfig) {
+  // if (modelConfig == null) {
+  //   return {...DEFAULT_MPHANDS_MODEL_CONFIG};
+  // }
 
-  config.runtime = 'tfjs';
-
-  if (config.maxHands == null) {
-    config.maxHands = DEFAULT_MPHANDS_MODEL_CONFIG.maxHands;
-  }
-
-  if (config.modelType == null) {
-    config.modelType = DEFAULT_MPHANDS_MODEL_CONFIG.modelType;
-  }
-
-  if (config.modelType !== 'lite' && config.modelType !== 'full') {
-    throw new Error(
-        `Model type must be one of lite or full, but got ${config.modelType}`);
-  }
-
-  if (config.detectorModelUrl == null) {
-    switch (config.modelType) {
-      case 'lite':
-        config.detectorModelUrl = DEFAULT_MPHANDS_DETECTOR_MODEL_URL_LITE;
+  final modelType =
+      modelConfig.modelType ?? DEFAULT_MPHANDS_MODEL_CONFIG.modelType!;
+  String? detectorModelUrl = modelConfig.detectorModelUrl;
+  if (modelConfig.detectorModelUrl == null) {
+    switch (modelType) {
+      case MediaPipeHandsModelType.lite:
+        detectorModelUrl = DEFAULT_MPHANDS_DETECTOR_MODEL_URL_LITE;
         break;
-      case 'full':
-      default:
-        config.detectorModelUrl = DEFAULT_MPHANDS_DETECTOR_MODEL_URL_FULL;
+      case MediaPipeHandsModelType.full:
+        detectorModelUrl = DEFAULT_MPHANDS_DETECTOR_MODEL_URL_FULL;
         break;
     }
   }
-
-  if (config.landmarkModelUrl == null) {
-    switch (config.modelType) {
-      case 'lite':
-        config.landmarkModelUrl = DEFAULT_MPHANDS_LANDMARK_MODEL_URL_LITE;
+  String? landmarkModelUrl = modelConfig.landmarkModelUrl;
+  if (modelConfig.landmarkModelUrl == null) {
+    switch (modelType) {
+      case MediaPipeHandsModelType.lite:
+        landmarkModelUrl = DEFAULT_MPHANDS_LANDMARK_MODEL_URL_LITE;
         break;
-      case 'full':
+      case MediaPipeHandsModelType.full:
       default:
-        config.landmarkModelUrl = DEFAULT_MPHANDS_LANDMARK_MODEL_URL_FULL;
+        landmarkModelUrl = DEFAULT_MPHANDS_LANDMARK_MODEL_URL_FULL;
         break;
     }
   }
+  final config = modelConfig.copyWith(
+    maxHands: modelConfig.maxHands ?? DEFAULT_MPHANDS_MODEL_CONFIG.maxHands,
+    modelType: modelType,
+    detectorModelUrl: detectorModelUrl,
+    landmarkModelUrl: landmarkModelUrl,
+  );
+
+  // if (config.modelType != 'lite' && config.modelType != 'full') {
+  //   throw Exception(
+  //       'Model type must be one of lite or full, but got ${config.modelType}');
+  // }
 
   return config;
 }
 
-export function validateEstimationConfig(
-    estimationConfig: MediaPipeHandsTfjsEstimationConfig):
-    MediaPipeHandsTfjsEstimationConfig {
-  if (estimationConfig == null) {
-    return {...DEFAULT_MPHANDS_ESTIMATION_CONFIG};
-  }
+MediaPipeHandsTfjsEstimationConfig validateEstimationConfig(
+    MediaPipeHandsTfjsEstimationConfig estimationConfig) {
+  // if (estimationConfig == null) {
+  //   return {...DEFAULT_MPHANDS_ESTIMATION_CONFIG};
+  // }
 
-  const config = {...estimationConfig};
-
-  if (config.flipHorizontal == null) {
-    config.flipHorizontal = DEFAULT_MPHANDS_ESTIMATION_CONFIG.flipHorizontal;
-  }
-
-  if (config.staticImageMode == null) {
-    config.staticImageMode = DEFAULT_MPHANDS_ESTIMATION_CONFIG.staticImageMode;
-  }
+  final config = MediaPipeHandsTfjsEstimationConfig(
+    flipHorizontal: estimationConfig.flipHorizontal ??
+        DEFAULT_MPHANDS_ESTIMATION_CONFIG.flipHorizontal,
+    staticImageMode: estimationConfig.staticImageMode ??
+        DEFAULT_MPHANDS_ESTIMATION_CONFIG.staticImageMode,
+  );
 
   return config;
 }

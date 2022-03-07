@@ -14,12 +14,14 @@
  * limitations under the License.
  * =============================================================================
  */
-import {Keypoint, PixelInput} from './shared/calculators/interfaces/common_interfaces';
+// import {Keypoint, PixelInput} from './shared/calculators/interfaces/common_interfaces';
 
-export {Keypoint};
+// export {Keypoint};
 
-export enum SupportedModels {
-  MediaPipeHands = 'MediaPipeHands',
+import '../shared/interfaces/common_interfaces.dart';
+
+enum SupportedModels {
+  MediaPipeHands, // = 'MediaPipeHands',
 }
 
 /**
@@ -29,8 +31,8 @@ export enum SupportedModels {
  * be detected by the model. The number of returned hands can be less than the
  * maximum (for example when no hands are present in the input).
  */
-export interface ModelConfig {
-  maxHands?: number;
+abstract class ModelConfig {
+  int? get maxHands;
 }
 
 /**
@@ -46,23 +48,40 @@ export interface ModelConfig {
  * another detection until it loses track of any of the hands (ideal for
  * videos).
  */
-export interface EstimationConfig {
-  flipHorizontal?: boolean;
-  staticImageMode?: boolean;
+class EstimationConfig {
+  final bool? flipHorizontal;
+  final bool? staticImageMode;
+
+  const EstimationConfig({
+    this.flipHorizontal,
+    this.staticImageMode,
+  });
 }
 
 /**
  * Allowed input format for the `estimateHands` method.
  */
-export type HandDetectorInput = PixelInput;
+typedef HandDetectorInput = PixelInput;
 
-export interface Hand {
-  keypoints: Keypoint[];
-  keypoints3D?: Keypoint[];
-  handedness: 'Left'|
-      'Right';    // Note that handedness is determined assuming the input image
-                  // is mirrored, i.e., taken with a front-facing/selfie camera
-                  // with images flipped horizontally. If it is not the case,
-                  // please swap the handedness output in the application.
-  score: number;  // The probability of the handedness label.
+class Hand {
+  final List<Keypoint> keypoints;
+  final List<Keypoint>? keypoints3D;
+  final Handedness
+      handedness; // Note that handedness is determined assuming the input image
+  // is mirrored, i.e., taken with a front-facing/selfie camera
+  // with images flipped horizontally. If it is not the case,
+  // please swap the handedness output in the application.
+  final double score; // The probability of the handedness label.
+
+  const Hand({
+    required this.keypoints,
+    this.keypoints3D,
+    required this.handedness,
+    required this.score,
+  });
+}
+
+enum Handedness {
+  left,
+  right,
 }

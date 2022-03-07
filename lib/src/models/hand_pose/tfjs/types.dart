@@ -15,7 +15,9 @@
  * =============================================================================
  */
 
-import {MediaPipeHandsEstimationConfig, MediaPipeHandsModelConfig} from '../mediapipe/types';
+// import {MediaPipeHandsEstimationConfig, MediaPipeHandsModelConfig} from '../mediapipe/types';
+
+import '../types.dart';
 
 /**
  * Model parameters for MediaPipeHands TFJS runtime.
@@ -34,15 +36,42 @@ import {MediaPipeHandsEstimationConfig, MediaPipeHandsModelConfig} from '../medi
  * the landmark model. This is useful for area/countries that don't have access
  * to the model hosted on tf.hub.
  */
-export interface MediaPipeHandsTfjsModelConfig extends
-    MediaPipeHandsModelConfig {
-  runtime: 'tfjs';
-  detectorModelUrl?: string;
-  landmarkModelUrl?: string;
+class MediaPipeHandsTfjsModelConfig implements ModelConfig {
+  String get runtime => 'tfjs';
+
+  final int? maxHands;
+  final String? detectorModelUrl;
+  final String? landmarkModelUrl;
+  final MediaPipeHandsModelType? modelType;
+
+  const MediaPipeHandsTfjsModelConfig({
+    this.maxHands,
+    this.detectorModelUrl,
+    this.landmarkModelUrl,
+    this.modelType,
+  });
+
+  MediaPipeHandsTfjsModelConfig copyWith({
+    int? maxHands,
+    String? detectorModelUrl,
+    String? landmarkModelUrl,
+    MediaPipeHandsModelType? modelType,
+  }) {
+    return MediaPipeHandsTfjsModelConfig(
+      maxHands: maxHands ?? this.maxHands,
+      detectorModelUrl: detectorModelUrl ?? this.detectorModelUrl,
+      landmarkModelUrl: landmarkModelUrl ?? this.landmarkModelUrl,
+      modelType: modelType ?? this.modelType,
+    );
+  }
+}
+
+enum MediaPipeHandsModelType {
+  lite,
+  full,
 }
 
 /**
  * Hand estimation parameters for MediaPipeHands TFJS runtime.
  */
-export interface MediaPipeHandsTfjsEstimationConfig extends
-    MediaPipeHandsEstimationConfig {}
+typedef MediaPipeHandsTfjsEstimationConfig = EstimationConfig;

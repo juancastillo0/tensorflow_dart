@@ -14,14 +14,17 @@
  * limitations under the License.
  * =============================================================================
  */
-import {MediaPipeHandsMediaPipeEstimationConfig} from './mediapipe/types';
-import {MediaPipeHandsTfjsEstimationConfig} from './tfjs/types';
-import {Hand, HandDetectorInput} from './types';
+// import {MediaPipeHandsMediaPipeEstimationConfig} from './mediapipe/types';
+// import {MediaPipeHandsTfjsEstimationConfig} from './tfjs/types';
+// import {Hand, HandDetectorInput} from './types';
+
+import 'tfjs/types.dart';
+import 'types.dart';
 
 /**
  * User-facing interface for all hand pose detectors.
  */
-export interface HandDetector {
+abstract class HandDetector {
   /**
    * Finds hands in the input image.
    *
@@ -29,18 +32,19 @@ export interface HandDetector {
    * video, or canvas.
    * @param estimationConfig common config for `estimateHands`.
    */
-  estimateHands(
-      input: HandDetectorInput,
-      estimationConfig?: MediaPipeHandsMediaPipeEstimationConfig|
-      MediaPipeHandsTfjsEstimationConfig): Promise<Hand[]>;
+  Future<List<Hand>> estimateHands(
+      HandDetectorInput input,
+      MediaPipeHandsTfjsEstimationConfig?
+          estimationConfig // MediaPipeHandsMediaPipeEstimationConfig|
+      );
 
   /**
    * Dispose the underlying models from memory.
    */
-  dispose(): void;
+  void dispose();
 
   /**
    * Reset global states in the model.
    */
-  reset(): void;
+  void reset();
 }
