@@ -14,15 +14,37 @@
  * limitations under the License.
  * =============================================================================
  */
-import * as tf from '@tensorflow/tfjs-core';
+// import * as tf from '@tensorflow/tfjs-core';
 
-import {Matrix4x4} from './calculate_inverse_matrix';
-import {getRotatedSubRectToRectTransformMatrix} from './get_rotated_sub_rect_to_rect_transformation_matrix';
-import {getImageSize, getProjectiveTransformMatrix, getRoi, padRoi, toImageTensor} from './image_utils';
-import {Padding, PixelInput} from './interfaces/common_interfaces';
-import {ImageToTensorConfig} from './interfaces/config_interfaces';
-import {Rect} from './interfaces/shape_interfaces';
-import {shiftImageValue} from './shift_image_value';
+// import {Matrix4x4} from './calculate_inverse_matrix';
+// import {getRotatedSubRectToRectTransformMatrix} from './get_rotated_sub_rect_to_rect_transformation_matrix';
+// import {getImageSize, getProjectiveTransformMatrix, getRoi, padRoi, toImageTensor} from './image_utils';
+// import {Padding, PixelInput} from './interfaces/common_interfaces';
+// import {ImageToTensorConfig} from './interfaces/config_interfaces';
+// import {Rect} from './interfaces/shape_interfaces';
+// import {shiftImageValue} from './shift_image_value';
+
+import 'calculate_inverse_matrix.dart';
+import 'get_rotated_sub_rect_to_rect_transformation.dart';
+import 'image_utils.dart';
+import 'interfaces/common_interfaces.dart';
+import 'interfaces/config_interfaces.dart';
+import 'interfaces/shape_interfaces.dart';
+import 'package:tensorflow_wasm/tensorflow_wasm.dart' as tf;
+
+import 'shift_image_value.dart';
+
+class ConvertImageToTensorResult {
+  final tf.Tensor4D imageTensor;
+  final Padding padding;
+  final Matrix4x4 transformationMatrix;
+
+  ConvertImageToTensorResult({
+    required this.imageTensor,
+    required this.padding,
+    required this.transformationMatrix,
+  });
+}
 
 /**
  * Convert an image or part of it to an image tensor.
@@ -41,49 +63,55 @@ import {shiftImageValue} from './shift_image_value';
  *     - transformationMatrix: Projective transform matrix used to transform
  * input image to transformed image.
  */
-export function convertImageToTensor(
-    image: PixelInput, config: ImageToTensorConfig, normRect?: Rect): {
-  imageTensor: tf.Tensor4D,
-  padding: Padding,
-  transformationMatrix: Matrix4x4
-} {
-  const {
-    outputTensorSize,
-    keepAspectRatio,
-    borderMode,
-    outputTensorFloatRange
-  } = config;
+ConvertImageToTensorResult convertImageToTensor(
+  PixelInput image,
+  ImageToTensorConfig config,
+  Rect? normRect,
+) {
+  final outputTensorSize = config.outputTensorSize;
+  final keepAspectRatio = config.keepAspectRatio;
+  final borderMode = config.borderMode;
+  final outputTensorFloatRange = config.outputTensorFloatRange;
 
   // Ref:
   // https://github.com/google/mediapipe/blob/master/mediapipe/calculators/tensor/image_to_tensor_calculator.cc
-  const imageSize = getImageSize(image);
-  const roi = getRoi(imageSize, normRect);
-  const padding = padRoi(roi, outputTensorSize, keepAspectRatio);
-  const transformationMatrix = getRotatedSubRectToRectTransformMatrix(
+  final imageSize = getImageSize(image);
+  final roi = getRoi(imageSize, normRect);
+  final padding =
+      padRoi(roi, outputTensorSize, keepAspectRatio: keepAspectRatio ?? false);
+  final transformationMatrix = getRotatedSubRectToRectTransformMatrix(
       roi, imageSize.width, imageSize.height, false);
 
-  const imageTensor = tf.tidy(() => {
-    const $image = toImageTensor(image);
+  final imageTensor = tf.tidy(() {
+    final $image = toImageTensor(image);
 
-    const transformMatrix = tf.tensor2d(
-        getProjectiveTransformMatrix(
-            transformationMatrix, imageSize, outputTensorSize),
-        [1, 8]);
+    final transformMatrix = tf.tensor2d(
+      getProjectiveTransformMatrix(
+          transformationMatrix, imageSize, outputTensorSize),
+      [1, 8],
+    );
 
-    const fillMode = borderMode === 'zero' ? 'constant' : 'nearest';
+    final fillMode = borderMode == BorderMode.zero ? 'constant' : 'nearest';
 
-    const imageTransformed = tf.image.transform(
+    final imageTransformed = tf.image.transform(
         // tslint:disable-next-line: no-unnecessary-type-assertion
         tf.expandDims(tf.cast($image, 'float32')) as tf.Tensor4D,
-        transformMatrix, 'bilinear', fillMode, 0,
-        [outputTensorSize.height, outputTensorSize.width]);
+        transformMatrix,
+        interpolation: 'bilinear',
+        fillMode: fillMode,
+        fillValue: 0,
+        outputShape: [outputTensorSize.height, outputTensorSize.width]);
 
-    const imageShifted = outputTensorFloatRange != null ?
-        shiftImageValue(imageTransformed, outputTensorFloatRange) :
-        imageTransformed;
+    final imageShifted = outputTensorFloatRange != null
+        ? shiftImageValue(imageTransformed, outputTensorFloatRange)
+        : imageTransformed;
 
     return imageShifted;
   });
 
-  return {imageTensor, padding, transformationMatrix};
+  return ConvertImageToTensorResult(
+    imageTensor: imageTensor,
+    padding: padding,
+    transformationMatrix: transformationMatrix,
+  );
 }

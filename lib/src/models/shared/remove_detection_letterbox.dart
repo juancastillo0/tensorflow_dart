@@ -15,8 +15,11 @@
  * =============================================================================
  */
 
-import {Padding} from './interfaces/common_interfaces';
-import {Detection} from './interfaces/shape_interfaces';
+// import {Padding} from './interfaces/common_interfaces';
+// import {Detection} from './interfaces/shape_interfaces';
+
+import 'interfaces/common_interfaces.dart';
+import 'interfaces/shape_interfaces.dart';
 
 /**
  * Adjusts detection locations on the letterboxed image to the corresponding
@@ -32,20 +35,20 @@ import {Detection} from './interfaces/shape_interfaces';
  */
 // ref:
 // https://github.com/google/mediapipe/blob/master/mediapipe/calculators/util/detection_letterbox_removal_calculator.cc
-export function removeDetectionLetterbox(
-    detections: Detection[] = [], letterboxPadding: Padding): Detection[] {
-  const left = letterboxPadding.left;
-  const top = letterboxPadding.top;
-  const leftAndRight = letterboxPadding.left + letterboxPadding.right;
-  const topAndBottom = letterboxPadding.top + letterboxPadding.bottom;
+List<Detection> removeDetectionLetterbox(
+    List<Detection> detections, Padding letterboxPadding) {
+  final left = letterboxPadding.left;
+  final top = letterboxPadding.top;
+  final leftAndRight = letterboxPadding.left + letterboxPadding.right;
+  final topAndBottom = letterboxPadding.top + letterboxPadding.bottom;
 
-  for (let i = 0; i < detections.length; i++) {
-    const detection = detections[i];
-    const relativeBoundingBox = detection.locationData.relativeBoundingBox;
-    const xMin = (relativeBoundingBox.xMin - left) / (1 - leftAndRight);
-    const yMin = (relativeBoundingBox.yMin - top) / (1 - topAndBottom);
-    const width = relativeBoundingBox.width / (1 - leftAndRight);
-    const height = relativeBoundingBox.height / (1 - topAndBottom);
+  for (int i = 0; i < detections.length; i++) {
+    final detection = detections[i];
+    final relativeBoundingBox = detection.locationData.relativeBoundingBox;
+    final xMin = (relativeBoundingBox.xMin - left) / (1 - leftAndRight);
+    final yMin = (relativeBoundingBox.yMin - top) / (1 - topAndBottom);
+    final width = relativeBoundingBox.width / (1 - leftAndRight);
+    final height = relativeBoundingBox.height / (1 - topAndBottom);
     relativeBoundingBox.xMin = xMin;
     relativeBoundingBox.yMin = yMin;
     relativeBoundingBox.width = width;
@@ -53,12 +56,12 @@ export function removeDetectionLetterbox(
     relativeBoundingBox.xMax = xMin + width;
     relativeBoundingBox.yMax = yMin + height;
 
-    const relativeKeypoints = detection.locationData.relativeKeypoints;
+    final relativeKeypoints = detection.locationData.relativeKeypoints;
 
     if (relativeKeypoints) {
-      relativeKeypoints.forEach(keypoint => {
-        const newX = (keypoint.x - left) / (1 - leftAndRight);
-        const newY = (keypoint.y - top) / (1 - topAndBottom);
+      relativeKeypoints.forEach((keypoint) {
+        final newX = (keypoint.x - left) / (1 - leftAndRight);
+        final newY = (keypoint.y - top) / (1 - topAndBottom);
         keypoint.x = newX;
         keypoint.y = newY;
       });

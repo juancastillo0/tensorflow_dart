@@ -14,17 +14,25 @@
  * limitations under the License.
  * =============================================================================
  */
-import * as tf from '@tensorflow/tfjs-core';
-import {Matrix4x4} from './calculate_inverse_matrix';
+// import * as tf from '@tensorflow/tfjs-core';
+// import {Matrix4x4} from './calculate_inverse_matrix';
 
-import {ImageSize, InputResolution, Padding, PixelInput, ValueTransform} from './interfaces/common_interfaces';
-import {Rect} from './interfaces/shape_interfaces';
+// import {ImageSize, InputResolution, Padding, PixelInput, ValueTransform} from './interfaces/common_interfaces';
+// import {Rect} from './interfaces/shape_interfaces';
 
-export function getImageSize(input: PixelInput): ImageSize {
-  if (input instanceof tf.Tensor) {
-    return {height: input.shape[0], width: input.shape[1]};
+import 'dart:math' as Math;
+import 'package:tensorflow_wasm/tensorflow_wasm.dart' as tf;
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
+
+import 'calculate_inverse_matrix.dart';
+import 'interfaces/common_interfaces.dart';
+import 'interfaces/shape_interfaces.dart';
+
+ImageSize getImageSize(PixelInput input) {
+  if (input is tf.Tensor) {
+    return ImageSize(height: input.shape[0], width: input.shape[1]);
   } else {
-    return {height: input.height, width: input.width};
+    return ImageSize(height: input.height, width: input.width);
   }
 }
 
@@ -32,8 +40,8 @@ export function getImageSize(input: PixelInput): ImageSize {
  * Normalizes the provided angle to the range -pi to pi.
  * @param angle The angle in radians to be normalized.
  */
-export function normalizeRadians(angle: number): number {
-  return angle - 2 * Math.PI * Math.floor((angle + Math.PI) / (2 * Math.PI));
+double normalizeRadians(double angle) {
+  return angle - 2 * Math.pi * ((angle + Math.pi) / (2 * Math.pi)).floor();
 }
 
 /**
@@ -43,20 +51,22 @@ export function normalizeRadians(angle: number): number {
  * @param toMin New min of transformed value range.
  * @param toMax New max of transformed value range.
  */
-export function transformValueRange(
-    fromMin: number, fromMax: number, toMin: number,
-    toMax: number): ValueTransform {
-  const fromRange = fromMax - fromMin;
-  const toRange = toMax - toMin;
+ValueTransform transformValueRange(
+    double fromMin, double fromMax, double toMin, double toMax) {
+  final fromRange = fromMax - fromMin;
+  final toRange = toMax - toMin;
 
-  if (fromRange === 0) {
-    throw new Error(
-        `Original min and max are both ${fromMin}, range cannot be 0.`);
+  if (fromRange == 0) {
+    throw Exception(
+        'Original min and max are both ${fromMin}, range cannot be 0.');
   }
 
-  const scale = toRange / fromRange;
-  const offset = toMin - fromMin * scale;
-  return {scale, offset};
+  final scale = toRange / fromRange;
+  final offset = toMin - fromMin * scale;
+  return ValueTransform(
+    scale: scale,
+    offset: offset,
+  );
 }
 
 /**
@@ -66,8 +76,8 @@ export function transformValueRange(
  *
  * @param input An image, video frame, or image tensor.
  */
-export function toImageTensor(input: PixelInput) {
-  return input instanceof tf.Tensor ? input : tf.browser.fromPixels(input);
+tf.Tensor toImageTensor(PixelInput input) {
+  return input is tf.Tensor ? input : tf.browser.fromPixels(input);
 }
 
 /**
@@ -84,24 +94,27 @@ export function toImageTensor(input: PixelInput) {
  * @param targetSize The target width and height of the result rectangle.
  * @param keepAspectRatio Whether keep aspect ratio. Default to false.
  */
-export function padRoi(
-    roi: Rect, targetSize: InputResolution, keepAspectRatio = false): Padding {
+Padding padRoi(
+  Rect roi,
+  InputResolution targetSize, {
+  bool keepAspectRatio = false,
+}) {
   if (!keepAspectRatio) {
-    return {top: 0, left: 0, right: 0, bottom: 0};
+    return Padding(top: 0, left: 0, right: 0, bottom: 0);
   }
 
-  const targetH = targetSize.height;
-  const targetW = targetSize.width;
+  final targetH = targetSize.height;
+  final targetW = targetSize.width;
 
   validateSize(targetSize, 'targetSize');
   validateSize(roi, 'roi');
 
-  const tensorAspectRatio = targetH / targetW;
-  const roiAspectRatio = roi.height / roi.width;
-  let newWidth;
-  let newHeight;
-  let horizontalPadding = 0;
-  let verticalPadding = 0;
+  final tensorAspectRatio = targetH / targetW;
+  final roiAspectRatio = roi.height / roi.width;
+  final int newWidth;
+  final int newHeight;
+  int horizontalPadding = 0;
+  int verticalPadding = 0;
   if (tensorAspectRatio > roiAspectRatio) {
     // pad height;
     newWidth = roi.width;
@@ -117,12 +130,12 @@ export function padRoi(
   roi.width = newWidth;
   roi.height = newHeight;
 
-  return {
+  return Padding(
     top: verticalPadding,
     left: horizontalPadding,
     right: horizontalPadding,
-    bottom: verticalPadding
-  };
+    bottom: verticalPadding,
+  );
 }
 
 /**
@@ -134,23 +147,23 @@ export function padRoi(
  *     a subarea rectangle information in the image. `imageSize` is used to
  *     calculate the actual non-normalized coordinates.
  */
-export function getRoi(imageSize: ImageSize, normRect?: Rect): Rect {
-  if (normRect) {
-    return {
+Rect getRoi(ImageSize imageSize, Rect? normRect) {
+  if (normRect != null) {
+    return Rect(
       xCenter: normRect.xCenter * imageSize.width,
       yCenter: normRect.yCenter * imageSize.height,
       width: normRect.width * imageSize.width,
       height: normRect.height * imageSize.height,
-      rotation: normRect.rotation
-    };
+      rotation: normRect.rotation,
+    );
   } else {
-    return {
+    return Rect(
       xCenter: 0.5 * imageSize.width,
       yCenter: 0.5 * imageSize.height,
       width: imageSize.width,
       height: imageSize.height,
-      rotation: 0
-    };
+      rotation: 0,
+    );
   }
 }
 
@@ -164,9 +177,11 @@ export function getRoi(imageSize: ImageSize, normRect?: Rect): Rect {
  * @param imageSize The original image height and width.
  * @param inputResolution The target height and width.
  */
-export function getProjectiveTransformMatrix(
-    matrix: Matrix4x4, imageSize: ImageSize, inputResolution: InputResolution):
-    [number, number, number, number, number, number, number, number] {
+List<double> getProjectiveTransformMatrix(
+  Matrix4x4 matrix,
+  ImageSize imageSize,
+  InputResolution inputResolution,
+) {
   validateSize(inputResolution, 'inputResolution');
 
   // To use M with regular x, y coordinates, we need to normalize them first.
@@ -177,17 +192,17 @@ export function getProjectiveTransformMatrix(
   // Also at the end, we need to de-normalize x' and y' to regular coordinates.
   // So we need to use factor imageSize.width for a0, a1 and a2, similarly
   // we need to use factor imageSize.height for b0, b1 and b2.
-  const a0 = (1 / inputResolution.width) * matrix[0][0] * imageSize.width;
-  const a1 = (1 / inputResolution.height) * matrix[0][1] * imageSize.width;
-  const a2 = matrix[0][3] * imageSize.width;
-  const b0 = (1 / inputResolution.width) * matrix[1][0] * imageSize.height;
-  const b1 = (1 / inputResolution.height) * matrix[1][1] * imageSize.height;
-  const b2 = matrix[1][3] * imageSize.height;
+  final a0 = (1 / inputResolution.width) * matrix[0][0] * imageSize.width;
+  final a1 = (1 / inputResolution.height) * matrix[0][1] * imageSize.width;
+  final a2 = matrix[0][3] * imageSize.width;
+  final b0 = (1 / inputResolution.width) * matrix[1][0] * imageSize.height;
+  final b1 = (1 / inputResolution.height) * matrix[1][1] * imageSize.height;
+  final b2 = matrix[1][3] * imageSize.height;
 
   return [a0, a1, a2, b0, b1, b2, 0, 0];
 }
 
-function validateSize(size: {width: number, height: number}, name: string) {
-  tf.util.assert(size.width !== 0, () => `${name} width cannot be 0.`);
-  tf.util.assert(size.height !== 0, () => `${name} height cannot be 0.`);
+void validateSize(ImageSize size, String name) {
+  util.assert_(size.width != 0, () => '${name} width cannot be 0.');
+  util.assert_(size.height != 0, () => '${name} height cannot be 0.');
 }

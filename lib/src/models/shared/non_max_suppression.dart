@@ -14,34 +14,44 @@
  * limitations under the License.
  * =============================================================================
  */
-import * as tf from '@tensorflow/tfjs-core';
-import {Detection} from './interfaces/shape_interfaces';
+// import * as tf from '@tensorflow/tfjs-core';
+// import {Detection} from './interfaces/shape_interfaces';
 
-export async function nonMaxSuppression(
-    detections: Detection[], maxDetections: number, iouThreshold: number,
-    // Currently only IOU overap is supported.
-    overlapType: 'intersection-over-union'): Promise<Detection[]> {
+import 'dart:math' as Math;
+import 'package:collection/collection.dart';
+import 'package:tensorflow_wasm/tensorflow_wasm.dart' as tf;
+
+import 'interfaces/shape_interfaces.dart';
+
+Future<List<Detection>> nonMaxSuppression(
+  List<Detection> detections,
+  int maxDetections,
+  double iouThreshold,
+  // Currently only IOU overap is supported.
+  // overlapType: 'intersection-over-union',
+) async {
   // Sort to match NonMaxSuppresion calculator's decreasing detection score
   // traversal.
   // NonMaxSuppresionCalculator: RetainMaxScoringLabelOnly
-  detections.sort(
-      (detectionA, detectionB) =>
-          Math.max(...detectionB.score) - Math.max(...detectionA.score));
+  detections.sort((detectionA, detectionB) =>
+      (detectionB.score!.reduce(Math.max) - detectionA.score!.reduce(Math.max))
+          .round());
 
-  const detectionsTensor = tf.tensor2d(detections.map(
-      d =>
-          [d.locationData.relativeBoundingBox.yMin,
-           d.locationData.relativeBoundingBox.xMin,
-           d.locationData.relativeBoundingBox.yMax,
-           d.locationData.relativeBoundingBox.xMax]));
-  const scoresTensor = tf.tensor1d(detections.map(d => d.score[0]));
+  final detectionsTensor = tf.tensor2d(detections.map((d) => [
+        d.locationData.relativeBoundingBox.yMin,
+        d.locationData.relativeBoundingBox.xMin,
+        d.locationData.relativeBoundingBox.yMax,
+        d.locationData.relativeBoundingBox.xMax
+      ]));
+  final scoresTensor = tf.tensor1d(detections.map((d) => d.score![0]));
 
-  const selectedIdsTensor = await tf.image.nonMaxSuppressionAsync(
-      detectionsTensor, scoresTensor, maxDetections, iouThreshold);
-  const selectedIds = await selectedIdsTensor.array();
+  final selectedIdsTensor = await tf.image.nonMaxSuppressionAsync(
+      detectionsTensor, scoresTensor, maxDetections,
+      iouThreshold: iouThreshold);
+  final selectedIds = await selectedIdsTensor.array() as List;
 
-  const selectedDetections =
-      detections.filter((_, i) => (selectedIds.indexOf(i) > -1));
+  final selectedDetections =
+      detections.whereIndexed((i, _) => selectedIds.contains(i)).toList();
 
   tf.dispose([detectionsTensor, scoresTensor, selectedIdsTensor]);
 

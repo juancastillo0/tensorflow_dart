@@ -15,8 +15,12 @@
  * =============================================================================
  */
 
-import {arrayToMatrix4x4, Matrix4x4} from './calculate_inverse_matrix';
-import {Rect} from './interfaces/shape_interfaces';
+// import {arrayToMatrix4x4, Matrix4x4} from './calculate_inverse_matrix';
+// import {Rect} from './interfaces/shape_interfaces';
+
+import 'dart:math' as Math;
+import 'calculate_inverse_matrix.dart';
+import 'interfaces/shape_interfaces.dart';
 
 /**
  * Generates a 4x4 projective transform matrix M, so that for any point in the
@@ -30,9 +34,12 @@ import {Rect} from './interfaces/shape_interfaces';
  */
 // Ref:
 // https://github.com/google/mediapipe/blob/master/mediapipe/calculators/tensor/image_to_tensor_utils.h
-export function getRotatedSubRectToRectTransformMatrix(
-    subRect: Rect, rectWidth: number, rectHeight: number,
-    flipHorizontally: boolean): Matrix4x4 {
+Matrix4x4 getRotatedSubRectToRectTransformMatrix(
+  Rect subRect,
+  int rectWidth,
+  int rectHeight,
+  bool flipHorizontally,
+) {
   // The resulting matrix is multiplication of below commented out matrices:
   //   postScaleMatrix
   //     * translateMatrix
@@ -53,8 +60,8 @@ export function getRotatedSubRectToRectTransformMatrix(
   // [ 0.0,  0.0, 1.0,  0.0]
   // [ 0.0,  0.0, 0.0,  1.0]
 
-  const a = subRect.width;
-  const b = subRect.height;
+  final a = subRect.width;
+  final b = subRect.height;
   // Matrix to scale X,Y,Z to sub rect "scaleMatrix"
   // Z has the same scale as X.
   // [   a, 0.0, 0.0, 0.0]
@@ -62,23 +69,23 @@ export function getRotatedSubRectToRectTransformMatrix(
   // [0.0, 0.0,    a, 0.0]
   // [0.0, 0.0, 0.0, 1.0]
 
-  const flip = flipHorizontally ? -1 : 1;
+  final flip = flipHorizontally ? -1 : 1;
   // Matrix for optional horizontal flip around middle of output image.
   // [ fl  , 0.0, 0.0, 0.0]
   // [ 0.0, 1.0, 0.0, 0.0]
   // [ 0.0, 0.0, 1.0, 0.0]
   // [ 0.0, 0.0, 0.0, 1.0]
 
-  const c = Math.cos(subRect.rotation);
-  const d = Math.sin(subRect.rotation);
+  final c = Math.cos(subRect.rotation);
+  final d = Math.sin(subRect.rotation);
   // Matrix to do rotation around Z axis "rotateMatrix"
   // [    c,   -d, 0.0, 0.0]
   // [    d,    c, 0.0, 0.0]
   // [ 0.0, 0.0, 1.0, 0.0]
   // [ 0.0, 0.0, 0.0, 1.0]
 
-  const e = subRect.xCenter;
-  const f = subRect.yCenter;
+  final e = subRect.xCenter;
+  final f = subRect.yCenter;
   // Matrix to do X,Y translation of sub rect within parent rect
   // "translateMatrix"
   // [1.0, 0.0, 0.0, e   ]
@@ -86,15 +93,15 @@ export function getRotatedSubRectToRectTransformMatrix(
   // [0.0, 0.0, 1.0, 0.0]
   // [0.0, 0.0, 0.0, 1.0]
 
-  const g = 1.0 / rectWidth;
-  const h = 1.0 / rectHeight;
+  final g = 1.0 / rectWidth;
+  final h = 1.0 / rectHeight;
   // Matrix to scale X,Y,Z to [0.0, 1.0] range "postScaleMatrix"
   // [g,    0.0, 0.0, 0.0]
   // [0.0, h,    0.0, 0.0]
   // [0.0, 0.0,    g, 0.0]
   // [0.0, 0.0, 0.0, 1.0]
 
-  const matrix: number[] = new Array(16);
+  final matrix = List.filled(16, 0.0);
   // row 1
   matrix[0] = a * c * flip * g;
   matrix[1] = -b * d * g;

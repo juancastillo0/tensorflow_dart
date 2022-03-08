@@ -14,22 +14,36 @@
  * limitations under the License.
  * =============================================================================
  */
-import * as tf from '@tensorflow/tfjs-core';
-import {splitDetectionResult} from './split_detection_result';
+// import * as tf from '@tensorflow/tfjs-core';
+// import {splitDetectionResult} from './split_detection_result';
 
-export type detectorResult = {
-  boxes: tf.Tensor2D,
-  logits: tf.Tensor1D
-};
+import 'package:tensorflow_wasm/tensorflow_wasm.dart' as tf;
 
-export function detectorResult(detectionResult: tf.Tensor3D): detectorResult {
-  return tf.tidy(() => {
-    const [logits, rawBoxes] = splitDetectionResult(detectionResult);
+import 'split_detection_result.dart';
+
+class DetectorResult {
+  final tf.Tensor2D boxes;
+  final tf.Tensor1D logits;
+
+  const DetectorResult({
+    required this.boxes,
+    required this.logits,
+  });
+}
+
+DetectorResult detectorResult(tf.Tensor3D detectionResult) {
+  return tf.tidy(() {
+    final _v = splitDetectionResult(detectionResult);
+    final logits = _v.logits;
+    final rawBoxes = _v.rawBoxes;
     // Shape [896, 12]
-    const rawBoxes2d = tf.squeeze(rawBoxes);
+    final rawBoxes2d = tf.squeeze(rawBoxes);
     // Shape [896]
-    const logits1d = tf.squeeze(logits);
+    final logits1d = tf.squeeze(logits);
 
-    return {boxes: rawBoxes2d as tf.Tensor2D, logits: logits1d as tf.Tensor1D};
+    return DetectorResult(
+      boxes: rawBoxes2d as tf.Tensor2D,
+      logits: logits1d as tf.Tensor1D,
+    );
   });
 }
