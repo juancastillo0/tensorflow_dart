@@ -15,7 +15,9 @@
  * =============================================================================
  */
 
-import {Keypoint, Padding} from './interfaces/common_interfaces';
+// import {Keypoint, Padding} from './interfaces/common_interfaces';
+
+import 'interfaces/common_interfaces.dart';
 
 /**
  * Adjusts landmark locations on a letterboxed image to the corresponding
@@ -29,21 +31,25 @@ import {Keypoint, Padding} from './interfaces/common_interfaces';
  */
 // ref:
 // https://github.com/google/mediapipe/blob/master/mediapipe/calculators/util/landmark_letterbox_removal_calculator.cc
-export function removeLandmarkLetterbox(
-    rawLandmark: Keypoint[], padding: Padding) {
-  const left = padding.left;
-  const top = padding.top;
-  const leftAndRight = padding.left + padding.right;
-  const topAndBottom = padding.top + padding.bottom;
+List<Keypoint> removeLandmarkLetterbox(
+  List<Keypoint> rawLandmark,
+  Padding padding,
+) {
+  final left = padding.left;
+  final top = padding.top;
+  final leftAndRight = padding.left + padding.right;
+  final topAndBottom = padding.top + padding.bottom;
 
-  const outLandmarks = rawLandmark.map(landmark => {
-    return {
-      ...landmark,
+  final outLandmarks = rawLandmark.map((landmark) {
+    return landmark.copyWith(
       x: (landmark.x - left) / (1 - leftAndRight),
       y: (landmark.y - top) / (1 - topAndBottom),
-      z: landmark.z / (1 - leftAndRight)  // Scale Z coordinate as X.
-    };
-  });
+      z: landmark.z == null
+          ? null
+          : Nullable(
+              landmark.z! / (1 - leftAndRight)), // Scale Z coordinate as X.
+    );
+  }).toList();
 
   return outLandmarks;
 }

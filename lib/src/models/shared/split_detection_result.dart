@@ -14,17 +14,26 @@
  * limitations under the License.
  * =============================================================================
  */
-import * as tf from '@tensorflow/tfjs-core';
+import 'package:tensorflow_wasm/tensorflow_wasm.dart' as tf;
 
-export function splitDetectionResult(detectionResult: tf.Tensor3D):
-    [tf.Tensor3D, tf.Tensor3D] {
-  return tf.tidy(() => {
+class SplitDetectionResult {
+  final tf.Tensor3D logits;
+  final tf.Tensor3D rawBoxes;
+
+  SplitDetectionResult({
+    required this.logits,
+    required this.rawBoxes,
+  });
+}
+
+SplitDetectionResult splitDetectionResult(tf.Tensor3D detectionResult) {
+  return tf.tidy(() {
     // logit is stored in the first element in each anchor data.
-    const logits = tf.slice(detectionResult, [0, 0, 0], [1, -1, 1]);
+    final logits = tf.slice(detectionResult, [0, 0, 0], [1, -1, 1]);
     // Bounding box coords are stored in the next four elements for each anchor
     // point.
-    const rawBoxes = tf.slice(detectionResult, [0, 0, 1], [1, -1, -1]);
+    final rawBoxes = tf.slice(detectionResult, [0, 0, 1], [1, -1, -1]);
 
-    return [logits, rawBoxes];
+    return SplitDetectionResult(logits: logits, rawBoxes: rawBoxes);
   });
 }

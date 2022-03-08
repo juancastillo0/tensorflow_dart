@@ -14,15 +14,26 @@
  * limitations under the License.
  * =============================================================================
  */
-import * as tf from '@tensorflow/tfjs-core';
+import 'dart:typed_data';
 
-import {Keypoint} from './interfaces/common_interfaces';
+import 'interfaces/common_interfaces.dart';
+import 'interfaces/config_interfaces.dart';
+import 'package:tensorflow_wasm/tensorflow_wasm.dart' as tf;
 
-import {TensorsToLandmarksConfig} from './interfaces/config_interfaces';
-import {sigmoid} from './sigmoid';
+import 'sigmoid.dart';
 
-function applyActivation(activation: 'none'|'sigmoid', value: number) {
-  return activation === 'none' ? value : sigmoid(value);
+// import * as tf from '@tensorflow/tfjs-core';
+
+// import {Keypoint} from './interfaces/common_interfaces';
+
+// import {TensorsToLandmarksConfig} from './interfaces/config_interfaces';
+// import {sigmoid} from './sigmoid';
+
+double applyActivation(
+    String activation //: 'none'|'sigmoid'
+    ,
+    double value) {
+  return activation == 'none' ? value : sigmoid(value);
 }
 
 /**
@@ -42,51 +53,65 @@ function applyActivation(activation: 'none'|'sigmoid', value: number) {
  *
  * @returns Normalized landmarks.
  */
-export async function tensorsToLandmarks(
-    landmarkTensor: tf.Tensor, config: TensorsToLandmarksConfig,
-    flipHorizontally?: boolean, flipVertically?: boolean) {
-  flipHorizontally = flipHorizontally || config.flipHorizontally || false;
-  flipVertically = flipVertically || config.flipVertically || false;
+Future<List<Keypoint>> tensorsToLandmarks(
+  tf.Tensor landmarkTensor,
+  TensorsToLandmarksConfig config, {
+  bool? flipHorizontally,
+  bool? flipVertically,
+}) async {
+  flipHorizontally = flipHorizontally ?? config.flipHorizontally ?? false;
+  flipVertically = flipVertically ?? config.flipVertically ?? false;
 
-  const numValues = landmarkTensor.size;
-  const numDimensions = numValues / config.numLandmarks;
-  const rawLandmarks = await landmarkTensor.data() as Float32Array;
+  final numValues = landmarkTensor.size;
+  final numDimensions = numValues ~/ config.numLandmarks;
+  final rawLandmarks = await landmarkTensor.data() as Float32List;
 
-  const outputLandmarks: Keypoint[] = [];
-  for (let ld = 0; ld < config.numLandmarks; ++ld) {
-    const offset = ld * numDimensions;
-    const landmark: Keypoint = {x: 0, y: 0};
+  final List<Keypoint> outputLandmarks = [];
+  for (int ld = 0; ld < config.numLandmarks; ++ld) {
+    final offset = ld * numDimensions;
 
+    double x = 0;
+    double y = 0;
+    double? z;
+    double? score;
     if (flipHorizontally) {
-      landmark.x = config.inputImageWidth - rawLandmarks[offset];
+      x = config.inputImageWidth - rawLandmarks[offset];
     } else {
-      landmark.x = rawLandmarks[offset];
+      x = rawLandmarks[offset];
     }
     if (numDimensions > 1) {
       if (flipVertically) {
-        landmark.y = config.inputImageHeight - rawLandmarks[offset + 1];
+        y = config.inputImageHeight - rawLandmarks[offset + 1];
       } else {
-        landmark.y = rawLandmarks[offset + 1];
+        y = rawLandmarks[offset + 1];
       }
     }
     if (numDimensions > 2) {
-      landmark.z = rawLandmarks[offset + 2];
+      z = rawLandmarks[offset + 2];
     }
     if (numDimensions > 3) {
-      landmark.score = applyActivation(
+      score = applyActivation(
           config.visibilityActivation, rawLandmarks[offset + 3]);
     }
     // presence is in rawLandmarks[offset + 4], we don't expose it.
 
-    outputLandmarks.push(landmark);
+    outputLandmarks.add(Keypoint(x: x, y: y, z: z, score: score));
   }
 
-  for (let i = 0; i < outputLandmarks.length; ++i) {
-    const landmark = outputLandmarks[i];
-    landmark.x = landmark.x / config.inputImageWidth;
-    landmark.y = landmark.y / config.inputImageHeight;
+  for (int i = 0; i < outputLandmarks.length; ++i) {
+    final landmark = outputLandmarks[i];
+    final x = landmark.x / config.inputImageWidth;
+    final y = landmark.y / config.inputImageHeight;
     // Scale Z coordinate as X + allow additional uniform normalization.
-    landmark.z = landmark.z / config.inputImageWidth / (config.normalizeZ || 1);
+    final z = landmark.z == null
+        ? null
+        : (landmark.z! / config.inputImageWidth / (config.normalizeZ ?? 1));
+
+    outputLandmarks[i] = landmark.copyWith(
+      x: x,
+      y: y,
+      z: Nullable(z),
+    );
   }
 
   return outputLandmarks;

@@ -1,5 +1,3 @@
-
-   
 /**
  * @license
  * Copyright 2021 Google LLC. All Rights Reserved.
@@ -16,16 +14,22 @@
  * limitations under the License.
  * =============================================================================
  */
-import * as tf from '@tensorflow/tfjs-core';
-import {transformValueRange} from './image_utils';
+// import * as tf from '@tensorflow/tfjs-core';
+// import {transformValueRange} from './image_utils';
+import 'package:tensorflow_wasm/tensorflow_wasm.dart' as tf;
 
-export function shiftImageValue(
-    image: tf.Tensor4D, outputFloatRange: [number, number]): tf.Tensor4D {
+import 'image_utils.dart';
+
+tf.Tensor4D shiftImageValue(tf.Tensor4D image, List<double> outputFloatRange) {
   // Calculate the scale and offset to shift from [0, 255] to [-1, 1].
-  const valueRange = transformValueRange(
+  final valueRange = transformValueRange(
       0, 255, outputFloatRange[0] /* min */, outputFloatRange[1] /* max */);
 
   // Shift value range.
   return tf.tidy(
-      () => tf.add(tf.mul(image, valueRange.scale), valueRange.offset));
+    () => tf.add(
+      tf.mul(image, tf.scalar(valueRange.scale)),
+      tf.scalar(valueRange.offset),
+    ),
+  );
 }
