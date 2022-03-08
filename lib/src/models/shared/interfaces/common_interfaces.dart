@@ -19,11 +19,17 @@
 
 import 'package:tensorflow_wasm/tensorflow_wasm.dart' show Tensor3D;
 
+class Nullable<T extends Object> {
+  final T? value;
+
+  const Nullable(this.value);
+}
+
 typedef PixelInput = Object;
 //  Tensor3D|ImageData|HTMLVideoElement|HTMLImageElement|
 //     HTMLCanvasElement|ImageBitmap;
 
-class InputResolution {
+class InputResolution implements ImageSize {
   final int width;
   final int height;
 
@@ -50,6 +56,22 @@ class Keypoint {
     this.score,
     this.name,
   });
+
+  Keypoint copyWith({
+    double? x,
+    double? y,
+    Nullable<double>? z,
+    Nullable<double>? score,
+    Nullable<String>? name,
+  }) {
+    return Keypoint(
+      x: x ?? this.x,
+      y: y ?? this.y,
+      z: z != null ? z.value : this.z,
+      score: score != null ? score.value : this.score,
+      name: name != null ? name.value : this.name,
+    );
+  }
 }
 
 class ImageSize {

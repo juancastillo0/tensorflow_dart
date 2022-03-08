@@ -26,19 +26,19 @@ import 'common_interfaces.dart';
  * A rectangle that contains center point, height, width and rotation info.
  * Can be normalized or non-normalized.
  */
-class Rect {
+class Rect implements ImageSize {
   final int xCenter;
   final int yCenter;
   final int height;
   final int width;
-  final double? rotation;
+  final double rotation;
 
   const Rect({
     required this.xCenter,
     required this.yCenter,
     required this.height,
     required this.width,
-    this.rotation,
+    this.rotation = 0,
   });
 }
 

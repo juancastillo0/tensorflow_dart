@@ -68,15 +68,15 @@ MediaPipeHandsTfjsModelConfig validateModelConfig(
 }
 
 MediaPipeHandsTfjsEstimationConfig validateEstimationConfig(
-    MediaPipeHandsTfjsEstimationConfig estimationConfig) {
+    MediaPipeHandsTfjsEstimationConfig? estimationConfig) {
   // if (estimationConfig == null) {
   //   return {...DEFAULT_MPHANDS_ESTIMATION_CONFIG};
   // }
 
   final config = MediaPipeHandsTfjsEstimationConfig(
-    flipHorizontal: estimationConfig.flipHorizontal ??
+    flipHorizontal: estimationConfig?.flipHorizontal ??
         DEFAULT_MPHANDS_ESTIMATION_CONFIG.flipHorizontal,
-    staticImageMode: estimationConfig.staticImageMode ??
+    staticImageMode: estimationConfig?.staticImageMode ??
         DEFAULT_MPHANDS_ESTIMATION_CONFIG.staticImageMode,
   );
 

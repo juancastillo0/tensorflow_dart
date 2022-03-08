@@ -19,6 +19,7 @@
 // import {ImageSize, Keypoint} from '../../shared/calculators/interfaces/common_interfaces';
 // import  {Rect} from '../../shared/calculators/interfaces/shape_interfaces';
 
+import '../../../shared/image_utils.dart';
 import '../../../shared/interfaces/common_interfaces.dart';
 import '../../../shared/interfaces/shape_interfaces.dart';
 

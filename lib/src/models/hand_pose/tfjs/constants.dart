@@ -80,10 +80,11 @@ const MPHANDS_TENSORS_TO_DETECTION_CONFIGURATION = TensorsToDetectionsConfig(
   minScoreThresh: 0.5,
 );
 
-const MPHANDS_DETECTOR_NON_MAX_SUPPRESSION_CONFIGURATION = {
-  'minSuppressionThreshold': 0.3,
-  'overlapType': 'intersection-over-union',
-};
+class MPHANDS_DETECTOR_NON_MAX_SUPPRESSION_CONFIGURATION {
+  static const minSuppressionThreshold = 0.3;
+  static const overlapType = 'intersection-over-union';
+}
+
 const MPHANDS_DETECTOR_RECT_TRANSFORMATION_CONFIG = RectTransformationConfig(
     shiftX: 0, shiftY: -0.5, scaleX: 2.6, scaleY: 2.6, squareLong: true);
 const MPHANDS_LANDMARK_RECT_TRANSFORMATION_CONFIG = RectTransformationConfig(
