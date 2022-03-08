@@ -15,65 +15,86 @@
  * =============================================================================
  */
 
-import {BoundingBox, Rect} from './interfaces/shape_interfaces';
+// import {BoundingBox, Rect} from './interfaces/shape_interfaces';
+import 'dart:math' as Math;
+import 'interfaces/shape_interfaces.dart';
 
-function area(rect: BoundingBox) {
+int _area(BoundingBox rect) {
   return rect.width * rect.height;
 }
 
-function intersects(rect1: BoundingBox, rect2: BoundingBox) {
-  return !(
-      rect1.xMax < rect2.xMin || rect2.xMax < rect1.xMin ||
-      rect1.yMax < rect2.yMin || rect2.yMax < rect1.yMin);
+bool _intersects(BoundingBox rect1, BoundingBox rect2) {
+  return !(rect1.xMax < rect2.xMin ||
+      rect2.xMax < rect1.xMin ||
+      rect1.yMax < rect2.yMin ||
+      rect2.yMax < rect1.yMin);
 }
 
-function intersect(rect1: BoundingBox, rect2: BoundingBox) {
-  const xMin = Math.max(rect1.xMin, rect2.xMin);
-  const xMax = Math.min(rect1.xMax, rect2.xMax);
-  const yMin = Math.max(rect1.yMin, rect2.yMin);
-  const yMax = Math.min(rect1.yMax, rect2.yMax);
-  const width = Math.max(xMax - xMin, 0);
-  const height = Math.max(yMax - yMin, 0);
+BoundingBox _intersect(BoundingBox rect1, BoundingBox rect2) {
+  final xMin = Math.max(rect1.xMin, rect2.xMin);
+  final xMax = Math.min(rect1.xMax, rect2.xMax);
+  final yMin = Math.max(rect1.yMin, rect2.yMin);
+  final yMax = Math.min(rect1.yMax, rect2.yMax);
+  final width = Math.max(xMax - xMin, 0);
+  final height = Math.max(yMax - yMin, 0);
 
-  return {xMin, xMax, yMin, yMax, width, height};
+  return BoundingBox(
+    xMin: xMin,
+    xMax: xMax,
+    yMin: yMin,
+    yMax: yMax,
+    width: width,
+    height: height,
+  );
 }
 
-function getBoundingBox(rect: Rect): BoundingBox {
-  const xMin = rect.xCenter - rect.width / 2;
-  const xMax = xMin + rect.width;
-  const yMin = rect.yCenter - rect.height / 2;
-  const yMax = yMin + rect.height;
-  return {xMin, xMax, yMin, yMax, width: rect.width, height: rect.height};
+BoundingBox _getBoundingBox(Rect rect) {
+  final xMin = rect.xCenter - rect.width / 2;
+  final xMax = xMin + rect.width;
+  final yMin = rect.yCenter - rect.height / 2;
+  final yMax = yMin + rect.height;
+
+  return BoundingBox(
+    xMin: xMin,
+    xMax: xMax,
+    yMin: yMin,
+    yMax: yMax,
+    width: rect.width,
+    height: rect.height,
+  );
 }
 
-function overlapSimilarity(rect1: Rect, rect2: Rect): number {
-  const bbox1 = getBoundingBox(rect1);
-  const bbox2 = getBoundingBox(rect2);
-  if (!intersects(bbox1, bbox2)) {
+double overlapSimilarity(Rect rect1, Rect rect2) {
+  final bbox1 = _getBoundingBox(rect1);
+  final bbox2 = _getBoundingBox(rect2);
+  if (!_intersects(bbox1, bbox2)) {
     return 0;
   }
-  const intersectionArea = area(intersect(bbox1, bbox2));
-  const normalization = area(bbox1) + area(bbox2) - intersectionArea;
+  final intersectionArea = _area(_intersect(bbox1, bbox2));
+  final normalization = _area(bbox1) + _area(bbox2) - intersectionArea;
   return normalization > 0 ? intersectionArea / normalization : 0;
 }
 
 // ref:
 // https://github.com/google/mediapipe/blob/master/mediapipe/calculators/util/association_norm_rect_calculator.cc
 // Propgating ids from previous to current is not performed by this code.
-export function calculateAssociationNormRect(
-    rectsArray: Rect[][], minSimilarityThreshold: number): Rect[] {
-  let result: Rect[] = [];
+List<Rect> calculateAssociationNormRect(
+  List<List<Rect>> rectsArray,
+  double minSimilarityThreshold,
+) {
+  List<Rect> result = [];
 
   // rectsArray elements are interpreted to be sorted in reverse priority order,
   // so later elements are higher in priority. This means that if there's a
   // large overlap, the later rect will be added and the older rect will be
   // removed.
-  rectsArray.forEach(rects => rects.forEach(curRect => {
-    result = result.filter(
-        prevRect =>
-            overlapSimilarity(curRect, prevRect) <= minSimilarityThreshold);
-    result.push(curRect);
-  }));
+  rectsArray.forEach((rects) => rects.forEach((curRect) {
+        result = result
+            .where((prevRect) =>
+                overlapSimilarity(curRect, prevRect) <= minSimilarityThreshold)
+            .toList();
+        result.add(curRect);
+      }));
 
   return result;
 }

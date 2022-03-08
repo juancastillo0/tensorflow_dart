@@ -15,8 +15,12 @@
  * =============================================================================
  */
 
-import {Keypoint} from './interfaces/common_interfaces';
-import {Rect} from './interfaces/shape_interfaces';
+// import {Keypoint} from './interfaces/common_interfaces';
+// import {Rect} from './interfaces/shape_interfaces';
+
+import 'dart:math' as Math;
+import 'interfaces/common_interfaces.dart';
+import 'interfaces/shape_interfaces.dart';
 
 /**
  * Projects normalized landmarks in a rectangle to its original coordinates. The
@@ -28,31 +32,35 @@ import {Rect} from './interfaces/shape_interfaces';
  */
 // ref:
 // https://github.com/google/mediapipe/blob/master/mediapipe/calculators/util/landmark_projection_calculator.cc
-export function calculateLandmarkProjection(
-    landmarks: Keypoint[], inputRect: Rect,
-    config: {ignoreRotation: boolean} = {
-      ignoreRotation: false
-    }) {
-  const outputLandmarks: Keypoint[] = [];
-  for (const landmark of landmarks) {
-    const x = landmark.x - 0.5;
-    const y = landmark.y - 0.5;
-    const angle = config.ignoreRotation ? 0 : inputRect.rotation;
-    let newX = Math.cos(angle) * x - Math.sin(angle) * y;
-    let newY = Math.sin(angle) * x + Math.cos(angle) * y;
+List<Keypoint> calculateLandmarkProjection(
+  List<Keypoint> landmarks,
+  Rect inputRect, {
+  bool ignoreRotation = false,
+}) {
+  final List<Keypoint> outputLandmarks = [];
+  for (final landmark in landmarks) {
+    final x = landmark.x - 0.5;
+    final y = landmark.y - 0.5;
+    final angle = ignoreRotation || inputRect.rotation == null
+        ? 0.0
+        : inputRect.rotation!;
+    var newX = Math.cos(angle) * x - Math.sin(angle) * y;
+    var newY = Math.sin(angle) * x + Math.cos(angle) * y;
 
     newX = newX * inputRect.width + inputRect.xCenter;
     newY = newY * inputRect.height + inputRect.yCenter;
 
-    const newZ = landmark.z * inputRect.width;  // Scale Z coordinate as x.
+    final newZ = landmark.z == null
+        ? null
+        : landmark.z! * inputRect.width; // Scale Z coordinate as x.
 
-    const newLandmark = {...landmark};
+    final newLandmark = landmark.copyWith(
+      x: newX,
+      y: newY,
+      z: Nullable(newZ),
+    );
 
-    newLandmark.x = newX;
-    newLandmark.y = newY;
-    newLandmark.z = newZ;
-
-    outputLandmarks.push(newLandmark);
+    outputLandmarks.add(newLandmark);
   }
 
   return outputLandmarks;

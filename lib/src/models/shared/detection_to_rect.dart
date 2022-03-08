@@ -15,114 +15,128 @@
  * =============================================================================
  */
 
-import {normalizeRadians} from './image_utils';
-import {ImageSize} from './interfaces/common_interfaces';
-import {DetectionToRectConfig} from './interfaces/config_interfaces';
-import {BoundingBox, Detection, LocationData, Rect} from './interfaces/shape_interfaces';
+// import {normalizeRadians} from './image_utils';
+// import {ImageSize} from './interfaces/common_interfaces';
+// import {DetectionToRectConfig} from './interfaces/config_interfaces';
+// import {BoundingBox, Detection, LocationData, Rect} from './interfaces/shape_interfaces';
+import 'dart:math' as Math;
+
+import 'image_utils.dart';
+import 'interfaces/common_interfaces.dart';
+import 'interfaces/config_interfaces.dart';
+import 'interfaces/shape_interfaces.dart';
 
 // ref:
 // https://github.com/google/mediapipe/blob/master/mediapipe/calculators/util/detections_to_rects_calculator.cc
-export function computeRotation(
-    detection: Detection, imageSize: ImageSize, config: DetectionToRectConfig) {
-  const locationData = detection.locationData;
-  const startKeypoint = config.rotationVectorStartKeypointIndex;
-  const endKeypoint = config.rotationVectorEndKeypointIndex;
+double computeRotation(
+  Detection detection,
+  ImageSize imageSize,
+  DetectionToRectConfig config,
+) {
+  final locationData = detection.locationData;
+  final startKeypoint = config.rotationVectorStartKeypointIndex;
+  final endKeypoint = config.rotationVectorEndKeypointIndex;
 
-  let targetAngle;
+  final double targetAngle = config.rotationVectorTargetAngle ??
+      Math.pi * config.rotationVectorTargetAngleDegree! / 180;
 
-  if (config.rotationVectorTargetAngle) {
-    targetAngle = config.rotationVectorTargetAngle;
-  } else {
-    targetAngle = Math.PI * config.rotationVectorTargetAngleDegree / 180;
-  }
+  final x0 = locationData.relativeKeypoints[startKeypoint].x * imageSize.width;
+  final y0 = locationData.relativeKeypoints[startKeypoint].y * imageSize.height;
+  final x1 = locationData.relativeKeypoints[endKeypoint].x * imageSize.width;
+  final y1 = locationData.relativeKeypoints[endKeypoint].y * imageSize.height;
 
-  const x0 = locationData.relativeKeypoints[startKeypoint].x * imageSize.width;
-  const y0 = locationData.relativeKeypoints[startKeypoint].y * imageSize.height;
-  const x1 = locationData.relativeKeypoints[endKeypoint].x * imageSize.width;
-  const y1 = locationData.relativeKeypoints[endKeypoint].y * imageSize.height;
-
-  const rotation =
+  final rotation =
       normalizeRadians(targetAngle - Math.atan2(-(y1 - y0), x1 - x0));
 
   return rotation;
 }
 
-function rectFromBox(box: BoundingBox) {
-  return {
+Rect _rectFromBox(BoundingBox box) {
+  return Rect(
     xCenter: box.xMin + box.width / 2,
     yCenter: box.yMin + box.height / 2,
     width: box.width,
     height: box.height,
-  };
+  );
 }
 
-function normRectFromKeypoints(locationData: LocationData) {
-  const keypoints = locationData.relativeKeypoints;
+Rect _normRectFromKeypoints(LocationData locationData) {
+  final keypoints = locationData.relativeKeypoints;
   if (keypoints.length <= 1) {
-    throw new Error('2 or more keypoints required to calculate a rect.');
+    throw Exception('2 or more keypoints required to calculate a rect.');
   }
-  let xMin = Number.MAX_VALUE, yMin = Number.MAX_VALUE, xMax = Number.MIN_VALUE,
-      yMax = Number.MIN_VALUE;
+  var xMin = double.maxFinite,
+      yMin = double.maxFinite,
+      xMax = double.minPositive,
+      yMax = double.minPositive;
 
-  keypoints.forEach(keypoint => {
+  keypoints.forEach((keypoint) {
     xMin = Math.min(xMin, keypoint.x);
     xMax = Math.max(xMax, keypoint.x);
     yMin = Math.min(yMin, keypoint.y);
     yMax = Math.max(yMax, keypoint.y);
   });
 
-  return {
+  return Rect(
     xCenter: (xMin + xMax) / 2,
     yCenter: (yMin + yMax) / 2,
     width: xMax - xMin,
-    height: yMax - yMin
-  };
+    height: yMax - yMin,
+  );
 }
 
-function detectionToNormalizedRect(
-    detection: Detection, conversionMode: 'boundingbox'|'keypoints') {
-  const locationData = detection.locationData;
-  return conversionMode === 'boundingbox' ?
-      rectFromBox(locationData.relativeBoundingBox) :
-      normRectFromKeypoints(locationData);
+Rect _detectionToNormalizedRect(
+    Detection detection, ConversionMode conversionMode) {
+  final locationData = detection.locationData;
+  return conversionMode == ConversionMode.boundingbox
+      ? _rectFromBox(locationData.relativeBoundingBox)
+      : _normRectFromKeypoints(locationData);
 }
 
-function detectionToRect(
-    detection: Detection,
-    conversionMode: 'boundingbox'|'keypoints',
-    imageSize?: ImageSize,
-    ): Rect {
-  const locationData = detection.locationData;
+Rect _detectionToRect(
+  Detection detection,
+  ConversionMode conversionMode,
+  ImageSize? imageSize,
+) {
+  final locationData = detection.locationData;
 
-  let rect: Rect;
-  if (conversionMode === 'boundingbox') {
-    rect = rectFromBox(locationData.boundingBox);
+  if (conversionMode == ConversionMode.boundingbox) {
+    return _rectFromBox(locationData.boundingBox);
   } else {
-    rect = normRectFromKeypoints(locationData);
-    const {width, height} = imageSize;
+    final rect = _normRectFromKeypoints(locationData);
+    final width = imageSize!.width;
+    final height = imageSize.height;
 
-    rect.xCenter = Math.round(rect.xCenter * width);
-    rect.yCenter = Math.round(rect.yCenter * height);
-    rect.width = Math.round(rect.width * width);
-    rect.height = Math.round(rect.height * height);
+    return Rect(
+      xCenter: (rect.xCenter * width).round(),
+      yCenter: (rect.yCenter * height).round(),
+      width: (rect.width * width).round(),
+      height: (rect.height * height).round(),
+    );
   }
-
-  return rect;
 }
 
 // ref:
 // https://github.com/google/mediapipe/blob/master/mediapipe/calculators/util/detections_to_rects_calculator.cc
-export function calculateDetectionsToRects(
-    detection: Detection, conversionMode: 'boundingbox'|'keypoints',
-    outputType: 'rect'|'normRect', imageSize?: ImageSize,
-    rotationConfig?: DetectionToRectConfig): Rect {
-  const rect: Rect = outputType === 'rect' ?
-      detectionToRect(detection, conversionMode, imageSize) :
-      detectionToNormalizedRect(detection, conversionMode);
+Rect calculateDetectionsToRects(
+  Detection detection,
+  ConversionMode conversionMode, {
+  required bool normalized,
+  required ImageSize imageSize,
+  DetectionToRectConfig? rotationConfig,
+}) {
+  final rect = !normalized
+      ? _detectionToRect(detection, conversionMode, imageSize)
+      : _detectionToNormalizedRect(detection, conversionMode);
 
-  if (rotationConfig) {
+  if (rotationConfig != null) {
     rect.rotation = computeRotation(detection, imageSize, rotationConfig);
   }
 
   return rect;
+}
+
+enum ConversionMode {
+  boundingbox,
+  keypoints,
 }

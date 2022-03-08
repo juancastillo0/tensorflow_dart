@@ -15,8 +15,13 @@
  * =============================================================================
  */
 
-import {Keypoint} from './interfaces/common_interfaces';
-import {Rect} from './interfaces/shape_interfaces';
+// import {Keypoint} from './interfaces/common_interfaces';
+// import {Rect} from './interfaces/shape_interfaces';
+
+import 'dart:math' as Math;
+
+import 'interfaces/common_interfaces.dart';
+import 'interfaces/shape_interfaces.dart';
 
 /**
  * Projects world landmarks from the rectangle to original coordinates.
@@ -32,22 +37,22 @@ import {Rect} from './interfaces/shape_interfaces';
  */
 // ref:
 // https://github.com/google/mediapipe/blob/master/mediapipe/calculators/util/landmark_projection_calculator.cc
-export function calculateWorldLandmarkProjection(
-    worldLandmarks: Keypoint[], inputRect: Rect): Keypoint[] {
-  const outputLandmarks = [];
-  for (const worldLandmark of worldLandmarks) {
-    const x = worldLandmark.x;
-    const y = worldLandmark.y;
-    const angle = inputRect.rotation;
-    const newX = Math.cos(angle) * x - Math.sin(angle) * y;
-    const newY = Math.sin(angle) * x + Math.cos(angle) * y;
+List<Keypoint> calculateWorldLandmarkProjection(
+  List<Keypoint> worldLandmarks,
+  Rect inputRect,
+) {
+  final outputLandmarks = <Keypoint>[];
+  for (final worldLandmark in worldLandmarks) {
+    final x = worldLandmark.x;
+    final y = worldLandmark.y;
+    final angle = inputRect.rotation;
+    final newX = Math.cos(angle) * x - Math.sin(angle) * y;
+    final newY = Math.sin(angle) * x + Math.cos(angle) * y;
 
-    const newLandmark = {...worldLandmark};
-
-    newLandmark.x = newX;
-    newLandmark.y = newY;
-
-    outputLandmarks.push(newLandmark);
+    outputLandmarks.add(worldLandmark.copyWith(
+      x: newX,
+      y: newY,
+    ));
   }
 
   return outputLandmarks;
