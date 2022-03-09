@@ -24,11 +24,15 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:collection/collection.dart';
-import 'package:cross_file/cross_file.dart';
 import 'package:universal_html/html.dart' as html;
+import 'package:universal_io/io.dart' as io;
 
 import '../environment.dart';
 import 'io.dart';
+
+extension FileName on io.File {
+  String get name => uri.pathSegments.last;
+}
 
 // import '../flags';
 // import {env} from '../environment';
@@ -127,10 +131,10 @@ class BrowserDownloads implements IOHandler {
 }
 
 class BrowserFiles implements IOHandler {
-  late final XFile jsonFile;
-  late final List<XFile> weightsFiles;
+  late final io.File jsonFile;
+  late final List<io.File> weightsFiles;
 
-  BrowserFiles(List<XFile> files) {
+  BrowserFiles(List<io.File> files) {
     if (files == null || files.length < 1) {
       throw Exception(
           'When calling browserFiles, at least 1 file is required, ' +
@@ -194,7 +198,7 @@ class BrowserFiles implements IOHandler {
         specs: weightSpecs, data: concatenateArrayBuffers(buffers)));
   }
 
-  Future<ByteBuffer> _loadWeightsFile(String path, XFile file) async {
+  Future<ByteBuffer> _loadWeightsFile(String path, io.File file) async {
     final weightData = await file.readAsBytes();
     return weightData.buffer;
     // return Future((resolve, reject) {
@@ -213,12 +217,12 @@ class BrowserFiles implements IOHandler {
   /**
    * Check the compatibility between weights manifest and weight files.
    */
-  Map<String, XFile> _checkManifestAndWeightFiles(
+  Map<String, io.File> _checkManifestAndWeightFiles(
       WeightsManifestConfig manifest) {
     final basenames = <String>[];
     final fileNames =
         this.weightsFiles.map((file) => basename(file.name)).toList();
-    final Map<String, XFile> pathToFile = {};
+    final Map<String, io.File> pathToFile = {};
     for (final group in manifest) {
       group.paths.forEach((path) {
         final pathBasename = basename(path);
@@ -342,6 +346,6 @@ IOHandler browserDownloads([String fileNamePrefix = 'model']) {
  *   ignoreCI: true
  * }
  */
-IOHandler browserFiles(List<XFile> files) {
+IOHandler browserFiles(List<io.File> files) {
   return BrowserFiles(files);
 }

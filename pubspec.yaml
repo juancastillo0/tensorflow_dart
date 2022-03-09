@@ -17,7 +17,6 @@ dependencies:
   collection:
   json_annotation:
   path:
-  cross_file:
 
 dev_dependencies:
   lints: ^1.0.0
