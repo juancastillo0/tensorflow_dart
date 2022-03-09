@@ -30,8 +30,8 @@ typedef PixelInput = Object;
 //     HTMLCanvasElement|ImageBitmap;
 
 class InputResolution implements ImageSize {
-  final int width;
-  final int height;
+  final double width;
+  final double height;
 
   const InputResolution({
     required this.width,
@@ -75,8 +75,8 @@ class Keypoint {
 }
 
 class ImageSize {
-  final int height;
-  final int width;
+  final double height;
+  final double width;
 
   ImageSize({
     required this.height,
@@ -120,7 +120,10 @@ class WindowElement {
 
 abstract class KeypointsFilter {
   List<Keypoint> apply(
-      List<Keypoint> landmarks, double microSeconds, double objectScale);
+    List<Keypoint> landmarks,
+    double microSeconds,
+    double objectScale,
+  );
   void reset();
 }
 

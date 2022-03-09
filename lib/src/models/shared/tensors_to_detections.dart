@@ -14,9 +14,17 @@
  * limitations under the License.
  * =============================================================================
  */
-import * as tf from '@tensorflow/tfjs-core';
-import {TensorsToDetectionsConfig} from './interfaces/config_interfaces';
-import {AnchorTensor, Detection} from './interfaces/shape_interfaces';
+// import * as tf from '@tensorflow/tfjs-core';
+// import {TensorsToDetectionsConfig} from './interfaces/config_interfaces';
+// import {AnchorTensor, Detection} from './interfaces/shape_interfaces';
+
+import 'dart:typed_data';
+
+import 'package:tensorflow_wasm/tensorflow_wasm.dart' as tf;
+
+import 'interfaces/common_interfaces.dart';
+import 'interfaces/config_interfaces.dart';
+import 'interfaces/shape_interfaces.dart';
 
 /**
  * Convert result Tensors from object detection models into Detection boxes.
@@ -33,23 +41,24 @@ import {AnchorTensor, Detection} from './interfaces/shape_interfaces';
  *     (num_boxes * 4).
  * @param config
  */
-export async function tensorsToDetections(
-    detectionTensors: [tf.Tensor1D, tf.Tensor2D], anchor: AnchorTensor,
-    config: TensorsToDetectionsConfig): Promise<Detection[]> {
-  const rawScoreTensor = detectionTensors[0];
-  const rawBoxTensor = detectionTensors[1];
+Future<List<Detection>> tensorsToDetections(
+  List<tf.Tensor> detectionTensors, // : [tf.Tensor1D, tf.Tensor2D]
+  AnchorTensor anchor,
+  TensorsToDetectionsConfig config,
+) async {
+  final rawScoreTensor = detectionTensors[0];
+  final rawBoxTensor = detectionTensors[1];
 
   // Shape [numOfBoxes, 4] or [numOfBoxes, 12].
-  const boxes = decodeBoxes(rawBoxTensor, anchor, config);
+  final boxes = _decodeBoxes(rawBoxTensor, anchor, config);
 
   // Filter classes by scores.
-  const normalizedScore = tf.tidy(() => {
-    let normalizedScore = rawScoreTensor;
-    if (config.sigmoidScore) {
+  final normalizedScore = tf.tidy(() {
+    var normalizedScore = rawScoreTensor;
+    if (config.sigmoidScore == true) {
       if (config.scoreClippingThresh != null) {
-        normalizedScore = tf.clipByValue(
-            rawScoreTensor, -config.scoreClippingThresh,
-            config.scoreClippingThresh);
+        normalizedScore = tf.clipByValue(rawScoreTensor,
+            -config.scoreClippingThresh!, config.scoreClippingThresh!);
       }
       normalizedScore = tf.sigmoid(normalizedScore);
       return normalizedScore;
@@ -58,7 +67,7 @@ export async function tensorsToDetections(
     return normalizedScore;
   });
 
-  const outputDetections =
+  final outputDetections =
       await convertToDetections(boxes, normalizedScore, config);
 
   tf.dispose([boxes, normalizedScore]);
@@ -66,26 +75,27 @@ export async function tensorsToDetections(
   return outputDetections;
 }
 
-export async function convertToDetections(
-    detectionBoxes: tf.Tensor2D, detectionScore: tf.Tensor1D,
-    config: TensorsToDetectionsConfig): Promise<Detection[]> {
-  const outputDetections: Detection[] = [];
-  const detectionBoxesData = await detectionBoxes.data() as Float32Array;
-  const detectionScoresData = await detectionScore.data() as Float32Array;
+Future<List<Detection>> convertToDetections(tf.Tensor2D detectionBoxes,
+    tf.Tensor1D detectionScore, TensorsToDetectionsConfig config) async {
+  final outputDetections = <Detection>[];
+  final detectionBoxesData = await detectionBoxes.data() as Float32List;
+  final detectionScoresData = await detectionScore.data() as Float32List;
 
-  for (let i = 0; i < config.numBoxes; ++i) {
+  for (int i = 0; i < config.numBoxes; ++i) {
     if (config.minScoreThresh != null &&
-        detectionScoresData[i] < config.minScoreThresh) {
+        detectionScoresData[i] < config.minScoreThresh!) {
       continue;
     }
-    const boxOffset = i * config.numCoords;
-    const detection = convertToDetection(
+    final boxOffset = i * config.numCoords;
+    final detection = _convertToDetection(
         detectionBoxesData[boxOffset + 0] /* boxYMin */,
         detectionBoxesData[boxOffset + 1] /* boxXMin */,
         detectionBoxesData[boxOffset + 2] /* boxYMax */,
-        detectionBoxesData[boxOffset + 3] /* boxXMax */, detectionScoresData[i],
-        config.flipVertically, i);
-    const bbox = detection.locationData.relativeBoundingBox;
+        detectionBoxesData[boxOffset + 3] /* boxXMax */,
+        detectionScoresData[i],
+        config.flipVertically ?? false,
+        i);
+    final bbox = detection.locationData.relativeBoundingBox;
 
     if (bbox.width < 0 || bbox.height < 0) {
       // Decoded detection boxes could have negative values for width/height
@@ -94,112 +104,112 @@ export async function convertToDetections(
       continue;
     }
     // Add keypoints.
-    if (config.numKeypoints > 0) {
-      const locationData = detection.locationData;
-      locationData.relativeKeypoints = [];
-      const totalIdx = config.numKeypoints * config.numValuesPerKeypoint;
-      for (let kpId = 0; kpId < totalIdx; kpId += config.numValuesPerKeypoint) {
-        const keypointIndex = boxOffset + config.keypointCoordOffset + kpId;
-        const keypoint = {
-          x: detectionBoxesData[keypointIndex + 0],
-          y: config.flipVertically ? 1 - detectionBoxesData[keypointIndex + 1] :
-                                     detectionBoxesData[keypointIndex + 1]
-        };
-        locationData.relativeKeypoints.push(keypoint);
+    final numKeypoints = config.numKeypoints;
+    if (numKeypoints != null && numKeypoints > 0) {
+      final locationData = detection.locationData;
+      final totalIdx = numKeypoints * config.numValuesPerKeypoint!;
+      for (int kpId = 0;
+          kpId < totalIdx;
+          kpId += config.numValuesPerKeypoint!) {
+        final keypointIndex = boxOffset + config.keypointCoordOffset! + kpId;
+        final keypoint = Keypoint(
+            x: detectionBoxesData[keypointIndex + 0],
+            y: config.flipVertically == true
+                ? 1 - detectionBoxesData[keypointIndex + 1]
+                : detectionBoxesData[keypointIndex + 1]);
+        locationData.relativeKeypoints.add(keypoint);
       }
     }
-    outputDetections.push(detection);
+    outputDetections.add(detection);
   }
 
   return outputDetections;
 }
 
-function convertToDetection(
-    boxYMin: number, boxXMin: number, boxYMax: number, boxXMax: number,
-    score: number, flipVertically: boolean, i: number): Detection {
-  return {
+Detection _convertToDetection(double boxYMin, double boxXMin, double boxYMax,
+    double boxXMax, double score, bool flipVertically, int i) {
+  return Detection(
     score: [score],
     ind: i,
-    locationData: {
-      relativeBoundingBox: {
+    locationData: LocationData(
+      relativeBoundingBox: BoundingBox(
         xMin: boxXMin,
         yMin: flipVertically ? 1 - boxYMax : boxYMin,
         xMax: boxXMax,
         yMax: flipVertically ? 1 - boxYMin : boxYMax,
         width: boxXMax - boxXMin,
-        height: boxYMax - boxYMin
-      }
-    }
-  };
+        height: boxYMax - boxYMin,
+      ),
+    ),
+  );
 }
 
 //[xCenter, yCenter, w, h, kp1, kp2, kp3, kp4]
 //[yMin, xMin, yMax, xMax, kpX, kpY, kpX, kpY]
-function decodeBoxes(
-    rawBoxes: tf.Tensor2D, anchor: AnchorTensor,
-    config: TensorsToDetectionsConfig): tf.Tensor2D {
-  return tf.tidy(() => {
-    let yCenter;
-    let xCenter;
-    let h;
-    let w;
+tf.Tensor2D _decodeBoxes(tf.Tensor2D rawBoxes, AnchorTensor anchor,
+    TensorsToDetectionsConfig config) {
+  return tf.tidy(() {
+    late tf.Tensor yCenter;
+    late tf.Tensor xCenter;
+    late tf.Tensor h;
+    late tf.Tensor w;
+    final boxCoordOffset = config.boxCoordOffset;
 
-    if (config.reverseOutputOrder) {
+    if (config.reverseOutputOrder == true) {
       // Shape [numOfBoxes, 1].
-      xCenter = tf.squeeze(
-          tf.slice(rawBoxes, [0, config.boxCoordOffset + 0], [-1, 1]));
-      yCenter = tf.squeeze(
-          tf.slice(rawBoxes, [0, config.boxCoordOffset + 1], [-1, 1]));
-      w = tf.squeeze(
-          tf.slice(rawBoxes, [0, config.boxCoordOffset + 2], [-1, 1]));
-      h = tf.squeeze(
-          tf.slice(rawBoxes, [0, config.boxCoordOffset + 3], [-1, 1]));
+      xCenter =
+          tf.squeeze(tf.slice(rawBoxes, [0, boxCoordOffset! + 0], [-1, 1]));
+      yCenter =
+          tf.squeeze(tf.slice(rawBoxes, [0, boxCoordOffset + 1], [-1, 1]));
+      w = tf.squeeze(tf.slice(rawBoxes, [0, boxCoordOffset + 2], [-1, 1]));
+      h = tf.squeeze(tf.slice(rawBoxes, [0, boxCoordOffset + 3], [-1, 1]));
     } else {
-      yCenter = tf.squeeze(
-          tf.slice(rawBoxes, [0, config.boxCoordOffset + 0], [-1, 1]));
-      xCenter = tf.squeeze(
-          tf.slice(rawBoxes, [0, config.boxCoordOffset + 1], [-1, 1]));
-      h = tf.squeeze(
-          tf.slice(rawBoxes, [0, config.boxCoordOffset + 2], [-1, 1]));
-      w = tf.squeeze(
-          tf.slice(rawBoxes, [0, config.boxCoordOffset + 3], [-1, 1]));
+      yCenter =
+          tf.squeeze(tf.slice(rawBoxes, [0, boxCoordOffset! + 0], [-1, 1]));
+      xCenter =
+          tf.squeeze(tf.slice(rawBoxes, [0, boxCoordOffset + 1], [-1, 1]));
+      h = tf.squeeze(tf.slice(rawBoxes, [0, boxCoordOffset + 2], [-1, 1]));
+      w = tf.squeeze(tf.slice(rawBoxes, [0, boxCoordOffset + 3], [-1, 1]));
     }
 
-    xCenter =
-        tf.add(tf.mul(tf.div(xCenter, config.xScale), anchor.w), anchor.x);
-    yCenter =
-        tf.add(tf.mul(tf.div(yCenter, config.yScale), anchor.h), anchor.y);
+    final xScale = tf.scalar(config.xScale!);
+    final yScale = tf.scalar(config.yScale!);
 
-    if (config.applyExponentialOnBoxSize) {
-      h = tf.mul(tf.exp(tf.div(h, config.hScale)), anchor.h);
-      w = tf.mul(tf.exp(tf.div(w, config.wScale)), anchor.w);
+    xCenter = tf.add(tf.mul(tf.div(xCenter, xScale), anchor.w), anchor.x);
+    yCenter = tf.add(tf.mul(tf.div(yCenter, yScale), anchor.h), anchor.y);
+
+    final hScale = tf.scalar(config.hScale!);
+    final wScale = tf.scalar(config.wScale!);
+
+    if (config.applyExponentialOnBoxSize == true) {
+      h = tf.mul(tf.exp(tf.div(h, hScale)), anchor.h);
+      w = tf.mul(tf.exp(tf.div(w, wScale)), anchor.w);
     } else {
-      h = tf.mul(tf.div(h, config.hScale), anchor.h);
-      w = tf.mul(tf.div(w, config.wScale), anchor.h);
+      h = tf.mul(tf.div(h, hScale), anchor.h);
+      w = tf.mul(tf.div(w, wScale), anchor.h);
     }
+    final two = tf.scalar(2.0);
 
-    const yMin = tf.sub(yCenter, tf.div(h, 2));
-    const xMin = tf.sub(xCenter, tf.div(w, 2));
-    const yMax = tf.add(yCenter, tf.div(h, 2));
-    const xMax = tf.add(xCenter, tf.div(w, 2));
+    final yMin = tf.sub(yCenter, tf.div(h, two));
+    final xMin = tf.sub(xCenter, tf.div(w, two));
+    final yMax = tf.add(yCenter, tf.div(h, two));
+    final xMax = tf.add(xCenter, tf.div(w, two));
 
     // Shape [numOfBoxes, 4].
-    let boxes = tf.concat(
-        [
-          tf.reshape(yMin, [config.numBoxes, 1]),
-          tf.reshape(xMin, [config.numBoxes, 1]),
-          tf.reshape(yMax, [config.numBoxes, 1]),
-          tf.reshape(xMax, [config.numBoxes, 1])
-        ],
-        1);
+    var boxes = tf.concat([
+      tf.reshape(yMin, [config.numBoxes, 1]),
+      tf.reshape(xMin, [config.numBoxes, 1]),
+      tf.reshape(yMax, [config.numBoxes, 1]),
+      tf.reshape(xMax, [config.numBoxes, 1])
+    ], 1);
 
-    if (config.numKeypoints) {
-      for (let k = 0; k < config.numKeypoints; ++k) {
-        const keypointOffset =
-            config.keypointCoordOffset + k * config.numValuesPerKeypoint;
-        let keypointX;
-        let keypointY;
-        if (config.reverseOutputOrder) {
+    if (config.numKeypoints != null) {
+      for (int k = 0; k < config.numKeypoints!; ++k) {
+        final keypointOffset =
+            config.keypointCoordOffset! + k * config.numValuesPerKeypoint!;
+        tf.Tensor keypointX;
+        tf.Tensor keypointY;
+        if (config.reverseOutputOrder == true) {
           keypointX =
               tf.squeeze(tf.slice(rawBoxes, [0, keypointOffset], [-1, 1]));
           keypointY =
@@ -210,16 +220,15 @@ function decodeBoxes(
           keypointX =
               tf.squeeze(tf.slice(rawBoxes, [0, keypointOffset + 1], [-1, 1]));
         }
-        const keypointXNormalized = tf.add(
-            tf.mul(tf.div(keypointX, config.xScale), anchor.w), anchor.x);
-        const keypointYNormalized = tf.add(
-            tf.mul(tf.div(keypointY, config.yScale), anchor.h), anchor.y);
-        boxes = tf.concat(
-            [
-              boxes, tf.reshape(keypointXNormalized, [config.numBoxes, 1]),
-              tf.reshape(keypointYNormalized, [config.numBoxes, 1])
-            ],
-            1);
+        final keypointXNormalized =
+            tf.add(tf.mul(tf.div(keypointX, xScale), anchor.w), anchor.x);
+        final keypointYNormalized =
+            tf.add(tf.mul(tf.div(keypointY, yScale), anchor.h), anchor.y);
+        boxes = tf.concat([
+          boxes,
+          tf.reshape(keypointXNormalized, [config.numBoxes, 1]),
+          tf.reshape(keypointYNormalized, [config.numBoxes, 1])
+        ], 1);
       }
     }
 

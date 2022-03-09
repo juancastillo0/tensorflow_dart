@@ -37,12 +37,14 @@ Future<List<Detection>> nonMaxSuppression(
       (detectionB.score!.reduce(Math.max) - detectionA.score!.reduce(Math.max))
           .round());
 
-  final detectionsTensor = tf.tensor2d(detections.map((d) => [
-        d.locationData.relativeBoundingBox.yMin,
-        d.locationData.relativeBoundingBox.xMin,
-        d.locationData.relativeBoundingBox.yMax,
-        d.locationData.relativeBoundingBox.xMax
-      ]));
+  final detectionsTensor = tf.tensor2d(detections
+      .map((d) => [
+            d.locationData.relativeBoundingBox.yMin,
+            d.locationData.relativeBoundingBox.xMin,
+            d.locationData.relativeBoundingBox.yMax,
+            d.locationData.relativeBoundingBox.xMax
+          ])
+      .toList());
   final scoresTensor = tf.tensor1d(detections.map((d) => d.score![0]));
 
   final selectedIdsTensor = await tf.image.nonMaxSuppressionAsync(

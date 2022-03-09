@@ -19,7 +19,7 @@
 import 'dart:math' as Math;
 import 'interfaces/shape_interfaces.dart';
 
-int _area(BoundingBox rect) {
+double _area(BoundingBox rect) {
   return rect.width * rect.height;
 }
 
@@ -35,8 +35,8 @@ BoundingBox _intersect(BoundingBox rect1, BoundingBox rect2) {
   final xMax = Math.min(rect1.xMax, rect2.xMax);
   final yMin = Math.max(rect1.yMin, rect2.yMin);
   final yMax = Math.min(rect1.yMax, rect2.yMax);
-  final width = Math.max(xMax - xMin, 0);
-  final height = Math.max(yMax - yMin, 0);
+  final width = Math.max(xMax - xMin, 0.0);
+  final height = Math.max(yMax - yMin, 0.0);
 
   return BoundingBox(
     xMin: xMin,

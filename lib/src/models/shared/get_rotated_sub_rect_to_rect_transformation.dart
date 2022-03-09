@@ -36,8 +36,8 @@ import 'interfaces/shape_interfaces.dart';
 // https://github.com/google/mediapipe/blob/master/mediapipe/calculators/tensor/image_to_tensor_utils.h
 Matrix4x4 getRotatedSubRectToRectTransformMatrix(
   Rect subRect,
-  int rectWidth,
-  int rectHeight,
+  double rectWidth,
+  double rectHeight,
   bool flipHorizontally,
 ) {
   // The resulting matrix is multiplication of below commented out matrices:

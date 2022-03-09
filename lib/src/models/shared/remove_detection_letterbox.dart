@@ -36,12 +36,15 @@ import 'interfaces/shape_interfaces.dart';
 // ref:
 // https://github.com/google/mediapipe/blob/master/mediapipe/calculators/util/detection_letterbox_removal_calculator.cc
 List<Detection> removeDetectionLetterbox(
-    List<Detection> detections, Padding letterboxPadding) {
+  List<Detection> detections,
+  Padding letterboxPadding,
+) {
   final left = letterboxPadding.left;
   final top = letterboxPadding.top;
   final leftAndRight = letterboxPadding.left + letterboxPadding.right;
   final topAndBottom = letterboxPadding.top + letterboxPadding.bottom;
 
+  final List<Detection> newDetections = [];
   for (int i = 0; i < detections.length; i++) {
     final detection = detections[i];
     final relativeBoundingBox = detection.locationData.relativeBoundingBox;
@@ -49,24 +52,33 @@ List<Detection> removeDetectionLetterbox(
     final yMin = (relativeBoundingBox.yMin - top) / (1 - topAndBottom);
     final width = relativeBoundingBox.width / (1 - leftAndRight);
     final height = relativeBoundingBox.height / (1 - topAndBottom);
-    relativeBoundingBox.xMin = xMin;
-    relativeBoundingBox.yMin = yMin;
-    relativeBoundingBox.width = width;
-    relativeBoundingBox.height = height;
-    relativeBoundingBox.xMax = xMin + width;
-    relativeBoundingBox.yMax = yMin + height;
 
-    final relativeKeypoints = detection.locationData.relativeKeypoints;
+    final newRelativeBoundingBox = BoundingBox(
+      xMin: xMin,
+      yMin: yMin,
+      width: width,
+      height: height,
+      xMax: xMin + width,
+      yMax: yMin + height,
+    );
 
-    if (relativeKeypoints) {
-      relativeKeypoints.forEach((keypoint) {
-        final newX = (keypoint.x - left) / (1 - leftAndRight);
-        final newY = (keypoint.y - top) / (1 - topAndBottom);
-        keypoint.x = newX;
-        keypoint.y = newY;
-      });
-    }
+    final relativeKeypoints =
+        detection.locationData.relativeKeypoints.map((keypoint) {
+      final newX = (keypoint.x - left) / (1 - leftAndRight);
+      final newY = (keypoint.y - top) / (1 - topAndBottom);
+      return keypoint.copyWith(x: newX, y: newY);
+    }).toList();
+
+    newDetections.add(
+      detection.copyWith(
+        locationData: LocationData(
+          boundingBox: detection.locationData.boundingBox,
+          relativeBoundingBox: newRelativeBoundingBox,
+          relativeKeypoints: relativeKeypoints,
+        ),
+      ),
+    );
   }
 
-  return detections;
+  return newDetections;
 }

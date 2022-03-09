@@ -49,9 +49,11 @@ Rect transformNormalizedRect(
     rotation = computeNewRotation(rotation, config);
   }
 
+  final double xCenter;
+  final double yCenter;
   if (rotation == 0) {
-    rect.xCenter = rect.xCenter + width * config.shiftX;
-    rect.yCenter = rect.yCenter + height * config.shiftY;
+    xCenter = rect.xCenter + width * config.shiftX;
+    yCenter = rect.yCenter + height * config.shiftY;
   } else {
     final xShift = (imageSize.width *
                 width *
@@ -65,8 +67,8 @@ Rect transformNormalizedRect(
                 Math.sin(rotation) +
             imageSize.height * height * config.shiftY * Math.cos(rotation)) /
         imageSize.height;
-    rect.xCenter = rect.xCenter + xShift;
-    rect.yCenter = rect.yCenter + yShift;
+    xCenter = rect.xCenter + xShift;
+    yCenter = rect.yCenter + yShift;
   }
 
   if (config.squareLong == true) {
@@ -80,10 +82,10 @@ Rect transformNormalizedRect(
     width = shortSide / imageSize.width;
     height = shortSide / imageSize.height;
   }
-  rect.width = width * config.scaleX;
-  rect.height = height * config.scaleY;
+  width = width * config.scaleX;
+  height = height * config.scaleY;
 
-  return rect;
+  return Rect(xCenter: xCenter, yCenter: yCenter, height: height, width: width);
 }
 
 double computeNewRotation(double rotation, RectTransformationConfig config) {

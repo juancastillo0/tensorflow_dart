@@ -27,10 +27,10 @@ import 'common_interfaces.dart';
  * Can be normalized or non-normalized.
  */
 class Rect implements ImageSize {
-  final int xCenter;
-  final int yCenter;
-  final int height;
-  final int width;
+  final double xCenter;
+  final double yCenter;
+  final double height;
+  final double width;
   final double rotation;
 
   const Rect({
@@ -40,15 +40,31 @@ class Rect implements ImageSize {
     required this.width,
     this.rotation = 0,
   });
+
+  Rect copyWith({
+    double? xCenter,
+    double? yCenter,
+    double? height,
+    double? width,
+    double? rotation,
+  }) {
+    return Rect(
+      xCenter: xCenter ?? this.xCenter,
+      yCenter: yCenter ?? this.yCenter,
+      height: height ?? this.height,
+      width: width ?? this.width,
+      rotation: rotation ?? this.rotation,
+    );
+  }
 }
 
 class BoundingBox {
-  final int xMin;
-  final int yMin;
-  final int xMax;
-  final int yMax;
-  final int width;
-  final int height;
+  final double xMin;
+  final double yMin;
+  final double xMax;
+  final double yMax;
+  final double width;
+  final double height;
 
   const BoundingBox({
     required this.xMin,
@@ -75,15 +91,15 @@ class AnchorTensor {
 }
 
 class LocationData {
-  final BoundingBox boundingBox;
+  final BoundingBox? boundingBox;
   final BoundingBox relativeBoundingBox;
   final List<Keypoint> relativeKeypoints;
 
-  const LocationData({
-    required this.boundingBox,
+  LocationData({
+    this.boundingBox,
     required this.relativeBoundingBox,
-    required this.relativeKeypoints,
-  });
+    List<Keypoint>? relativeKeypoints,
+  }) : relativeKeypoints = relativeKeypoints ?? [];
 }
 
 class Detection {
@@ -105,4 +121,20 @@ class Detection {
     this.labelId,
     this.ind,
   });
+
+  Detection copyWith({
+    List<double>? score,
+    LocationData? locationData,
+    List<String>? label,
+    List<int>? labelId,
+    int? ind,
+  }) {
+    return Detection(
+      score: score ?? this.score,
+      locationData: locationData ?? this.locationData,
+      label: label ?? this.label,
+      labelId: labelId ?? this.labelId,
+      ind: ind ?? this.ind,
+    );
+  }
 }

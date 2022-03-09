@@ -76,9 +76,14 @@ ConvertImageToTensorResult convertImageToTensor(
   // Ref:
   // https://github.com/google/mediapipe/blob/master/mediapipe/calculators/tensor/image_to_tensor_calculator.cc
   final imageSize = getImageSize(image);
-  final roi = getRoi(imageSize, normRect);
-  final padding =
-      padRoi(roi, outputTensorSize, keepAspectRatio: keepAspectRatio ?? false);
+  final _roi = getRoi(imageSize, normRect);
+  final paddedRoi = padRoi(
+    _roi,
+    outputTensorSize,
+    keepAspectRatio: keepAspectRatio ?? false,
+  );
+  final roi = paddedRoi.roi;
+
   final transformationMatrix = getRotatedSubRectToRectTransformMatrix(
       roi, imageSize.width, imageSize.height, false);
 
@@ -94,13 +99,17 @@ ConvertImageToTensorResult convertImageToTensor(
     final fillMode = borderMode == BorderMode.zero ? 'constant' : 'nearest';
 
     final imageTransformed = tf.image.transform(
-        // tslint:disable-next-line: no-unnecessary-type-assertion
-        tf.expandDims(tf.cast($image, 'float32')) as tf.Tensor4D,
-        transformMatrix,
-        interpolation: 'bilinear',
-        fillMode: fillMode,
-        fillValue: 0,
-        outputShape: [outputTensorSize.height, outputTensorSize.width]);
+      // tslint:disable-next-line: no-unnecessary-type-assertion
+      tf.expandDims(tf.cast($image, 'float32')) as tf.Tensor4D,
+      transformMatrix,
+      interpolation: 'bilinear',
+      fillMode: fillMode,
+      fillValue: 0,
+      outputShape: [
+        outputTensorSize.height.round(),
+        outputTensorSize.width.round(),
+      ],
+    );
 
     final imageShifted = outputTensorFloatRange != null
         ? shiftImageValue(imageTransformed, outputTensorFloatRange)
@@ -111,7 +120,7 @@ ConvertImageToTensorResult convertImageToTensor(
 
   return ConvertImageToTensorResult(
     imageTensor: imageTensor,
-    padding: padding,
+    padding: paddedRoi.padding,
     transformationMatrix: transformationMatrix,
   );
 }

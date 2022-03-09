@@ -40,10 +40,11 @@ double computeRotation(
   final double targetAngle = config.rotationVectorTargetAngle ??
       Math.pi * config.rotationVectorTargetAngleDegree! / 180;
 
-  final x0 = locationData.relativeKeypoints[startKeypoint].x * imageSize.width;
-  final y0 = locationData.relativeKeypoints[startKeypoint].y * imageSize.height;
-  final x1 = locationData.relativeKeypoints[endKeypoint].x * imageSize.width;
-  final y1 = locationData.relativeKeypoints[endKeypoint].y * imageSize.height;
+  final relativeKeypoints = locationData.relativeKeypoints;
+  final x0 = relativeKeypoints[startKeypoint].x * imageSize.width;
+  final y0 = relativeKeypoints[startKeypoint].y * imageSize.height;
+  final x1 = relativeKeypoints[endKeypoint].x * imageSize.width;
+  final y1 = relativeKeypoints[endKeypoint].y * imageSize.height;
 
   final rotation =
       normalizeRadians(targetAngle - Math.atan2(-(y1 - y0), x1 - x0));
@@ -101,17 +102,17 @@ Rect _detectionToRect(
   final locationData = detection.locationData;
 
   if (conversionMode == ConversionMode.boundingbox) {
-    return _rectFromBox(locationData.boundingBox);
+    return _rectFromBox(locationData.boundingBox!);
   } else {
     final rect = _normRectFromKeypoints(locationData);
     final width = imageSize!.width;
     final height = imageSize.height;
 
     return Rect(
-      xCenter: (rect.xCenter * width).round(),
-      yCenter: (rect.yCenter * height).round(),
-      width: (rect.width * width).round(),
-      height: (rect.height * height).round(),
+      xCenter: rect.xCenter * width,
+      yCenter: rect.yCenter * height,
+      width: rect.width * width,
+      height: rect.height * height,
     );
   }
 }
@@ -130,7 +131,9 @@ Rect calculateDetectionsToRects(
       : _detectionToNormalizedRect(detection, conversionMode);
 
   if (rotationConfig != null) {
-    rect.rotation = computeRotation(detection, imageSize, rotationConfig);
+    return rect.copyWith(
+      rotation: computeRotation(detection, imageSize, rotationConfig),
+    );
   }
 
   return rect;

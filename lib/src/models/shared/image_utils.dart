@@ -30,7 +30,10 @@ import 'interfaces/shape_interfaces.dart';
 
 ImageSize getImageSize(PixelInput input) {
   if (input is tf.Tensor) {
-    return ImageSize(height: input.shape[0], width: input.shape[1]);
+    return ImageSize(
+      height: input.shape[0].toDouble(),
+      width: input.shape[1].toDouble(),
+    );
   } else {
     return ImageSize(height: input.height, width: input.width);
   }
@@ -80,6 +83,16 @@ tf.Tensor toImageTensor(PixelInput input) {
   return input is tf.Tensor ? input : tf.browser.fromPixels(input);
 }
 
+class PaddedRoi {
+  final Padding padding;
+  final Rect roi;
+
+  PaddedRoi({
+    required this.padding,
+    required this.roi,
+  });
+}
+
 /**
  * Padding ratio of left, top, right, bottom, based on the output dimensions.
  *
@@ -94,13 +107,16 @@ tf.Tensor toImageTensor(PixelInput input) {
  * @param targetSize The target width and height of the result rectangle.
  * @param keepAspectRatio Whether keep aspect ratio. Default to false.
  */
-Padding padRoi(
+PaddedRoi padRoi(
   Rect roi,
   InputResolution targetSize, {
   bool keepAspectRatio = false,
 }) {
   if (!keepAspectRatio) {
-    return Padding(top: 0, left: 0, right: 0, bottom: 0);
+    return PaddedRoi(
+      padding: Padding(top: 0, left: 0, right: 0, bottom: 0),
+      roi: roi,
+    );
   }
 
   final targetH = targetSize.height;
@@ -111,30 +127,33 @@ Padding padRoi(
 
   final tensorAspectRatio = targetH / targetW;
   final roiAspectRatio = roi.height / roi.width;
-  final int newWidth;
-  final int newHeight;
+  final double newWidth;
+  final double newHeight;
   int horizontalPadding = 0;
   int verticalPadding = 0;
   if (tensorAspectRatio > roiAspectRatio) {
     // pad height;
     newWidth = roi.width;
     newHeight = roi.width * tensorAspectRatio;
-    verticalPadding = (1 - roiAspectRatio / tensorAspectRatio) / 2;
+    verticalPadding = ((1 - roiAspectRatio / tensorAspectRatio) / 2).round();
   } else {
     // pad width.
     newWidth = roi.height / tensorAspectRatio;
     newHeight = roi.height;
-    horizontalPadding = (1 - tensorAspectRatio / roiAspectRatio) / 2;
+    horizontalPadding = ((1 - tensorAspectRatio / roiAspectRatio) / 2).round();
   }
 
-  roi.width = newWidth;
-  roi.height = newHeight;
-
-  return Padding(
-    top: verticalPadding,
-    left: horizontalPadding,
-    right: horizontalPadding,
-    bottom: verticalPadding,
+  return PaddedRoi(
+    padding: Padding(
+      top: verticalPadding,
+      left: horizontalPadding,
+      right: horizontalPadding,
+      bottom: verticalPadding,
+    ),
+    roi: roi.copyWith(
+      height: newHeight,
+      width: newWidth,
+    ),
   );
 }
 

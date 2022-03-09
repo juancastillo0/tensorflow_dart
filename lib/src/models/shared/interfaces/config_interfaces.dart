@@ -244,21 +244,21 @@ class DetectionToRectConfig {
 }
 
 class RectTransformationConfig {
-  final double? scaleX; // Scaling factor along the side of a rotated rect that
+  final double scaleX; // Scaling factor along the side of a rotated rect that
   // was aligned with the X and Y axis before rotation
   // respectively.
-  final double? scaleY;
+  final double scaleY;
   final double? rotation; // Additional rotation (counter-clockwise) around the
   // rect center either in radians or in degrees.
   final double? rotationDegree;
-  final double? shiftX; // Shift along the side of a rotated rect that was
+  final double shiftX; // Shift along the side of a rotated rect that was
   // aligned with the X and Y axis before rotation
   // respectively. The shift is relative to the length of
   // corresponding side. For example, for a rect with size
   // (0.4, 0.6), with shiftX = 0.5 and shiftY = -0.5 the
   // rect is shifted along the two sides by 0.2 and -0.3
   // respectively.
-  final double? shiftY;
+  final double shiftY;
   final bool? squareLong; // Change the final transformed rect into a square
   // that shares the same center and rotation with
   // the rect, and with the side of the square equal
@@ -267,12 +267,12 @@ class RectTransformationConfig {
   final bool? squareShort;
 
   const RectTransformationConfig({
-    this.scaleX,
-    this.scaleY,
+    required this.scaleX,
+    required this.scaleY,
     this.rotation,
     this.rotationDegree,
-    this.shiftX,
-    this.shiftY,
+    required this.shiftX,
+    required this.shiftY,
     this.squareLong,
     this.squareShort,
   });

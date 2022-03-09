@@ -35,10 +35,10 @@ List<Rect> createSsdAnchors(AnchorConfig config) {
   final List<Rect> anchors = [];
   int layerId = 0;
   while (layerId < config.numLayers) {
-    final anchorHeight = [];
-    final anchorWidth = [];
-    final aspectRatios = [];
-    final scales = [];
+    final List<double> anchorHeight = [];
+    final List<double> anchorWidth = [];
+    final List<double> aspectRatios = [];
+    final List<double> scales = [];
 
     // For same strides, we merge the anchors in the same order.
     int lastSameStrideLayer = layerId;
@@ -96,20 +96,22 @@ List<Rect> createSsdAnchors(AnchorConfig config) {
           final xCenter = (x + config.anchorOffsetX) / featureMapWidth;
           final yCenter = (y + config.anchorOffsetY) / featureMapHeight;
 
+          final double width;
+          final double height;
+          if (fixedAnchorSize) {
+            width = 1.0;
+            height = 1.0;
+          } else {
+            width = anchorWidth[anchorId];
+            height = anchorHeight[anchorId];
+          }
           final newAnchor = Rect(
             xCenter: xCenter,
             yCenter: yCenter,
-            width: 0,
-            height: 0,
+            width: width,
+            height: height,
           );
 
-          if (fixedAnchorSize) {
-            newAnchor.width = 1.0;
-            newAnchor.height = 1.0;
-          } else {
-            newAnchor.width = anchorWidth[anchorId];
-            newAnchor.height = anchorHeight[anchorId];
-          }
           anchors.add(newAnchor);
         }
       }
@@ -121,8 +123,8 @@ List<Rect> createSsdAnchors(AnchorConfig config) {
 }
 
 double _calculateScale(
-  int minScale,
-  int maxScale,
+  double minScale,
+  double maxScale,
   int strideIndex,
   int numStrides,
 ) {
