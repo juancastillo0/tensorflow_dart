@@ -264,18 +264,22 @@ class OperationMapper {
                   break;
                 case 'number':
                   value = getNumberParam(
-                      attr, tfName, (param.defaultValue ?? 0) as int);
+                      attr, tfName, (param.defaultValue ?? 0) as num);
                   if (value == null && param.tfDeprecatedName != null) {
                     value = getNumberParam(attr, param.tfDeprecatedName!,
-                        param.defaultValue as int?);
+                        param.defaultValue as num?);
                   }
                   break;
                 case 'number[]':
-                  value = getNumericArrayParam(
-                      attr, tfName, param.defaultValue as List<num>?);
+                  final defaultValue = param.defaultValue as List?;
+                  final allInt = defaultValue?.every((e) => e is int) ?? false;
+                  final _mappedDefault = allInt
+                      ? defaultValue?.cast<int>()
+                      : defaultValue?.cast<double>();
+                  value = getNumericArrayParam(attr, tfName, _mappedDefault);
                   if (value == null && param.tfDeprecatedName != null) {
-                    value = getNumericArrayParam(attr, param.tfDeprecatedName!,
-                        param.defaultValue as List<num>?);
+                    value = getNumericArrayParam(
+                        attr, param.tfDeprecatedName!, _mappedDefault);
                   }
                   break;
                 case 'bool':
@@ -497,11 +501,11 @@ bool? getBoolParam(
   return param?.b ?? def;
 }
 
-int? getNumberParam(
-    Map<String, tensorflow.IAttrValue> attrs, String name, int? def) {
+num? getNumberParam(
+    Map<String, tensorflow.IAttrValue> attrs, String name, num? def) {
   final param = attrs[name];
   final value = param?.i ?? param?.f ?? def;
-  return value is int ? value : int.parse(value as String);
+  return value is num ? value : num.parse(value as String);
 }
 
 DataType? parseDtypeParam(tensorflow.DataType value) {
@@ -585,7 +589,7 @@ List<num>? getNumericArrayParam(
                 ? paramList.f
                 : paramList.i) ??
             [])
-        .map<num>((v) => v is num ? v : int.parse(v as String))
+        .map<int>((v) => v is num ? v.toInt() : int.parse(v as String))
         .toList();
   }
   return def;
