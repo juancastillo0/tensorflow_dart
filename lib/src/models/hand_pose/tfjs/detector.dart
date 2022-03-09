@@ -24,7 +24,7 @@
 
 import 'package:collection/collection.dart';
 import 'package:tensorflow_wasm/tensorflow_wasm.dart' as tf;
-import 'package:tensorflow_wasm/src/converter/converter.dart' as tfconv;
+import 'package:tensorflow_wasm/converter.dart' as tfconv;
 
 import '../../shared/association_norm_rect.dart';
 import '../../shared/calculate_landmark_projection.dart';

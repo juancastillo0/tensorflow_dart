@@ -21,7 +21,7 @@
 import '../shared/interfaces/common_interfaces.dart';
 
 enum SupportedModels {
-  MediaPipeHands, // = 'MediaPipeHands',
+  mediaPipeHands, // = 'MediaPipeHands',
 }
 
 /**

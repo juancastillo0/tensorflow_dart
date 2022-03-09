@@ -15,12 +15,17 @@
  * =============================================================================
  */
 
-import {HandDetector} from './hand_detector';
-import {load as loadMediaPipeHandsMediaPipeDetector} from './mediapipe/detector';
-import {MediaPipeHandsMediaPipeModelConfig, MediaPipeHandsModelConfig} from './mediapipe/types';
-import {load as loadMediaPipeHandsTfjsDetector} from './tfjs/detector';
-import {MediaPipeHandsTfjsModelConfig} from './tfjs/types';
-import {SupportedModels} from './types';
+import 'hand_detector.dart';
+import 'tfjs/types.dart';
+import 'types.dart';
+import 'tfjs/detector.dart' as tfjs_detector;
+
+// import {HandDetector} from './hand_detector';
+// import {load as loadMediaPipeHandsMediaPipeDetector} from './mediapipe/detector';
+// import {MediaPipeHandsMediaPipeModelConfig, MediaPipeHandsModelConfig} from './mediapipe/types';
+// import {load as loadMediaPipeHandsTfjsDetector} from './tfjs/detector';
+// import {MediaPipeHandsTfjsModelConfig} from './tfjs/types';
+// import {SupportedModels} from './types';
 
 /**
  * Create a hand detector instance.
@@ -28,29 +33,28 @@ import {SupportedModels} from './types';
  * @param model The name of the pipeline to load.
  * @param modelConfig The configuration for the pipeline to load.
  */
-export async function createDetector(
-    model: SupportedModels,
-    modelConfig?: MediaPipeHandsMediaPipeModelConfig|
-    MediaPipeHandsTfjsModelConfig): Promise<HandDetector> {
+Future<HandDetector> createDetector(
+  SupportedModels model,
+  MediaPipeHandsTfjsModelConfig?
+      modelConfig, // MediaPipeHandsMediaPipeModelConfig| MediaPipeHandsTfjsModelConfig,
+) async {
   switch (model) {
-    case SupportedModels.MediaPipeHands:
-      const config = modelConfig as MediaPipeHandsModelConfig;
-      let runtime;
+    case SupportedModels.mediaPipeHands:
+      final config = modelConfig;
       if (config != null) {
-        if (config.runtime === 'tfjs') {
-          return loadMediaPipeHandsTfjsDetector(
-              config as MediaPipeHandsTfjsModelConfig);
+        if (config.runtime == 'tfjs') {
+          return tfjs_detector.load(config);
         }
-        if (config.runtime === 'mediapipe') {
-          return loadMediaPipeHandsMediaPipeDetector(
-              config as MediaPipeHandsMediaPipeModelConfig);
+        if (config.runtime == 'mediapipe') {
+          // return loadMediaPipeHandsMediaPipeDetector(
+          //     config as MediaPipeHandsMediaPipeModelConfig);
+          throw UnimplementedError(
+              "Expect modelConfig.runtime 'mediapipe' not implemented.");
         }
-        runtime = config.runtime;
       }
-      throw new Error(
-          `Expect modelConfig.runtime to be either 'tfjs' ` +
-          `or 'mediapipe', but got ${runtime}`);
+      throw Exception("Expect modelConfig.runtime to be either 'tfjs' " +
+          "or 'mediapipe', but got ${config?.runtime}");
     default:
-      throw new Error(`${model} is not a supported model name.`);
+      throw Exception("${model} is not a supported model name.");
   }
 }

@@ -33,10 +33,10 @@ abstract class HandDetector {
    * @param estimationConfig common config for `estimateHands`.
    */
   Future<List<Hand>> estimateHands(
-      HandDetectorInput input,
-      MediaPipeHandsTfjsEstimationConfig?
-          estimationConfig // MediaPipeHandsMediaPipeEstimationConfig|
-      );
+    HandDetectorInput input,
+    MediaPipeHandsTfjsEstimationConfig?
+        estimationConfig, // MediaPipeHandsMediaPipeEstimationConfig|
+  );
 
   /**
    * Dispose the underlying models from memory.

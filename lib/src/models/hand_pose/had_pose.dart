@@ -15,12 +15,13 @@
  * =============================================================================
  */
 
-export {createDetector} from './create_detector';
+export './create_detector.dart' show createDetector;
 // HandDetector class.
-export {HandDetector} from './hand_detector';
+export './hand_detector.dart' show HandDetector;
 // Entry point to create a new detector instance.
-export {MediaPipeHandsMediaPipeEstimationConfig, MediaPipeHandsMediaPipeModelConfig, MediaPipeHandsModelType} from './mediapipe/types';
-export {MediaPipeHandsTfjsEstimationConfig, MediaPipeHandsTfjsModelConfig} from './tfjs/types';
+// export {MediaPipeHandsMediaPipeEstimationConfig, MediaPipeHandsMediaPipeModelConfig, MediaPipeHandsModelType} from './mediapipe/types.dart';
+export './tfjs/types.dart'
+    show MediaPipeHandsTfjsEstimationConfig, MediaPipeHandsTfjsModelConfig;
 
 // Supported models enum.
-export * from './types';
+export './types.dart';
