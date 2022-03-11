@@ -78,6 +78,29 @@ class Environment {
   // tslint:disable-next-line: no-any
   Environment(this.global) {
     // this.populateURLFlags(); // TODO:
+
+    setPlatform(
+      kIsWeb ? 'WEB' : 'NATIVE',
+      TFPlatform(
+        fetch: (uri, base) {
+          if (base is http.MultipartRequest) return base.send();
+          if (base is http.Request) {
+            final req = http.Request(base.method, uri);
+            if (base.method != 'GET' && base.method != 'HEAD') {
+              req.bodyBytes = base.bodyBytes;
+            }
+            req.headers.addAll(req.headers);
+            // req.contentLength = req.contentLength;
+            req.persistentConnection = req.persistentConnection;
+            req.encoding = req.encoding;
+            req.followRedirects = req.followRedirects;
+            req.maxRedirects = req.maxRedirects;
+            return req.send();
+          }
+          return http.Request('GET', uri).send();
+        },
+      ),
+    );
   }
 
   setPlatform(String platformName, TFPlatform platform) {
