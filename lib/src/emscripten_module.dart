@@ -2,14 +2,13 @@
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'dart:math' as Math;
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:universal_html/html.dart' as html;
 import 'package:universal_io/io.dart' as io;
-import 'package:tensorflow_wasm/tensorflow_wasm.dart';
+import 'package:tensorflow_wasm/wasm.dart';
 
 var WasmBackendModuleThreadedSimd = null;
 
@@ -96,10 +95,10 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
         // TODO:
         // scriptDirectory = require("path").dirname(scriptDirectory) + "/";
       } else {
-        scriptDirectory = Platform.script.pathSegments
-                .take(Platform.script.pathSegments.length - 1)
-                .join(Platform.pathSeparator) +
-            Platform.pathSeparator;
+        scriptDirectory = io.Platform.script.pathSegments
+                .take(io.Platform.script.pathSegments.length - 1)
+                .join(io.Platform.pathSeparator) +
+            io.Platform.pathSeparator;
       }
       read_ = (String filename, bool binary) {
         // shell_read
@@ -107,7 +106,7 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
         // if (!nodePath) nodePath = require("path");
         // filename = nodePath["normalize"](filename);
         // return nodeFS["readFileSync"](filename, binary ? null : "utf8");
-        final file = File(filename);
+        final file = io.File(filename);
         return binary ? file.readAsBytesSync() : file.readAsStringSync();
       };
       readBinary = (String filename) {
@@ -450,9 +449,7 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
           return http.get(Uri.parse(wasmBinaryFile),
               headers: {'credentials': "same-origin"}).then((response) {
             if (response.statusCode >= 300) {
-              throw ("failed to load wasm binary file at '" +
-                  wasmBinaryFile +
-                  "'");
+              throw ("failed to load wasm binary file at '$wasmBinaryFile'");
             }
             return response.bodyBytes;
           }).catchError((_) {
@@ -509,7 +506,7 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
     );
 
     createWasm() {
-      var info = {'a': asmLibraryArg};
+      final info = {'a': asmLibraryArg};
       receiveInstance(WasmInstance instance, WasmModule module) {
         exports = instance.exports(module);
         Module["asm"] = exports;
@@ -821,9 +818,9 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
 //   exports["WasmBackendModule"] = WasmBackendModule;
 
 String UTF8ArrayToString(Uint8List heap, int idx, int? maxBytesToRead) {
-  var endIdx = maxBytesToRead != null ? idx + maxBytesToRead : double.maxFinite;
+  var endIdx = maxBytesToRead != null ? idx + maxBytesToRead : heap.length;
   var endPtr = idx;
-  while (heap[endPtr] != 0 && !(endPtr >= endIdx)) {
+  while (endPtr < endIdx && heap[endPtr] != 0) {
     ++endPtr;
   }
   if (endPtr - idx > 16) {
@@ -945,11 +942,14 @@ Map<String, Function> asmLibraryArgs(
     return false;
   }
 
-  final SYSCALLSbuffers = [null, [], []];
+  final List<List<int>?> SYSCALLSbuffers = [null, [], []];
   SYSCALLSprintChar(int stream, int curr) {
-    final buffer = SYSCALLSbuffers[stream]! as Uint8List;
+    final buffer = SYSCALLSbuffers[stream]!;
     if (curr == 0 || curr == 10) {
-      printMsg(UTF8ArrayToString(buffer, 0, null), isError: stream != 1);
+      printMsg(
+        UTF8ArrayToString(Uint8List.fromList(buffer), 0, null),
+        isError: stream != 1,
+      );
       buffer.length = 0;
     } else {
       buffer.add(curr);

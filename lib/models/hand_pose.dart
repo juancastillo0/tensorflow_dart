@@ -1,1 +1,1 @@
-export '../src/models/hand_pose/had_pose.dart';
+export '../src/models/hand_pose/hand_pose.dart';

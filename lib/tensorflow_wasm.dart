@@ -4,7 +4,6 @@
 library tensorflow_wasm;
 
 export 'src/base.dart';
-export 'src/wasm.dart';
 
 extension MapGetSet<K, V> on Map<K, V> {
   V? get(K key) => this[key];

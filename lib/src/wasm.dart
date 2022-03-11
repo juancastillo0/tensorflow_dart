@@ -1,17 +1,11 @@
-export 'package:wasm/wasm.dart' if (dart.library.html) '_wasm_interop_web.dart';
+export 'wasm_interface.dart'
+    if (dart.library.io) '_wasm_interop_native.dart'
+    if (dart.library.html) '_wasm_interop_web.dart';
+import 'dart:typed_data';
 
-import 'dart:collection';
-import 'package:wasm/wasm.dart';
+import 'wasm.dart';
 
-extension WasmInstanceBuildAsync on WasmInstanceBuilder {
-  Future<WasmInstance> buildAsync() async {
-    return build();
-  }
-}
-
-extension WasmInstanceExports on WasmInstance {
-  Map<String, Object?> exports(WasmModule module) => _Export(this, module);
-}
+export 'wasm_interface.dart' hide WasmModule;
 
 class WasmInstanceModule {
   final WasmInstance instance;
@@ -20,28 +14,7 @@ class WasmInstanceModule {
   WasmInstanceModule(this.instance, this.module);
 }
 
-class _Export extends UnmodifiableMapBase<String, Object?> {
-  final WasmInstance instance;
-  final WasmModule module;
-
-  _Export(this.instance, this.module);
-
-  @override
-  operator [](Object? key) {
-    if (key is! String) return null;
-    final fn = instance.lookupFunction(key);
-    if (fn is WasmFunction) {
-      return fn.apply;
-    }
-    return instance.lookupGlobal(key);
-  }
-
-  @override
-  Iterable<String> get keys => module
-      .describe()
-      .split('\n')
-      .where((element) => element.startsWith('export'))
-      .map((e) => e.contains('(')
-          ? e.substring(0, e.indexOf('(')).split(' ').last
-          : e.split(' ').last);
+Future<WasmModule> compileAsyncWasmModule(Uint8List bytes) async {
+  if (identical(0, 0.0)) return WasmModule.compileAsync(bytes);
+  return WasmModule(bytes);
 }
