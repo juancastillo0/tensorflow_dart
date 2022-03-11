@@ -71,3 +71,46 @@ Tensor1D tensor1d(Object values, [DataType? dtype]) {
   final shape = null;
   return makeTensor(values, shape, inferredShape, dtype) as Tensor1D;
 }
+
+/**
+ * Creates rank-2 `tf.Tensor` with the provided values, shape and dtype.
+ *
+ * The same functionality can be achieved with `tf.tensor`, but in general
+ * we recommend using `tf.tensor2d` as it makes the code more readable.
+ *
+ *  ```js
+ * // Pass a nested array.
+ * tf.tensor2d([[1, 2], [3, 4]]).print();
+ * ```
+ * ```js
+ * // Pass a flat array and specify a shape.
+ * tf.tensor2d([1, 2, 3, 4], [2, 2]).print();
+ * ```
+ *
+ * @param values The values of the tensor. Can be nested array of numbers,
+ *     or a flat array, or a `TypedArray`.
+ * @param shape The shape of the tensor. If not provided, it is inferred from
+ *     `values`.
+ * @param dtype The data type.
+ *
+ * @doc {heading: 'Tensors', subheading: 'Creation'}
+ */
+Tensor2D tensor2d(
+  List values, [
+  List<int>? shape,
+  DataType? dtype,
+]) {
+  if (shape != null && shape.length != 2) {
+    throw Exception('tensor2d() requires shape to have two numbers');
+  }
+  final inferredShape = inferShape(values, dtype);
+  if (inferredShape.length != 2 && inferredShape.length != 1) {
+    throw Exception(
+        'tensor2d() requires values to be number[][] or flat/TypedArray');
+  }
+  if (inferredShape.length == 1 && shape == null) {
+    throw Exception('tensor2d() requires shape to be provided when `values` ' +
+        'are a flat/TypedArray');
+  }
+  return makeTensor(values, shape, inferredShape, dtype) as Tensor2D;
+}

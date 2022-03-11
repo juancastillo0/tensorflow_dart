@@ -468,14 +468,14 @@ class Engine implements TensorTracker, DataMover {
           this.registry[backendName] = backendInstance;
           this._pendingBackendInit = null;
           return true;
-        }).catchError((err) {
+        }).onError((err, stack) {
           // Outdated promise. Another backend was set in the meantime.
           if (promiseId < this._pendingBackendInitId) {
             return false;
           }
           this._pendingBackendInit = null;
           log.warning('Initialization of backend ${backendName} failed');
-          log.warning(err.stack ?? err.message);
+          log.warning('${err} ${stack}');
           return false;
         });
         this._pendingBackendInit = success;
@@ -855,9 +855,14 @@ class Engine implements TensorTracker, DataMover {
     final inputs = kernelParams.inputs;
     final attrs = kernelParams.attrs;
 
-    final backwardsFunc = kernelParams is CustomGradKernelInvocation<Tensors, I>
-        ? kernelParams.backwardsFunc
-        : null;
+    final Function? backwardsFunc = kernelParams
+            is CustomGradKernelInvocation<Tensor, dynamic>
+        ? (kernelParams as CustomGradKernelInvocation<Tensor, dynamic>)
+            .backwardsFunc
+        : kernelParams is CustomGradKernelInvocation<TensorList, dynamic>
+            ? (kernelParams as CustomGradKernelInvocation<TensorList, dynamic>)
+                .backwardsFunc
+            : null;
 
     late KernelProfile kernelProfile;
     this._scopedRun(
