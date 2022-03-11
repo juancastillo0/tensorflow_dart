@@ -248,9 +248,10 @@ class GraphExecutor implements FunctionExecutor {
 
       inputs.keys.forEach((name) {
         final n = parseNodeName(name);
-        final tensors = <Tensor>[];
-        tensors[n.index] = inputs[name]!;
-        tensorsMap[n.nodeName] = tensors;
+        tensorsMap[n.nodeName] = List.generate(
+          n.index + 1,
+          (index) => index == n.index ? inputs[name] : null,
+        );
       });
 
       final tensorsToKeep = this._getFrozenTensorIds(tensorsMap);

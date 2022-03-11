@@ -35,7 +35,8 @@ ImageSize getImageSize(PixelInput input) {
       width: input.shape[1].toDouble(),
     );
   } else {
-    return ImageSize(height: input.height, width: input.width);
+    return ImageSize(
+        height: (input as dynamic).height, width: (input as dynamic).width);
   }
 }
 

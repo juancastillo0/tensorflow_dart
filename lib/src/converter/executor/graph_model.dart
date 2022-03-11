@@ -494,12 +494,13 @@ Future<GraphModel> loadGraphModel(
   // }
 
   if (options.fromTFHub == true) {
-    if ((modelUrl as io.IOHandler).load == null) {
-      if (!(modelUrl.url!).endsWith('/')) {
-        modelUrl = ModelHandler.fromUrl(modelUrl.url! + '/');
+    if (modelUrl.load == null) {
+      String url = modelUrl.url!;
+      if (!url.endsWith('/')) {
+        url = url + '/';
       }
       modelUrl = ModelHandler.fromUrl(
-          '${modelUrl}${DEFAULT_MODEL_NAME}${TFHUB_SEARCH_PARAM}');
+          '${url}${DEFAULT_MODEL_NAME}${TFHUB_SEARCH_PARAM}');
     }
   }
   final model = GraphModel(modelUrl, options);

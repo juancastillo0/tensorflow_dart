@@ -255,7 +255,7 @@ class OperationMapper {
                   break;
                 case 'string[]':
                   value = getStringArrayParam(
-                      attr, tfName, param.defaultValue as List<String>?);
+                      attr, tfName, (param.defaultValue as List?)?.cast());
 
                   if (value == null && param.tfDeprecatedName != null) {
                     value = getStringArrayParam(attr, param.tfDeprecatedName!,

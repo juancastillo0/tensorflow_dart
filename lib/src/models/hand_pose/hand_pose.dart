@@ -21,7 +21,10 @@ export './hand_detector.dart' show HandDetector;
 // Entry point to create a new detector instance.
 // export {MediaPipeHandsMediaPipeEstimationConfig, MediaPipeHandsMediaPipeModelConfig, MediaPipeHandsModelType} from './mediapipe/types.dart';
 export './tfjs/types.dart'
-    show MediaPipeHandsTfjsEstimationConfig, MediaPipeHandsTfjsModelConfig;
+    show
+        MediaPipeHandsTfjsEstimationConfig,
+        MediaPipeHandsTfjsModelConfig,
+        MediaPipeHandsModelType;
 
 // Supported models enum.
 export './types.dart';

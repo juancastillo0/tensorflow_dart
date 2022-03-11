@@ -16,7 +16,7 @@
  */
 
 // import {Tensor3D} from '@tensorflow/tfjs-core';
-
+import 'package:universal_html/html.dart' as html;
 import 'package:tensorflow_wasm/tensorflow_wasm.dart' show Tensor3D;
 
 class Nullable<T extends Object> {
@@ -128,7 +128,7 @@ abstract class KeypointsFilter {
 }
 
 abstract class Mask {
-  Future<CanvasImageSource>
+  Future<html.CanvasImageSource>
       toCanvasImageSource(); /* RGBA image of same size as input, where
                             mask semantics are green and blue are always set to
                             0. Different red values denote different body
@@ -137,7 +137,7 @@ abstract class Mask {
                             pixel being a foreground pixel (0 being lowest
                             probability and 255 being highest).*/
 
-  Future<ImageData>
+  Future<html.ImageData>
       toImageData(); /* 1 dimensional array of size image width * height *
                     4, where each pixel is represented by RGBA in that order.
                     For each pixel, the semantics are green and blue are always
