@@ -85,7 +85,7 @@ TensorInfo fusedConv2d({
   final pad = attrs['pad']!;
   final dilations = attrs['dilations'] as List<int>;
   final dataFormat = attrs['dataFormat'] as String;
-  final dimRoundingMode = attrs['dimRoundingMode'] as String;
+  final dimRoundingMode = attrs['dimRoundingMode'] as String?;
   final activation = attrs['activation'] as Activation;
   final leakyreluAlpha = attrs['leakyreluAlpha'] as num?;
 

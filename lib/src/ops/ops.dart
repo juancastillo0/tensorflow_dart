@@ -79,3 +79,10 @@ export 'separable_conv2d.dart';
 export 'max_pool.dart';
 export 'avg_pool.dart';
 // confusion_matrix
+
+import 'browser.dart' as browser_;
+
+// ignore: camel_case_types
+class browser {
+  static const fromPixels = browser_.fromPixels;
+}

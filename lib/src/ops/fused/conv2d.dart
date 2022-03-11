@@ -227,8 +227,6 @@ T fusedConv2d<
     return TensorList(der);
   }
 
-  ;
-
   final inputs = {
     //: FusedConv2DInputs
     'x': x4D,

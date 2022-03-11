@@ -14,6 +14,8 @@
  * limitations under the License.
  * =============================================================================
  */
+import 'dart:typed_data';
+
 import 'package:tensorflow_wasm/src/tensor.dart';
 
 // /** @docalias number[] */
@@ -130,7 +132,6 @@ DataType upcastType(DataType typeA, DataType typeB) {
   return upcastTypeMap[typeA]![typeB]!;
 }
 
-
 // /** Returns the output type after summation. */
 // export function sumOutType(type: DataType): DataType {
 //   return upcastType(type, 'int32');
@@ -161,9 +162,9 @@ DataType upcastType(DataType typeA, DataType typeB) {
 //     TypedArray|number[]|number[][][][][][]|boolean[]|boolean[][][][][][]|
 //     string[]|string[][][][][][]|Uint8Array[]|Uint8Array[][][][][];
 
-// /** Type for representing image data in Uint8Array type. */
-// export interface PixelData {
-//   width: number;
-//   height: number;
-//   data: Uint8Array;
-// }
+/** Type for representing image data in Uint8Array type. */
+abstract class PixelData {
+  double get width;
+  double get height;
+  Uint8List get data;
+}
