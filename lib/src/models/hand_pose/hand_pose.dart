@@ -28,3 +28,5 @@ export './tfjs/types.dart'
 
 // Supported models enum.
 export './types.dart';
+
+export '../shared/interfaces/common_interfaces.dart' show Keypoint;

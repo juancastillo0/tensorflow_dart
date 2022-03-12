@@ -21,6 +21,9 @@
 
 import 'dart:html';
 import 'dart:math' as Math;
+import 'package:tensorflow_wasm/models/hand_pose.dart'
+    show Hand, Handedness, Keypoint;
+
 import '../shared/params.dart' as params;
 import '../shared/util.dart' show isMobile;
 
@@ -178,16 +181,16 @@ class Camera {
    * Draw the keypoints on the video.
    * @param hands A list of hands to render.
    */
-  drawResults(hands) {
+  drawResults(List<Hand> hands) {
     // Sort by right to left hands.
     hands.sort((hand1, hand2) {
-      if (hand1.handedness < hand2.handedness) return 1;
-      if (hand1.handedness > hand2.handedness) return -1;
+      if (hand1.handedness.index < hand2.handedness.index) return 1;
+      if (hand1.handedness.index > hand2.handedness.index) return -1;
       return 0;
     });
 
     // Pad hands to clear empty scatter GL plots.
-    while (hands.length < 2) hands.push({});
+    // while (hands.length < 2) hands.add({});
 
     for (int i = 0; i < hands.length; ++i) {
       // Third hand and onwards scatterGL context is set to null since we
@@ -202,7 +205,7 @@ class Camera {
    * @param hand A hand with keypoints to render.
    * @param ctxt Scatter GL context to render 3D keypoints to.
    */
-  drawResult(hand, ctxt) {
+  drawResult(Hand hand, ctxt) {
     if (hand.keypoints != null) {
       this.drawKeypoints(hand.keypoints, hand.handedness);
     }
@@ -223,9 +226,9 @@ class Camera {
    * @param keypoints A list of keypoints.
    * @param handedness Label of hand (either Left or Right).
    */
-  drawKeypoints(keypoints, handedness) {
+  drawKeypoints(List<Keypoint> keypoints, Handedness handedness) {
     final keypointsArray = keypoints;
-    this.ctx.fillStyle = handedness == 'Left' ? 'Red' : 'Blue';
+    this.ctx.fillStyle = handedness == Handedness.left ? 'Red' : 'Blue';
     this.ctx.strokeStyle = 'White';
     this.ctx.lineWidth = params.DEFAULT_LINE_WIDTH;
 
@@ -236,12 +239,12 @@ class Camera {
     }
 
     for (final indices in fingerLookupIndices.values) {
-      final points = indices.map((idx) => keypoints[idx]);
+      final points = indices.map((idx) => keypoints[idx]).toList();
       this.drawPath(points, false);
     }
   }
 
-  drawPath(points, closePath) {
+  drawPath(List<Keypoint> points, bool closePath) {
     final region = new Path2D();
     region.moveTo(points[0].x, points[0].y);
     for (int i = 1; i < points.length; i++) {
@@ -255,7 +258,7 @@ class Camera {
     this.ctx.stroke(region);
   }
 
-  drawPoint(y, x, r) {
+  drawPoint(num y, num x, num r) {
     this.ctx.beginPath();
     this.ctx.arc(x, y, r, 0, 2 * Math.pi);
     this.ctx.fill();
