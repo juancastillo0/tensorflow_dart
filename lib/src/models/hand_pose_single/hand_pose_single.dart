@@ -15,42 +15,73 @@
  * =============================================================================
  */
 
-import * as tfconv from '@tensorflow/tfjs-converter';
-import * as tf from '@tensorflow/tfjs-core';
+// import * as tfconv from '@tensorflow/tfjs-converter';
+// import * as tf from '@tensorflow/tfjs-core';
 
-import {HandDetector} from './hand';
-import {MESH_ANNOTATIONS} from './keypoints';
-import {Coords3D, HandPipeline, Prediction} from './pipeline';
+// import {HandDetector} from './hand';
+// import {MESH_ANNOTATIONS} from './keypoints';
+// import {Coords3D, HandPipeline, Prediction} from './pipeline';
+
+import 'dart:convert';
+
+import 'package:tensorflow_wasm/tensorflow_wasm.dart' as tf;
+import 'package:tensorflow_wasm/converter.dart' as tfconv;
+import 'package:http/http.dart' as http;
+
+import 'hand.dart' show AnchorsConfig, HandDetector;
+import 'keypoints.dart' show MESH_ANNOTATIONS;
+import 'pipeline.dart';
 
 // Load the bounding box detector model.
-async function loadHandDetectorModel() {
+Future<tfconv.GraphModel> _loadHandDetectorModel() async {
   const HANDDETECT_MODEL_PATH =
       'https://tfhub.dev/mediapipe/tfjs-model/handdetector/1/default/1';
-  return tfconv.loadGraphModel(HANDDETECT_MODEL_PATH, {fromTFHub: true});
+  return tfconv.loadGraphModel(
+    tfconv.ModelHandler.fromUrl(HANDDETECT_MODEL_PATH),
+    tfconv.LoadOptions(fromTFHub: true),
+  );
 }
 
 const MESH_MODEL_INPUT_WIDTH = 256;
 const MESH_MODEL_INPUT_HEIGHT = 256;
 
 // Load the mesh detector model.
-async function loadHandPoseModel() {
+Future<tfconv.GraphModel> _loadHandPoseModel() async {
   const HANDPOSE_MODEL_PATH =
       'https://tfhub.dev/mediapipe/tfjs-model/handskeleton/1/default/1';
-  return tfconv.loadGraphModel(HANDPOSE_MODEL_PATH, {fromTFHub: true});
+  return tfconv.loadGraphModel(
+    tfconv.ModelHandler.fromUrl(HANDPOSE_MODEL_PATH),
+    tfconv.LoadOptions(fromTFHub: true),
+  );
 }
 
 // In single shot detector pipelines, the output space is discretized into a set
 // of bounding boxes, each of which is assigned a score during prediction. The
 // anchors define the coordinates of these boxes.
-async function loadAnchors() {
-  return tf.util
-      .fetch(
-          'https://tfhub.dev/mediapipe/tfjs-model/handskeleton/1/default/1/anchors.json?tfjs-format=file')
-      .then(d => d.json());
+Future<List<AnchorsConfig>> _loadAnchors() async {
+  final _stream = await tf.env().platform!.fetch(
+      Uri.parse(
+          'https://tfhub.dev/mediapipe/tfjs-model/handskeleton/1/default/1/anchors.json?tfjs-format=file'),
+      null);
+
+  final response = await http.Response.fromStream(_stream);
+  return (jsonDecode(response.body) as List)
+      .map((e) => AnchorsConfig.fromJson(e))
+      .toList();
 }
 
-export interface AnnotatedPrediction extends Prediction {
-  annotations: {[key: string]: Array<[number, number, number]>};
+class AnnotatedPrediction implements Prediction {
+  final Map<String, List<List<double>>> annotations;
+  final double handInViewConfidence;
+  final Coords3D landmarks;
+  final BoundingBox boundingBox;
+
+  const AnnotatedPrediction({
+    required this.annotations,
+    required this.handInViewConfidence,
+    required this.landmarks,
+    required this.boundingBox,
+  });
 }
 
 /**
@@ -68,54 +99,61 @@ export interface AnnotatedPrediction extends Prediction {
  * - `scoreThreshold` A threshold for deciding when to remove boxes based
  * on score in non-maximum suppression. Defaults to 0.75.
  */
-export async function load({
-  maxContinuousChecks = Infinity,
-  detectionConfidence = 0.8,
-  iouThreshold = 0.3,
-  scoreThreshold = 0.5
-} = {}): Promise<HandPose> {
-  const [ANCHORS, handDetectorModel, handPoseModel] = await Promise.all(
-      [loadAnchors(), loadHandDetectorModel(), loadHandPoseModel()]);
+Future<HandPose> load({
+  double maxContinuousChecks = double.infinity,
+  double detectionConfidence = 0.8,
+  double iouThreshold = 0.3,
+  double scoreThreshold = 0.5,
+}) async {
+  final _models = await Future.wait(
+      [_loadAnchors(), _loadHandDetectorModel(), _loadHandPoseModel()]);
+  final ANCHORS = _models[0] as List<AnchorsConfig>;
+  final handDetectorModel = _models[1] as tfconv.GraphModel;
+  final handPoseModel = _models[2] as tfconv.GraphModel;
 
-  const detector = new HandDetector(
-      handDetectorModel, MESH_MODEL_INPUT_WIDTH, MESH_MODEL_INPUT_HEIGHT,
-      ANCHORS, iouThreshold, scoreThreshold);
-  const pipeline = new HandPipeline(
-      detector, handPoseModel, MESH_MODEL_INPUT_WIDTH, MESH_MODEL_INPUT_HEIGHT,
-      maxContinuousChecks, detectionConfidence);
-  const handpose = new HandPose(pipeline);
+  final detector = HandDetector(handDetectorModel, MESH_MODEL_INPUT_WIDTH,
+      MESH_MODEL_INPUT_HEIGHT, ANCHORS, iouThreshold, scoreThreshold);
+  final pipeline = HandPipeline(detector, handPoseModel, MESH_MODEL_INPUT_WIDTH,
+      MESH_MODEL_INPUT_HEIGHT, maxContinuousChecks, detectionConfidence);
+  final handpose = HandPose(pipeline);
 
   return handpose;
 }
 
-function getInputTensorDimensions(input: tf.Tensor3D|ImageData|HTMLVideoElement|
-                                  HTMLImageElement|
-                                  HTMLCanvasElement): [number, number] {
-  return input instanceof tf.Tensor ? [input.shape[0], input.shape[1]] :
-                                      [input.height, input.width];
+List<int> _getInputTensorDimensions(Object input
+// : tf.Tensor3D|ImageData|HTMLVideoElement|
+//                                   HTMLImageElement|HTMLCanvasElement
+    ) {
+  return input is tf.Tensor
+      ? [input.shape[0], input.shape[1]]
+      : [(input as dynamic).height, (input as dynamic).width];
 }
 
-function flipHandHorizontal(prediction: Prediction, width: number): Prediction {
-  const {handInViewConfidence, landmarks, boundingBox} = prediction;
-  return {
-    handInViewConfidence,
-    landmarks: landmarks.map(
-        (coord: [number, number, number]): [number, number, number] => {
-          return [width - 1 - coord[0], coord[1], coord[2]];
-        }),
-    boundingBox: {
-      topLeft: [width - 1 - boundingBox.topLeft[0], boundingBox.topLeft[1]],
-      bottomRight: [
-        width - 1 - boundingBox.bottomRight[0], boundingBox.bottomRight[1]
-      ]
-    }
-  };
+Prediction _flipHandHorizontal(Prediction prediction, int width) {
+  final handInViewConfidence = prediction.handInViewConfidence;
+  final landmarks = prediction.landmarks;
+  final boundingBox = prediction.boundingBox;
+
+  return Prediction(
+    handInViewConfidence: handInViewConfidence,
+    landmarks: landmarks.map((coord) {
+      return [width - 1 - coord[0], coord[1], coord[2]];
+    }).toList(),
+    boundingBox: BoundingBox(topLeft: [
+      width - 1 - boundingBox.topLeft[0],
+      boundingBox.topLeft[1]
+    ], bottomRight: [
+      width - 1 - boundingBox.bottomRight[0],
+      boundingBox.bottomRight[1]
+    ]),
+  );
 }
 
-export class HandPose {
-  constructor(private readonly pipeline: HandPipeline) {}
+class HandPose {
+  final HandPipeline pipeline;
+  HandPose(this.pipeline);
 
-  static getAnnotations(): {[key: string]: number[]} {
+  static Map<String, List<int>> getAnnotations() {
     return MESH_ANNOTATIONS;
   }
 
@@ -127,42 +165,46 @@ export class HandPose {
    * @param flipHorizontal Whether to flip the hand keypoints horizontally.
    * Should be true for videos that are flipped by default (e.g. webcams).
    */
-  async estimateHands(
-      input: tf.Tensor3D|ImageData|HTMLVideoElement|HTMLImageElement|
-      HTMLCanvasElement,
-      flipHorizontal = false): Promise<AnnotatedPrediction[]> {
-    const [, width] = getInputTensorDimensions(input);
+  Future<List<AnnotatedPrediction>> estimateHands(
+    // : tf.Tensor3D|ImageData|HTMLVideoElement|HTMLImageElement| HTMLCanvasElement,
+    Object input, {
+    bool flipHorizontal = false,
+  }) async {
+    final width = _getInputTensorDimensions(input)[1];
 
-    const image: tf.Tensor4D = tf.tidy(() => {
-      if (!(input instanceof tf.Tensor)) {
+    final tf.Tensor4D image = tf.tidy(() {
+      if (input is! tf.Tensor) {
         input = tf.browser.fromPixels(input);
       }
-      return tf.expandDims(tf.cast(input, 'float32'));
+      return tf.expandDims(tf.cast(input as tf.Tensor, 'float32'));
     });
 
-    const result = await this.pipeline.estimateHand(image);
+    final result = await this.pipeline.estimateHand(image);
     image.dispose();
 
-    if (result === null) {
+    if (result == null) {
       return [];
     }
 
-    let prediction = result;
-    if (flipHorizontal === true) {
-      prediction = flipHandHorizontal(result, width);
+    var prediction = result;
+    if (flipHorizontal == true) {
+      prediction = _flipHandHorizontal(result, width);
     }
 
-    const annotations: {[key: string]: Coords3D} = {};
-    for (const key of Object.keys(MESH_ANNOTATIONS)) {
-      annotations[key] =
-          MESH_ANNOTATIONS[key].map(index => prediction.landmarks[index]);
+    final Map<String, Coords3D> annotations = {};
+    for (final key in MESH_ANNOTATIONS.keys) {
+      annotations[key] = MESH_ANNOTATIONS[key]!
+          .map((index) => prediction.landmarks[index])
+          .toList();
     }
 
-    return [{
-      handInViewConfidence: prediction.handInViewConfidence,
-      boundingBox: prediction.boundingBox,
-      landmarks: prediction.landmarks,
-      annotations
-    }];
+    return [
+      AnnotatedPrediction(
+        handInViewConfidence: prediction.handInViewConfidence,
+        boundingBox: prediction.boundingBox,
+        landmarks: prediction.landmarks,
+        annotations: annotations,
+      ),
+    ];
   }
 }

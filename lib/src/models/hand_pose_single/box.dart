@@ -15,94 +15,126 @@
  * =============================================================================
  */
 
-import * as tf from '@tensorflow/tfjs-core';
+// import * as tf from '@tensorflow/tfjs-core';
+
+import 'dart:math' as Math;
+import 'package:tensorflow_wasm/tensorflow_wasm.dart' as tf;
 
 // The hand bounding box.
-export type Box = {
-  startPoint: [number, number],
-  endPoint: [number, number],
-  palmLandmarks?: Array<[number, number]>
-};
+class Box {
+  final List<double> startPoint;
+  final List<double> endPoint;
+  final List<List<double>>? palmLandmarks;
 
-export function getBoxSize(box: Box): [number, number] {
+  Box({
+    required this.startPoint,
+    required this.endPoint,
+    this.palmLandmarks,
+  });
+}
+
+List<double> getBoxSize(Box box) {
   return [
-    Math.abs(box.endPoint[0] - box.startPoint[0]),
-    Math.abs(box.endPoint[1] - box.startPoint[1])
+    (box.endPoint[0] - box.startPoint[0]).abs(),
+    (box.endPoint[1] - box.startPoint[1]).abs(),
   ];
 }
 
-export function getBoxCenter(box: Box): [number, number] {
+List<double> getBoxCenter(Box box) {
   return [
     box.startPoint[0] + (box.endPoint[0] - box.startPoint[0]) / 2,
     box.startPoint[1] + (box.endPoint[1] - box.startPoint[1]) / 2
   ];
 }
 
-export function cutBoxFromImageAndResize(
-    box: Box, image: tf.Tensor4D, cropSize: [number, number]): tf.Tensor4D {
-  const h = image.shape[1];
-  const w = image.shape[2];
+tf.Tensor4D cutBoxFromImageAndResize(
+    Box box, tf.Tensor4D image, List<int> cropSize) {
+  final h = image.shape[1];
+  final w = image.shape[2];
 
-  const boxes = [[
-    box.startPoint[1] / h, box.startPoint[0] / w, box.endPoint[1] / h,
-    box.endPoint[0] / w
-  ]];
-
-  return tf.image.cropAndResize(image, boxes, [0], cropSize);
-}
-
-export function scaleBoxCoordinates(box: Box, factor: [number, number]): Box {
-  const startPoint: [number, number] =
-      [box.startPoint[0] * factor[0], box.startPoint[1] * factor[1]];
-  const endPoint: [number, number] =
-      [box.endPoint[0] * factor[0], box.endPoint[1] * factor[1]];
-  const palmLandmarks: Array<[number, number]> =
-      box.palmLandmarks.map((coord: [number, number]) => {
-        const scaledCoord: [number, number] =
-            [coord[0] * factor[0], coord[1] * factor[1]];
-        return scaledCoord;
-      });
-
-  return {startPoint, endPoint, palmLandmarks};
-}
-
-export function enlargeBox(box: Box, factor = 1.5): Box {
-  const center = getBoxCenter(box);
-  const size = getBoxSize(box);
-
-  const newHalfSize = [factor * size[0] / 2, factor * size[1] / 2];
-  const startPoint: [number, number] =
-      [center[0] - newHalfSize[0], center[1] - newHalfSize[1]];
-  const endPoint: [number, number] =
-      [center[0] + newHalfSize[0], center[1] + newHalfSize[1]];
-
-  return {startPoint, endPoint, palmLandmarks: box.palmLandmarks};
-}
-
-export function squarifyBox(box: Box): Box {
-  const centers = getBoxCenter(box);
-  const size = getBoxSize(box);
-  const maxEdge = Math.max(...size);
-
-  const halfSize = maxEdge / 2;
-  const startPoint: [number, number] =
-      [centers[0] - halfSize, centers[1] - halfSize];
-  const endPoint: [number, number] =
-      [centers[0] + halfSize, centers[1] + halfSize];
-
-  return {startPoint, endPoint, palmLandmarks: box.palmLandmarks};
-}
-
-export function shiftBox(box: Box, shiftFactor: [number, number]) {
-  const boxSize = [
-    box.endPoint[0] - box.startPoint[0], box.endPoint[1] - box.startPoint[1]
+  final boxes = [
+    [
+      box.startPoint[1] / h,
+      box.startPoint[0] / w,
+      box.endPoint[1] / h,
+      box.endPoint[0] / w
+    ]
   ];
-  const shiftVector =
-      [boxSize[0] * shiftFactor[0], boxSize[1] * shiftFactor[1]];
-  const startPoint: [number, number] =
-      [box.startPoint[0] + shiftVector[0], box.startPoint[1] + shiftVector[1]];
-  const endPoint: [number, number] =
-      [box.endPoint[0] + shiftVector[0], box.endPoint[1] + shiftVector[1]];
 
-  return {startPoint, endPoint, palmLandmarks: box.palmLandmarks};
+  return tf.image.cropAndResize(
+    image,
+    tf.tensor(boxes),
+    tf.tensor([0]),
+    cropSize,
+  );
+}
+
+Box scaleBoxCoordinates(Box box, List<double> factor) {
+  final startPoint = [
+    box.startPoint[0] * factor[0],
+    box.startPoint[1] * factor[1]
+  ];
+  final endPoint = [box.endPoint[0] * factor[0], box.endPoint[1] * factor[1]];
+  final palmLandmarks = box.palmLandmarks!.map((coord) {
+    final scaledCoord = [coord[0] * factor[0], coord[1] * factor[1]];
+    return scaledCoord;
+  }).toList();
+
+  return Box(
+      startPoint: startPoint, endPoint: endPoint, palmLandmarks: palmLandmarks);
+}
+
+Box enlargeBox(Box box, [num factor = 1.5]) {
+  final center = getBoxCenter(box);
+  final size = getBoxSize(box);
+
+  final newHalfSize = [factor * size[0] / 2, factor * size[1] / 2];
+  final startPoint = [center[0] - newHalfSize[0], center[1] - newHalfSize[1]];
+  final endPoint = [center[0] + newHalfSize[0], center[1] + newHalfSize[1]];
+
+  return Box(
+    startPoint: startPoint,
+    endPoint: endPoint,
+    palmLandmarks: box.palmLandmarks,
+  );
+}
+
+Box squarifyBox(Box box) {
+  final centers = getBoxCenter(box);
+  final size = getBoxSize(box);
+  final maxEdge = size.reduce(Math.max);
+
+  final halfSize = maxEdge / 2;
+  final startPoint = [centers[0] - halfSize, centers[1] - halfSize];
+  final endPoint = [centers[0] + halfSize, centers[1] + halfSize];
+
+  return Box(
+    startPoint: startPoint,
+    endPoint: endPoint,
+    palmLandmarks: box.palmLandmarks,
+  );
+}
+
+Box shiftBox(Box box, List<double> shiftFactor) {
+  final boxSize = [
+    box.endPoint[0] - box.startPoint[0],
+    box.endPoint[1] - box.startPoint[1]
+  ];
+  final shiftVector = [
+    boxSize[0] * shiftFactor[0],
+    boxSize[1] * shiftFactor[1]
+  ];
+  final startPoint = [
+    box.startPoint[0] + shiftVector[0],
+    box.startPoint[1] + shiftVector[1]
+  ];
+  final endPoint = [
+    box.endPoint[0] + shiftVector[0],
+    box.endPoint[1] + shiftVector[1]
+  ];
+
+  return Box(
+      startPoint: startPoint,
+      endPoint: endPoint,
+      palmLandmarks: box.palmLandmarks);
 }
