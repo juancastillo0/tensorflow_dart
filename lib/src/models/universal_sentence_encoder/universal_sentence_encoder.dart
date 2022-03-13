@@ -15,54 +15,69 @@
  * =============================================================================
  */
 
-import * as tfconv from '@tensorflow/tfjs-converter';
-import * as tf from '@tensorflow/tfjs-core';
+// import * as tfconv from '@tensorflow/tfjs-converter';
+// import * as tf from '@tensorflow/tfjs-core';
 
-import {loadTokenizer, loadVocabulary, Tokenizer} from './tokenizer';
-import {loadQnA} from './use_qna';
+// import {loadTokenizer, loadVocabulary, Tokenizer} from './tokenizer';
+// import {loadQnA} from './use_qna';
 
-export {version} from './version';
+// export {version} from './version';
+
+import 'package:collection/collection.dart';
+import 'tokenizer/tokenizer.dart';
+
+import 'package:tensorflow_wasm/tensorflow_wasm.dart' as tf;
+import 'package:tensorflow_wasm/converter.dart' as tfconv;
+import 'package:tensorflow_wasm/src/util_base.dart' as util;
+
+export 'tokenizer/tokenizer.dart' show loadTokenizer, Tokenizer;
+export 'use_qna.dart' show loadQnA;
 
 const BASE_PATH =
     'https://storage.googleapis.com/tfjs-models/savedmodel/universal_sentence_encoder';
 
-declare interface ModelInputs extends tf.NamedTensorMap {
-  indices: tf.Tensor;
-  values: tf.Tensor;
+// class ModelInputs extends tf.NamedTensorMap {
+//   indices: tf.Tensor;
+//   values: tf.Tensor;
+// }
+
+class LoadConfig {
+  final String? modelUrl;
+  final String? vocabUrl;
+
+  LoadConfig({
+    this.modelUrl,
+    this.vocabUrl,
+  });
 }
 
-interface LoadConfig {
-  modelUrl?: string;
-  vocabUrl?: string;
-}
-
-export async function load(config?: LoadConfig) {
-  const use = new UniversalSentenceEncoder();
+Future<UniversalSentenceEncoder> load([LoadConfig? config]) async {
+  final use = UniversalSentenceEncoder();
   await use.load(config);
   return use;
 }
 
-export class UniversalSentenceEncoder {
-  private model: tfconv.GraphModel;
-  private tokenizer: Tokenizer;
+class UniversalSentenceEncoder {
+  late final tfconv.GraphModel model;
+  late final Tokenizer tokenizer;
 
-  async loadModel(modelUrl?: string) {
-    return modelUrl
-      ? tfconv.loadGraphModel(modelUrl)
-      : tfconv.loadGraphModel(
-          'https://tfhub.dev/tensorflow/tfjs-model/universal-sentence-encoder-lite/1/default/1',
-          {fromTFHub: true}
-        );
+  Future<tfconv.GraphModel> loadModel([String? modelUrl]) {
+    return modelUrl != null
+        ? tfconv.loadGraphModel(tfconv.ModelHandler.fromUrl(modelUrl))
+        : tfconv.loadGraphModel(
+            tfconv.ModelHandler.fromUrl(
+                'https://tfhub.dev/tensorflow/tfjs-model/universal-sentence-encoder-lite/1/default/1'),
+            tfconv.LoadOptions(fromTFHub: true));
   }
 
-  async load(config: LoadConfig = {}) {
-    const [model, vocabulary] = await Promise.all([
-      this.loadModel(config.modelUrl),
-      loadVocabulary(config.vocabUrl || `${BASE_PATH}/vocab.json`)
+  Future<void> load([LoadConfig? config]) async {
+    final _l = await Future.wait([
+      this.loadModel(config?.modelUrl),
+      loadVocabulary(config?.vocabUrl ?? '${BASE_PATH}/vocab.json')
     ]);
 
-    this.model = model;
-    this.tokenizer = new Tokenizer(vocabulary);
+    this.model = _l[0] as tfconv.GraphModel;
+    this.tokenizer = Tokenizer(_l[1] as Vocabulary);
   }
 
   /**
@@ -72,36 +87,33 @@ export class UniversalSentenceEncoder {
    *
    * @param inputs A string or an array of strings to embed.
    */
-  async embed(inputs: string[]|string): Promise<tf.Tensor2D> {
-    if (typeof inputs === 'string') {
-      inputs = [inputs];
-    }
+  Future<tf.Tensor2D> embed(List<String> inputs) async {
+    // if (typeof inputs == 'string') {
+    //   inputs = [inputs];
+    // }
 
-    const encodings = inputs.map(d => this.tokenizer.encode(d));
+    final encodings = inputs.map((d) => this.tokenizer.encode(d)).toList();
 
-    const indicesArr =
-        encodings.map((arr, i) => arr.map((d, index) => [i, index]));
+    final flattenedIndicesArr = encodings
+        .expandIndexed((i, arr) => arr.mapIndexed((index, d) => [i, index]))
+        .toList();
 
-    let flattenedIndicesArr: Array<[number, number]> = [];
-    for (let i = 0; i < indicesArr.length; i++) {
-      flattenedIndicesArr =
-          flattenedIndicesArr.concat(indicesArr[i] as Array<[number, number]>);
-    }
+    // List<List<int>> flattenedIndicesArr = [];
+    // for (int i = 0; i < indicesArr.length; i++) {
+    //   flattenedIndicesArr =
+    //       flattenedIndicesArr.concat(indicesArr[i]);
+    // }
 
-    const indices = tf.tensor2d(
+    final indices = tf.tensor2d(
         flattenedIndicesArr, [flattenedIndicesArr.length, 2], 'int32');
-    const values = tf.tensor1d(tf.util.flatten(encodings) as number[], 'int32');
+    final values = tf.tensor1d(util.flatten(encodings), 'int32');
 
-    const modelInputs: ModelInputs = {indices, values};
+    final modelInputs = tf.TensorMap({'indices': indices, 'values': values});
 
-    const embeddings = await this.model.executeAsync(modelInputs);
+    final embeddings = await this.model.executeAsync(modelInputs);
     indices.dispose();
     values.dispose();
 
     return embeddings as tf.Tensor2D;
   }
 }
-
-export {Tokenizer};
-export {loadTokenizer};
-export {loadQnA};

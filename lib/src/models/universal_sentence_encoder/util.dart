@@ -16,10 +16,10 @@
  */
 
 // unicode-aware iteration
-export const stringToChars = (input: string): string[] => {
-  const symbols = [];
-  for (const symbol of input) {
-    symbols.push(symbol);
+List<String> stringToChars(String input) {
+  const symbols = <String>[];
+  for (const symbol in input.characters) {
+    symbols.add(symbol);
   }
   return symbols;
-};
+}

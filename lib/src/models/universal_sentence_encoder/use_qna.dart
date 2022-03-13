@@ -15,12 +15,17 @@
  * =============================================================================
  */
 
-import * as tfconv from '@tensorflow/tfjs-converter';
-import * as tf from '@tensorflow/tfjs-core';
+// import * as tfconv from '@tensorflow/tfjs-converter';
+// import * as tf from '@tensorflow/tfjs-core';
 
-import {loadVocabulary, Tokenizer} from './tokenizer';
+// import {loadVocabulary, Tokenizer} from './tokenizer';
 
-export {version} from './version';
+// export {version} from './version';
+
+import 'package:tensorflow_wasm/tensorflow_wasm.dart' as tf;
+import 'package:tensorflow_wasm/converter.dart' as tfconv;
+
+import 'tokenizer/tokenizer.dart';
 
 const BASE_PATH =
     'https://tfhub.dev/google/tfjs-model/universal-sentence-encoder-qa-ondevice/1';
@@ -47,39 +52,56 @@ const TOKEN_PADDING = 2;
 // Start value for each token
 const TOKEN_START_VALUE = 1;
 
-export interface ModelOutput {
-  queryEmbedding: tf.Tensor;
-  responseEmbedding: tf.Tensor;
+class ModelOutput {
+  final tf.Tensor queryEmbedding;
+  final tf.Tensor responseEmbedding;
+
+  const ModelOutput({
+    required this.queryEmbedding,
+    required this.responseEmbedding,
+  });
 }
 
-export interface ModelInput {
-  queries: string[];
-  responses: string[];
-  contexts?: string[];
+class ModelInput {
+  final List<String> queries;
+  final List<String> responses;
+  final List<String>? contexts;
+
+  const ModelInput({
+    required this.queries,
+    required this.responses,
+    this.contexts,
+  });
 }
 
-export async function loadQnA() {
-  const use = new UniversalSentenceEncoderQnA();
+Future<UniversalSentenceEncoderQnA> loadQnA() async {
+  final use = UniversalSentenceEncoderQnA();
   await use.load();
   return use;
 }
 
-export class UniversalSentenceEncoderQnA {
-  private model: tfconv.GraphModel;
-  private tokenizer: Tokenizer;
+class UniversalSentenceEncoderQnA {
+  late final tfconv.GraphModel model;
+  late final Tokenizer tokenizer;
 
-  async loadModel() {
-    return tfconv.loadGraphModel(BASE_PATH, {fromTFHub: true});
+  Future<tfconv.GraphModel> loadModel() {
+    return tfconv.loadGraphModel(
+      tfconv.ModelHandler.fromUrl(BASE_PATH),
+      tfconv.LoadOptions(fromTFHub: true),
+    );
   }
 
-  async load() {
-    const [model, vocabulary] = await Promise.all([
+  Future<void> load() async {
+    final _l = await Future.wait([
       this.loadModel(),
-      loadVocabulary(`${BASE_PATH}/vocab.json?tfjs-format=file`)
+      loadVocabulary('${BASE_PATH}/vocab.json?tfjs-format=file'),
     ]);
 
-    this.model = model;
-    this.tokenizer = new Tokenizer(vocabulary, RESERVED_SYMBOLS_COUNT);
+    this.model = _l[0] as tfconv.GraphModel;
+
+    final vocabulary = _l[1] as Vocabulary;
+    this.tokenizer =
+        Tokenizer(vocabulary, reservedSymbolsCount: RESERVED_SYMBOLS_COUNT);
   }
 
   /**
@@ -88,50 +110,54 @@ export class UniversalSentenceEncoderQnA {
    *
    * @param input the ModelInput that contains queries and answers.
    */
-  embed(input: ModelInput): ModelOutput {
-    const embeddings = tf.tidy(() => {
-      const queryEncoding = this.tokenizeStrings(input.queries, INPUT_LIMIT);
-      const responseEncoding =
-          this.tokenizeStrings(input.responses, INPUT_LIMIT);
+  ModelOutput embed(ModelInput input) {
+    final embeddings = tf.tidy(() {
+      final queryEncoding = this._tokenizeStrings(input.queries, INPUT_LIMIT);
+      final responseEncoding =
+          this._tokenizeStrings(input.responses, INPUT_LIMIT);
       if (input.contexts != null) {
-        if (input.contexts.length !== input.responses.length) {
-          throw new Error(
-              'The length of response strings ' +
+        if (input.contexts!.length != input.responses.length) {
+          throw Exception('The length of response strings ' +
               'and context strings need to match.');
         }
       }
-      const contexts: string[] = input.contexts || [];
+      final contexts = input.contexts ?? [];
       if (input.contexts == null) {
         contexts.length = input.responses.length;
-        contexts.fill('');
+        contexts.fillRange(0, contexts.length, '');
       }
-      const contextEncoding = this.tokenizeStrings(contexts, INPUT_LIMIT);
-      const modelInputs: {[key: string]: tf.Tensor} = {};
-      modelInputs[QUERY_NODE_NAME] = queryEncoding;
-      modelInputs[RESPONSE_NODE_NAME] = responseEncoding;
-      modelInputs[RESPONSE_CONTEXT_NODE_NAME] = contextEncoding;
+      final contextEncoding = this._tokenizeStrings(contexts, INPUT_LIMIT);
+      final modelInputs = tf.TensorMap({
+        QUERY_NODE_NAME: queryEncoding,
+        RESPONSE_NODE_NAME: responseEncoding,
+        RESPONSE_CONTEXT_NODE_NAME: contextEncoding,
+      });
 
       return this.model.execute(
           modelInputs, [QUERY_RESULT_NODE_NAME, RESPONSE_RESULT_NODE_NAME]);
-    }) as tf.Tensor[];
-    const queryEmbedding = embeddings[0];
-    const responseEmbedding = embeddings[1];
+    }) as List<tf.Tensor>;
+    final queryEmbedding = embeddings[0];
+    final responseEmbedding = embeddings[1];
 
-    return {queryEmbedding, responseEmbedding};
+    return ModelOutput(
+      queryEmbedding: queryEmbedding,
+      responseEmbedding: responseEmbedding,
+    );
   }
 
-  private tokenizeStrings(strs: string[], limit: number): tf.Tensor2D {
-    const tokens =
-        strs.map(s => this.shiftTokens(this.tokenizer.encode(s), INPUT_LIMIT));
+  tf.Tensor2D _tokenizeStrings(List<String> strs, int limit) {
+    final tokens = strs
+        .map((s) => this._shiftTokens(this.tokenizer.encode(s), INPUT_LIMIT))
+        .toList();
     return tf.tensor2d(tokens, [strs.length, INPUT_LIMIT], 'int32');
   }
 
-  private shiftTokens(tokens: number[], limit: number): number[] {
+  List<int> _shiftTokens(List<int> tokens, int limit) {
     tokens.unshift(TOKEN_START_VALUE);
-    for (let index = 0; index < limit; index++) {
+    for (int index = 0; index < limit; index++) {
       if (index >= tokens.length) {
         tokens[index] = TOKEN_PADDING;
-      } else if (!SKIP_VALUES.includes(tokens[index])) {
+      } else if (!SKIP_VALUES.contains(tokens[index])) {
         tokens[index] += OFFSET;
       }
     }

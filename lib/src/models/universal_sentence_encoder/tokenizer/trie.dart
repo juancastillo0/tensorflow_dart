@@ -15,49 +15,57 @@
  * =============================================================================
  */
 
-import {stringToChars} from '../util';
+// import {stringToChars} from '../util';
+
+import '../util.dart';
 
 // [token, score, index]
-type OutputNode = [string[], number, number];
+class OutputNode {
+  final List<String> token;
+  final int score;
+  final int index;
 
-class TrieNode {
-  public parent: TrieNode;
-  public end: boolean;
-  public children: {[firstSymbol: string]: TrieNode};
-  public word: OutputNode;
-
-  constructor() {
-    this.parent = null;
-    this.children = {};
-    this.end = false;
-    this.word = [[], 0, 0];
-  }
+  OutputNode({
+    required this.token,
+    required this.score,
+    required this.index,
+  });
 }
 
-export class Trie {
-  public root: TrieNode;
+class TrieNode {
+  TrieNode? parent;
+  bool end = false;
+  Map<String, TrieNode> children = {};
+  OutputNode word = OutputNode(index: 0, score: 0, token: []);
 
-  constructor() {
-    this.root = new TrieNode();
+  TrieNode();
+}
+
+class Trie {
+  TrieNode root = TrieNode();
+
+  Trie() {
+    this.root = TrieNode();
   }
 
   /**
    * Inserts a token into the trie.
    */
-  insert(word: string, score: number, index: number) {
-    let node = this.root;
+  insert(String word, int score, int index) {
+    var node = this.root;
 
-    const symbols = stringToChars(word);
+    final symbols = stringToChars(word);
 
-    for (let i = 0; i < symbols.length; i++) {
-      if (!node.children[symbols[i]]) {
-        node.children[symbols[i]] = new TrieNode();
-        node.children[symbols[i]].parent = node;
-        node.children[symbols[i]].word[0] = node.word[0].concat(symbols[i]);
+    for (int i = 0; i < symbols.length; i++) {
+      if (node.children.containsKey(symbols[i])) {
+        final t = TrieNode();
+        node.children[symbols[i]] = t;
+        t.parent = node;
+        t.word[0] = node.word[0].concat(symbols[i]);
       }
 
       node = node.children[symbols[i]];
-      if (i === symbols.length - 1) {
+      if (i == symbols.length - 1) {
         node.end = true;
         node.word[1] = score;
         node.word[2] = index;
@@ -70,16 +78,24 @@ export class Trie {
    *
    * @param ss The prefix to match on.
    */
-  commonPrefixSearch(ss: string[]): OutputNode[] {
-    const output: OutputNode[] = [];
-    let node = this.root.children[ss[0]];
+  List<OutputNode> commonPrefixSearch(List<String> ss) {
+    final List<OutputNode> output = [];
+    var node = this.root.children[ss[0]];
 
-    for (let i = 0; i < ss.length && node; i++){
-      if (node.end){ output.push(node.word); }
+    for (int i = 0; i < ss.length && node != null; i++) {
+      if (node.end) {
+        output.add(node.word);
+      }
       node = node.children[ss[i + 1]];
     }
 
-    if (!output.length){ output.push([[ss[0]], 0, 0]); }
+    if (output.isEmpty) {
+      output.add(OutputNode(
+        token: [ss[0]],
+        score: 0,
+        index: 0,
+      ));
+    }
 
     return output;
   }

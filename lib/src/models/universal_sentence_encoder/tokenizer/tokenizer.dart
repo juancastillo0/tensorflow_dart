@@ -22,88 +22,105 @@
  * details, refer to https://arxiv.org/pdf/1804.10959.pdf.
  */
 
-import * as tf from '@tensorflow/tfjs-core';
+// import * as tf from '@tensorflow/tfjs-core';
 
-import {stringToChars} from '../util';
+// import {stringToChars} from '../util';
 
-import {Trie} from './trie';
+// import {Trie} from './trie';
+
+import 'dart:convert';
+
+import 'package:tensorflow_wasm/tensorflow_wasm.dart' as tf;
+import 'package:http/http.dart' as http;
+
+import '../util.dart';
+import 'trie.dart';
 
 const separator =
-    '\u2581';  // This is the unicode character 'lower one eighth block'.
+    '\u2581'; // This is the unicode character 'lower one eighth block'.
 
-function processInput(str: string): string {
-  const normalized = str.normalize('NFKC');
-  return normalized.length > 0 ?
-      separator + normalized.replace(/ /g, separator) :
-      normalized;
+String _processInput(String str) {
+  final normalized = str.normalize('NFKC');
+  return normalized.length > 0
+      ? separator + normalized.replaceAll(RegExp(' '), separator)
+      : normalized;
 }
 
 // The first tokens are reserved for unk, control symbols, and user-defined
 // symbols.
 const RESERVED_SYMBOLS_COUNT = 6;
 
-export type Vocabulary = Array<[string, number]>;
+typedef Vocabulary = List<MapEntry<String, int>>;
 
-type Score = {
-  key: string[],
-  score: number,
-  index: number
-};
+class Score {
+  final List<String> key;
+  final int score;
+  final int index;
 
-export class Tokenizer {
-  trie: Trie;
+  Score({
+    required this.key,
+    required this.score,
+    required this.index,
+  });
+}
 
-  constructor(
-      private vocabulary: Vocabulary,
-      private reservedSymbolsCount = RESERVED_SYMBOLS_COUNT) {
-    this.trie = new Trie();
+class Tokenizer {
+  final Trie trie = Trie();
+  final Vocabulary vocabulary;
+  final int reservedSymbolsCount;
 
-    for (let i = this.reservedSymbolsCount; i < this.vocabulary.length; i++) {
-      this.trie.insert(this.vocabulary[i][0], this.vocabulary[i][1], i);
+  Tokenizer(
+    this.vocabulary, {
+    this.reservedSymbolsCount = RESERVED_SYMBOLS_COUNT,
+  }) {
+    for (int i = this.reservedSymbolsCount; i < this.vocabulary.length; i++) {
+      this.trie.insert(this.vocabulary[i].key, this.vocabulary[i].value, i);
     }
   }
 
-  encode(input: string): number[] {
-    const nodes: Array<{[index: number]: Score[]}> = [];
-    const words: number[] = [];
-    const best: number[] = [];
+  List<int> encode(String input) {
+    final List<Map<String, List<Score>>> nodes = [];
+    final List<int> words = [];
+    final List<int> best = [];
 
-    input = processInput(input);
+    input = _processInput(input);
 
-    const symbols = stringToChars(input);
+    final symbols = stringToChars(input);
 
-    for (let i = 0; i <= symbols.length; i++) {
-      nodes.push({});
-      words.push(0);
-      best.push(0);
+    for (int i = 0; i <= symbols.length; i++) {
+      nodes.add({});
+      words.add(0);
+      best.add(0);
     }
 
     // Construct the lattice.
-    for (let i = 0; i < symbols.length; i++) {
-      const matches = this.trie.commonPrefixSearch(symbols.slice(i));
+    for (int i = 0; i < symbols.length; i++) {
+      final matches = this.trie.commonPrefixSearch(symbols.slice(i));
 
-      for (let j = 0; j < matches.length; j++) {
-        const piece = matches[j];
-        const obj = {key: piece[0], score: piece[1], index: piece[2]};
+      for (int j = 0; j < matches.length; j++) {
+        final piece = matches[j];
+        final obj = Score(
+          key: piece.token,
+          score: piece.score,
+          index: piece.index,
+        );
 
-        const endPos = piece[0].length;
+        final endPos = piece.token.length;
         if (nodes[i + endPos][i] == null) {
           nodes[i + endPos][i] = [];
         }
 
-        nodes[i + endPos][i].push(obj);
+        nodes[i + endPos][i]!.add(obj);
       }
     }
 
-    for (let endPos = 0; endPos <= symbols.length; endPos++) {
-      for (const startPos in nodes[endPos]) {
-        const arr = nodes[endPos][startPos];
+    for (int endPos = 0; endPos <= symbols.length; endPos++) {
+      for (final arr in nodes[endPos].values) {
+        for (int j = 0; j < arr.length; j++) {
+          final word = arr[j];
+          final score = word.score + best[endPos - word.key.length];
 
-        for (let j = 0; j < arr.length; j++) {
-          const word = arr[j];
-          const score = word.score + best[endPos - word.key.length];
-
-          if (best[endPos] === 0 || score >= best[endPos]) {
+          if (best[endPos] == 0 || score >= best[endPos]) {
             best[endPos] = score;
             words[endPos] = arr[j].index;
           }
@@ -111,28 +128,28 @@ export class Tokenizer {
       }
     }
 
-    const results: number[] = [];
+    final List<int> results = [];
 
     // Backward pass.
-    let iter = words.length - 1;
+    var iter = words.length - 1;
     while (iter > 0) {
-      results.push(words[iter]);
-      iter -= this.vocabulary[words[iter]][0].length;
+      results.add(words[iter]);
+      iter -= this.vocabulary[words[iter]].key.length;
     }
 
     // Merge consecutive unks.
-    const merged = [];
-    let isPreviousUnk = false;
-    for (let i = 0; i < results.length; i++) {
-      const id = results[i];
-      if (!(isPreviousUnk && id === 0)) {
-        merged.push(id);
+    final merged = <int>[];
+    var isPreviousUnk = false;
+    for (int i = 0; i < results.length; i++) {
+      final id = results[i];
+      if (!(isPreviousUnk && id == 0)) {
+        merged.add(id);
       }
 
-      isPreviousUnk = id === 0;
+      isPreviousUnk = id == 0;
     }
 
-    return merged.reverse();
+    return merged.reversed.toList();
   }
 }
 
@@ -141,9 +158,9 @@ export class Tokenizer {
  *
  * @param pathToVocabulary (optional) Provide a path to the vocabulary file.
  */
-export async function loadTokenizer(pathToVocabulary?: string) {
-  const vocabulary = await loadVocabulary(pathToVocabulary);
-  const tokenizer = new Tokenizer(vocabulary);
+Future<Tokenizer> loadTokenizer(String pathToVocabulary) async {
+  final vocabulary = await loadVocabulary(pathToVocabulary);
+  final tokenizer = Tokenizer(vocabulary);
   return tokenizer;
 }
 
@@ -153,7 +170,11 @@ export async function loadTokenizer(pathToVocabulary?: string) {
  * @param pathToVocabulary Defaults to the path to the 8k vocabulary used by the
  * UniversalSentenceEncoder.
  */
-export async function loadVocabulary(pathToVocabulary: string) {
-  const vocabulary = await tf.util.fetch(pathToVocabulary);
-  return vocabulary.json();
+Future<Vocabulary> loadVocabulary(String pathToVocabulary) async {
+  final stream =
+      await tf.env().platform!.fetch(Uri.parse(pathToVocabulary), null);
+  final response = await http.Response.fromStream(stream);
+  return (jsonDecode(response.body) as List)
+      .map((e) => MapEntry(e[0] as String, e[1] as int))
+      .toList();
 }
