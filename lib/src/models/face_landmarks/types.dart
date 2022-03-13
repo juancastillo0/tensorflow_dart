@@ -14,13 +14,18 @@
  * limitations under the License.
  * =============================================================================
  */
-import {Keypoint, PixelInput} from './shared/calculators/interfaces/common_interfaces';
-import {BoundingBox} from './shared/calculators/interfaces/shape_interfaces';
+// import {Keypoint, PixelInput} from './shared/calculators/interfaces/common_interfaces';
+// import {BoundingBox} from './shared/calculators/interfaces/shape_interfaces';
 
-export {Keypoint};
+// export {Keypoint};
 
-export enum SupportedModels {
-  MediaPipeFaceMesh = 'MediaPipeFaceMesh',
+export '../shared/interfaces/common_interfaces.dart' show Keypoint;
+
+import '../shared/interfaces/common_interfaces.dart';
+import '../shared/interfaces/shape_interfaces.dart';
+
+enum SupportedModels {
+  MediaPipeFaceMesh,
 }
 
 /**
@@ -30,8 +35,8 @@ export enum SupportedModels {
  * be detected by the model. The number of returned faces can be less than the
  * maximum (for example when no faces are present in the input).
  */
-export interface ModelConfig {
-  maxFaces?: number;
+abstract class ModelConfig {
+  int? get maxFaces;
 }
 
 /**
@@ -47,17 +52,23 @@ export interface ModelConfig {
  * another detection until it loses track of any of the faces (ideal for
  * videos).
  */
-export interface EstimationConfig {
-  flipHorizontal?: boolean;
-  staticImageMode?: boolean;
+abstract class EstimationConfig {
+  const EstimationConfig();
+  bool? get flipHorizontal;
+  bool? get staticImageMode;
 }
 
 /**
  * Allowed input format for the `estimateHands` method.
  */
-export type FaceLandmarksDetectorInput = PixelInput;
+typedef FaceLandmarksDetectorInput = PixelInput;
 
-export interface Face {
-  keypoints: Keypoint[];
-  box?: BoundingBox;  // A bounding box around the detected person.
+class Face {
+  final List<Keypoint> keypoints;
+  final BoundingBox? box; // A bounding box around the detected person.
+
+  const Face({
+    required this.keypoints,
+    this.box,
+  });
 }

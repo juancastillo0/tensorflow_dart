@@ -15,12 +15,17 @@
  * =============================================================================
  */
 
-import {FaceLandmarksDetector} from './face_landmarks_detector';
-import {load as loadMediaPipeFaceMeshMediaPipeLandmarksDetector} from './mediapipe/detector';
-import {MediaPipeFaceMeshMediaPipeModelConfig, MediaPipeFaceMeshModelConfig} from './mediapipe/types';
-import {loadMeshModel as loadMediaPipeFaceMeshTfjsLandmarksDetector} from './tfjs/detector';
-import {MediaPipeFaceMeshTfjsModelConfig} from './tfjs/types';
-import {SupportedModels} from './types';
+// import {FaceLandmarksDetector} from './face_landmarks_detector';
+// import {load as loadMediaPipeFaceMeshMediaPipeLandmarksDetector} from './mediapipe/detector';
+// import {MediaPipeFaceMeshMediaPipeModelConfig, MediaPipeFaceMeshModelConfig} from './mediapipe/types';
+// import {loadMeshModel as loadMediaPipeFaceMeshTfjsLandmarksDetector} from './tfjs/detector';
+// import {MediaPipeFaceMeshTfjsModelConfig} from './tfjs/types';
+// import {SupportedModels} from './types';
+
+import 'face_landmarks_detector.dart';
+import 'tfjs/detector.dart';
+import 'tfjs/types.dart';
+import 'types.dart';
 
 /**
  * Create a face detector instance.
@@ -28,29 +33,28 @@ import {SupportedModels} from './types';
  * @param model The name of the pipeline to load.
  * @param modelConfig The configuration for the pipeline to load.
  */
-export async function createDetector(
-    model: SupportedModels,
-    modelConfig?: MediaPipeFaceMeshMediaPipeModelConfig|
-    MediaPipeFaceMeshTfjsModelConfig): Promise<FaceLandmarksDetector> {
+Future<FaceLandmarksDetector> createDetector(
+  SupportedModels model, [
+  MediaPipeFaceMeshTfjsModelConfig? modelConfig,
+] // : MediaPipeFaceMeshMediaPipeModelConfig| MediaPipeFaceMeshTfjsModelConfig
+    ) {
   switch (model) {
     case SupportedModels.MediaPipeFaceMesh:
-      const config = modelConfig as MediaPipeFaceMeshModelConfig;
-      let runtime;
+      final config = modelConfig;
+      String? runtime;
       if (config != null) {
-        if (config.runtime === 'tfjs') {
-          return loadMediaPipeFaceMeshTfjsLandmarksDetector(
-              config as MediaPipeFaceMeshTfjsModelConfig);
+        if (config.runtime == 'tfjs') {
+          return loadMeshModel(config);
         }
-        if (config.runtime === 'mediapipe') {
-          return loadMediaPipeFaceMeshMediaPipeLandmarksDetector(
-              config as MediaPipeFaceMeshMediaPipeModelConfig);
-        }
+        // if (config.runtime == 'mediapipe') {
+        //   return loadMediaPipeFaceMeshMediaPipeLandmarksDetector(
+        //       config as MediaPipeFaceMeshMediaPipeModelConfig);
+        // }
         runtime = config.runtime;
       }
-      throw new Error(
-          `Expect modelConfig.runtime to be either 'tfjs' ` +
-          `or 'mediapipe', but got ${runtime}`);
+      throw Exception("Expect modelConfig.runtime to be either 'tfjs' " +
+          "or 'mediapipe', but got ${runtime}");
     default:
-      throw new Error(`${model} is not a supported model name.`);
+      throw Exception("${model} is not a supported model name.");
   }
 }

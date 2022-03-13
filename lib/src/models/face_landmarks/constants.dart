@@ -15,29 +15,29 @@
  * =============================================================================
  */
 
-import * as faceMesh from '@mediapipe/face_mesh';
-export const MEDIAPIPE_FACEMESH_NUM_KEYPOINTS = 468;
-export const MEDIAPIPE_FACEMESH_NUM_KEYPOINTS_WITH_IRISES = 478;
+// import * as faceMesh from '@mediapipe/face_mesh';
 
-function connectionsToIndices(connections: Array<[number, number]>) {
-  const indices = connections.map(connection => connection[0]);
-  indices.push(connections[connections.length - 1][1]);
+const MEDIAPIPE_FACEMESH_NUM_KEYPOINTS = 468;
+const MEDIAPIPE_FACEMESH_NUM_KEYPOINTS_WITH_IRISES = 478;
+
+List<int> _connectionsToIndices(List<List<int>> connections) {
+  final indices = connections.map((connection) => connection[0]).toList();
+  indices.add(connections[connections.length - 1][1]);
   return indices;
 }
 
-export const MEDIAPIPE_KEYPOINTS_BY_CONTOUR = {
-  lips: connectionsToIndices(faceMesh.FACEMESH_LIPS),
-  leftEye: connectionsToIndices(faceMesh.FACEMESH_LEFT_EYE),
-  leftEyebrow: connectionsToIndices(faceMesh.FACEMESH_LEFT_EYEBROW),
-  leftIris: connectionsToIndices(faceMesh.FACEMESH_LEFT_IRIS),
-  rightEye: connectionsToIndices(faceMesh.FACEMESH_RIGHT_EYE),
-  rightEyebrow: connectionsToIndices(faceMesh.FACEMESH_RIGHT_EYEBROW),
-  rightIris: connectionsToIndices(faceMesh.FACEMESH_RIGHT_IRIS),
-  faceOval: connectionsToIndices(faceMesh.FACEMESH_FACE_OVAL),
+final MEDIAPIPE_KEYPOINTS_BY_CONTOUR = {
+  'lips': _connectionsToIndices(faceMesh.FACEMESH_LIPS),
+  'leftEye': _connectionsToIndices(faceMesh.FACEMESH_LEFT_EYE),
+  'leftEyebrow': _connectionsToIndices(faceMesh.FACEMESH_LEFT_EYEBROW),
+  'leftIris': _connectionsToIndices(faceMesh.FACEMESH_LEFT_IRIS),
+  'rightEye': _connectionsToIndices(faceMesh.FACEMESH_RIGHT_EYE),
+  'rightEyebrow': _connectionsToIndices(faceMesh.FACEMESH_RIGHT_EYEBROW),
+  'rightIris': _connectionsToIndices(faceMesh.FACEMESH_RIGHT_IRIS),
+  'faceOval': _connectionsToIndices(faceMesh.FACEMESH_FACE_OVAL),
 };
 
-export const MEDIAPIPE_CONNECTED_KEYPOINTS_PAIRS =
-    faceMesh.FACEMESH_TESSELATION;
+const MEDIAPIPE_CONNECTED_KEYPOINTS_PAIRS = faceMesh.FACEMESH_TESSELATION;
 
 /**
  * Maps keypoint index to string label.
@@ -55,10 +55,7 @@ export const MEDIAPIPE_CONNECTED_KEYPOINTS_PAIRS =
  *   ...
  * ]
  */
-const indexLabelPairs: Array<[number, string]> =
-    Object.entries(MEDIAPIPE_KEYPOINTS_BY_CONTOUR)
-        .map(
-            ([label, indices]) =>
-                indices.map(index => [index, label] as [number, string]))
-        .flat();
-export const MEDIAPIPE_KEYPOINTS = new Map(indexLabelPairs);
+final MEDIAPIPE_KEYPOINTS = Map<int, String>.fromEntries(
+    (MEDIAPIPE_KEYPOINTS_BY_CONTOUR).entries.expand(
+          (e) => e.value.map((index) => MapEntry(index, e.key)),
+        ));

@@ -15,11 +15,19 @@
  * =============================================================================
  */
 
-import {io} from '@tensorflow/tfjs-core';
+// import {io} from '@tensorflow/tfjs-core';
 
-import {MediaPipeFaceMeshEstimationConfig, MediaPipeFaceMeshModelConfig} from '../mediapipe/types';
+// import {MediaPipeFaceMeshEstimationConfig, MediaPipeFaceMeshModelConfig} from '../mediapipe/types';
 
-export type MediaPipeFaceDetectorModelType = 'short'|'full';
+import 'package:tensorflow_wasm/converter.dart';
+
+import '../types.dart';
+import 'constants.dart';
+
+enum MediaPipeFaceDetectorModelType {
+  short,
+  full,
+}
 
 /**
  * Model parameters for MediaPipeFaceDetector TFJS runtime.
@@ -38,10 +46,20 @@ export type MediaPipeFaceDetectorModelType = 'short'|'full';
  * the detector model. This is useful for area/countries that don't have access
  * to the model hosted on tf.hub.
  */
-export interface MediaPipeFaceDetectorTfjsModelConfig {
-  modelType?: MediaPipeFaceDetectorModelType;
-  maxFaces?: number;
-  detectorModelUrl?: string|io.IOHandler;
+class MediaPipeFaceDetectorTfjsModelConfig {
+  final MediaPipeFaceDetectorModelType modelType;
+  final int maxFaces;
+  final ModelHandler detectorModelUrl;
+
+  const MediaPipeFaceDetectorTfjsModelConfig({
+    this.modelType = MediaPipeFaceDetectorModelType.short,
+    this.maxFaces = 1,
+    ModelHandler? detectorModelUrl,
+  }) : detectorModelUrl = detectorModelUrl ??
+            (modelType == MediaPipeFaceDetectorModelType.full
+                ? const ModelHandler.fromUrl(
+                    DEFAULT_DETECTOR_MODEL_URL_FULL_SPARSE)
+                : const ModelHandler.fromUrl(DEFAULT_DETECTOR_MODEL_URL_SHORT));
 }
 
 /**
@@ -61,23 +79,47 @@ export interface MediaPipeFaceDetectorTfjsModelConfig {
  * the landmark model. This is useful for area/countries that don't have access
  * to the model hosted on tf.hub.
  */
-export interface MediaPipeFaceMeshTfjsModelConfig extends
-    MediaPipeFaceMeshModelConfig {
-  runtime: 'tfjs';
-  detectorModelUrl?: string|io.IOHandler;
-  landmarkModelUrl?: string|io.IOHandler;
+class MediaPipeFaceMeshTfjsModelConfig implements MediaPipeFaceMeshModelConfig {
+  @override
+  String get runtime => 'tfjs';
+  @override
+  final int maxFaces;
+  @override
+  final bool refineLandmarks;
+
+  final ModelHandler detectorModelUrl;
+  final ModelHandler landmarkModelUrl;
+
+  const MediaPipeFaceMeshTfjsModelConfig({
+    this.detectorModelUrl =
+        const ModelHandler.fromUrl(DEFAULT_DETECTOR_MODEL_URL_SHORT),
+    ModelHandler? landmarkModelUrl,
+    this.maxFaces = 1,
+    this.refineLandmarks = false,
+  }) : landmarkModelUrl = landmarkModelUrl ??
+            (refineLandmarks
+                ? const ModelHandler.fromUrl(
+                    DEFAULT_LANDMARK_MODEL_URL_WITH_ATTENTION)
+                : const ModelHandler.fromUrl(DEFAULT_LANDMARK_MODEL_URL));
 }
 
 /**
  * Face estimation parameters for MediaPipeFaceMesh TFJS runtime.
  */
-export interface MediaPipeFaceMeshTfjsEstimationConfig extends
-    EstimationConfig {}
+class MediaPipeFaceMeshTfjsEstimationConfig extends EstimationConfig {
+  final bool flipHorizontal;
+  final bool staticImageMode;
+
+  const MediaPipeFaceMeshTfjsEstimationConfig({
+    this.flipHorizontal = false,
+    this.staticImageMode = false,
+  });
+}
 
 /**
  * Common MediaPipeFaceMesh model config.
  */
-export interface MediaPipeFaceMeshModelConfig extends ModelConfig {
-  runtime: 'mediapipe'|'tfjs';
-  refineLandmarks: boolean;
+abstract class MediaPipeFaceMeshModelConfig extends ModelConfig {
+  String get runtime;
+  bool get refineLandmarks;
 }

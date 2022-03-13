@@ -14,14 +14,17 @@
  * limitations under the License.
  * =============================================================================
  */
-import {MediaPipeFaceMeshMediaPipeEstimationConfig} from './mediapipe/types';
-import {MediaPipeFaceMeshTfjsEstimationConfig} from './tfjs/types';
-import {Face, FaceLandmarksDetectorInput} from './types';
+// import {MediaPipeFaceMeshMediaPipeEstimationConfig} from './mediapipe/types';
+// import {MediaPipeFaceMeshTfjsEstimationConfig} from './tfjs/types';
+// import {Face, FaceLandmarksDetectorInput} from './types';
+
+import 'tfjs/types.dart';
+import 'types.dart';
 
 /**
  * User-facing interface for all face pose detectors.
  */
-export interface FaceLandmarksDetector {
+abstract class FaceLandmarksDetector {
   /**
    * Finds faces in the input image.
    *
@@ -29,18 +32,19 @@ export interface FaceLandmarksDetector {
    * video, or canvas.
    * @param estimationConfig common config for `estimateFaces`.
    */
-  estimateFaces(
-      input: FaceLandmarksDetectorInput,
-      estimationConfig?: MediaPipeFaceMeshMediaPipeEstimationConfig|
-      MediaPipeFaceMeshTfjsEstimationConfig): Promise<Face[]>;
+  Future<List<Face>> estimateFaces(
+    FaceLandmarksDetectorInput input,
+    MediaPipeFaceMeshTfjsEstimationConfig?
+        estimationConfig, //?: MediaPipeFaceMeshMediaPipeEstimationConfig|MediaPipeFaceMeshTfjsEstimationConfig
+  );
 
   /**
    * Dispose the underlying models from memory.
    */
-  dispose(): void;
+  void dispose();
 
   /**
    * Reset global states in the model.
    */
-  reset(): void;
+  void reset();
 }

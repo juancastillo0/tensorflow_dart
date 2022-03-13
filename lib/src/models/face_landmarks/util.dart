@@ -14,24 +14,26 @@
  * limitations under the License.
  * =============================================================================
  */
-import * as constants from './constants';
-import {SupportedModels} from './types';
+// import * as constants from './constants';
+// import {SupportedModels} from './types';
 
-export function getKeypointIndexByContour(model: SupportedModels):
-    {[label: string]: number[]} {
+import 'constants.dart' as constants;
+import 'types.dart';
+
+Map<String, List<int>> getKeypointIndexByContour(SupportedModels model) {
   switch (model) {
     case SupportedModels.MediaPipeFaceMesh:
       return constants.MEDIAPIPE_KEYPOINTS_BY_CONTOUR;
     default:
-      throw new Error(`Model ${model} is not supported.`);
+      throw Exception('Model ${model} is not supported.');
   }
 }
 
-export function getAdjacentPairs(model: SupportedModels): number[][] {
+List<List<int>> getAdjacentPairs(SupportedModels model) {
   switch (model) {
     case SupportedModels.MediaPipeFaceMesh:
       return constants.MEDIAPIPE_CONNECTED_KEYPOINTS_PAIRS;
     default:
-      throw new Error(`Model ${model} is not supported.`);
+      throw Exception('Model ${model} is not supported.');
   }
 }

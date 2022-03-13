@@ -15,47 +15,80 @@
  * =============================================================================
  */
 
-import * as tfconv from '@tensorflow/tfjs-converter';
-import * as tf from '@tensorflow/tfjs-core';
+// import * as tfconv from '@tensorflow/tfjs-converter';
+// import * as tf from '@tensorflow/tfjs-core';
 
-import {MEDIAPIPE_KEYPOINTS} from '../constants';
-import {FaceLandmarksDetector} from '../face_landmarks_detector';
-import {calculateAssociationNormRect} from '../shared/calculators/association_norm_rect';
-import {calculateLandmarkProjection} from '../shared/calculators/calculate_landmark_projection';
-import {convertImageToTensor} from '../shared/calculators/convert_image_to_tensor';
-import {createSsdAnchors} from '../shared/calculators/create_ssd_anchors';
-import {detectionProjection} from '../shared/calculators/detection_projection';
-import {calculateDetectionsToRects} from '../shared/calculators/detection_to_rect';
-import {detectorResult} from '../shared/calculators/detector_result';
-import {getImageSize, toImageTensor} from '../shared/calculators/image_utils';
-import {ImageSize, Keypoint} from '../shared/calculators/interfaces/common_interfaces';
-import {ImageToTensorConfig, TensorsToDetectionsConfig} from '../shared/calculators/interfaces/config_interfaces';
-import {Rect} from '../shared/calculators/interfaces/shape_interfaces';
-import {AnchorTensor, Detection} from '../shared/calculators/interfaces/shape_interfaces';
-import {landmarksRefinement} from '../shared/calculators/landmarks_refinement';
-import {landmarksToDetection} from '../shared/calculators/landmarks_to_detection';
-import {nonMaxSuppression} from '../shared/calculators/non_max_suppression';
-import {normalizedKeypointsToKeypoints} from '../shared/calculators/normalized_keypoints_to_keypoints';
-import {tensorsToDetections} from '../shared/calculators/tensors_to_detections';
-import {tensorsToLandmarks} from '../shared/calculators/tensors_to_landmarks';
-import {transformNormalizedRect} from '../shared/calculators/transform_rect';
-import {Face, FaceLandmarksDetectorInput} from '../types';
+// import {MEDIAPIPE_KEYPOINTS} from '../constants';
+// import {FaceLandmarksDetector} from '../face_landmarks_detector';
+// import {calculateAssociationNormRect} from '../shared/calculators/association_norm_rect';
+// import {calculateLandmarkProjection} from '../shared/calculators/calculate_landmark_projection';
+// import {convertImageToTensor} from '../shared/calculators/convert_image_to_tensor';
+// import {createSsdAnchors} from '../shared/calculators/create_ssd_anchors';
+// import {detectionProjection} from '../shared/calculators/detection_projection';
+// import {calculateDetectionsToRects} from '../shared/calculators/detection_to_rect';
+// import {detectorResult} from '../shared/calculators/detector_result';
+// import {getImageSize, toImageTensor} from '../shared/calculators/image_utils';
+// import {ImageSize, Keypoint} from '../shared/calculators/interfaces/common_interfaces';
+// import {ImageToTensorConfig, TensorsToDetectionsConfig} from '../shared/calculators/interfaces/config_interfaces';
+// import {Rect} from '../shared/calculators/interfaces/shape_interfaces';
+// import {AnchorTensor, Detection} from '../shared/calculators/interfaces/shape_interfaces';
+// import {landmarksRefinement} from '../shared/calculators/landmarks_refinement';
+// import {landmarksToDetection} from '../shared/calculators/landmarks_to_detection';
+// import {nonMaxSuppression} from '../shared/calculators/non_max_suppression';
+// import {normalizedKeypointsToKeypoints} from '../shared/calculators/normalized_keypoints_to_keypoints';
+// import {tensorsToDetections} from '../shared/calculators/tensors_to_detections';
+// import {tensorsToLandmarks} from '../shared/calculators/tensors_to_landmarks';
+// import {transformNormalizedRect} from '../shared/calculators/transform_rect';
+// import {Face, FaceLandmarksDetectorInput} from '../types';
 
-import * as constants from './constants';
-import {validateDetectorModelConfig, validateEstimationConfig, validateMeshModelConfig} from './detector_utils';
-import {MediaPipeFaceDetectorTfjsModelConfig, MediaPipeFaceMeshTfjsEstimationConfig, MediaPipeFaceMeshTfjsModelConfig} from './types';
+// import * as constants from './constants';
+// import {validateDetectorModelConfig, validateEstimationConfig, validateMeshModelConfig} from './detector_utils';
+// import {MediaPipeFaceDetectorTfjsModelConfig, MediaPipeFaceMeshTfjsEstimationConfig, MediaPipeFaceMeshTfjsModelConfig} from './types';
+
+import 'package:collection/collection.dart';
+import 'package:tensorflow_wasm/tensorflow_wasm.dart' as tf;
+import 'package:tensorflow_wasm/converter.dart' as tfconv;
+import '../../shared/association_norm_rect.dart';
+import '../../shared/calculate_landmark_projection.dart';
+import '../../shared/convert_image_to_tensor.dart';
+import '../../shared/create_ssd_anchors.dart';
+import '../../shared/detection_projection.dart';
+import '../../shared/detection_to_rect.dart';
+import '../../shared/detector_result.dart';
+import '../../shared/image_utils.dart';
+import '../../shared/interfaces/common_interfaces.dart';
+import '../../shared/interfaces/config_interfaces.dart';
+import '../../shared/interfaces/shape_interfaces.dart';
+import '../../shared/landmarks_refinement.dart';
+import '../../shared/landmarks_to_detection.dart';
+import '../../shared/non_max_suppression.dart';
+import '../../shared/normalized_keypoints_to_keypoints.dart';
+import '../../shared/tensors_to_detections.dart';
+import '../../shared/tensors_to_landmarks.dart';
+import '../../shared/transform_rect.dart';
+import '../constants.dart';
+import '../face_landmarks_detector.dart';
+import '../types.dart';
+import 'constants.dart' as constants;
+import 'types.dart';
 
 class MediaPipeFaceDetectorTfjs {
-  private readonly imageToTensorConfig: ImageToTensorConfig;
-  private readonly tensorsToDetectionConfig: TensorsToDetectionsConfig;
-  private readonly anchors: Rect[];
-  private readonly anchorTensor: AnchorTensor;
+  // TODO: all private
+  late final ImageToTensorConfig imageToTensorConfig;
+  late final TensorsToDetectionsConfig tensorsToDetectionConfig;
+  late final List<Rect> anchors;
+  late final AnchorTensor anchorTensor;
 
-  constructor(
-      detectorModelType: 'short'|'full',
-      private readonly detectorModel: tfconv.GraphModel,
-      private readonly maxFaces: number) {
-    if (detectorModelType === 'full') {
+  final MediaPipeFaceDetectorModelType detectorModelType;
+  final tfconv.GraphModel detectorModel;
+  final int maxFaces;
+
+  MediaPipeFaceDetectorTfjs(
+    this.detectorModelType,
+    this.detectorModel,
+    this.maxFaces,
+  ) {
+    if (detectorModelType == MediaPipeFaceDetectorModelType.full) {
       this.imageToTensorConfig = constants.FULL_RANGE_IMAGE_TO_TENSOR_CONFIG;
       this.tensorsToDetectionConfig =
           constants.FULL_RANGE_TENSORS_TO_DETECTION_CONFIG;
@@ -69,44 +102,45 @@ class MediaPipeFaceDetectorTfjs {
           createSsdAnchors(constants.SHORT_RANGE_DETECTOR_ANCHOR_CONFIG);
     }
 
-    const anchorW = tf.tensor1d(this.anchors.map(a => a.width));
-    const anchorH = tf.tensor1d(this.anchors.map(a => a.height));
-    const anchorX = tf.tensor1d(this.anchors.map(a => a.xCenter));
-    const anchorY = tf.tensor1d(this.anchors.map(a => a.yCenter));
-    this.anchorTensor = {x: anchorX, y: anchorY, w: anchorW, h: anchorH};
+    final anchorW = tf.tensor1d(this.anchors.map((a) => a.width).toList());
+    final anchorH = tf.tensor1d(this.anchors.map((a) => a.height).toList());
+    final anchorX = tf.tensor1d(this.anchors.map((a) => a.xCenter).toList());
+    final anchorY = tf.tensor1d(this.anchors.map((a) => a.yCenter).toList());
+    this.anchorTensor =
+        AnchorTensor(x: anchorX, y: anchorY, w: anchorW, h: anchorH);
   }
 
-  dispose() {
+  void dispose() {
     this.detectorModel.dispose();
     tf.dispose([
-      this.anchorTensor.x, this.anchorTensor.y, this.anchorTensor.w,
+      this.anchorTensor.x,
+      this.anchorTensor.y,
+      this.anchorTensor.w,
       this.anchorTensor.h
     ]);
   }
 
-  reset() {}
+  void reset() {}
 
   // Detects faces.
   // Subgraph: FaceDetectionShort/FullRangeCpu.
   // ref:
   // https://github.com/google/mediapipe/blob/master/mediapipe/modules/face_detection/face_detection_short_range_cpu.pbtxt
   // https://github.com/google/mediapipe/blob/master/mediapipe/modules/face_detection/face_detection_full_range_cpu.pbtxt
-  async detectFaces(image: FaceLandmarksDetectorInput, flipHorizontal = false):
-      Promise<Detection[]> {
+  Future<List<Detection>> detectFaces(FaceLandmarksDetectorInput image,
+      {bool flipHorizontal = false}) async {
     if (image == null) {
       this.reset();
       return [];
     }
 
-    const image3d = tf.tidy(() => {
-      let imageTensor = tf.cast(toImageTensor(image), 'float32');
+    final image3d = tf.tidy(() {
+      var imageTensor = tf.cast(toImageTensor(image), 'float32');
       if (flipHorizontal) {
-        const batchAxis = 0;
-        imageTensor = tf.squeeze(
-            tf.image.flipLeftRight(
-                // tslint:disable-next-line: no-unnecessary-type-assertion
-                tf.expandDims(imageTensor, batchAxis) as tf.Tensor4D),
-            [batchAxis]);
+        final batchAxis = 0;
+        imageTensor = tf.squeeze(tf.image.flipLeftRight(
+            // tslint:disable-next-line: no-unnecessary-type-assertion
+            tf.expandDims(imageTensor, batchAxis) as tf.Tensor4D), [batchAxis]);
       }
       return imageTensor;
     });
@@ -115,36 +149,53 @@ class MediaPipeFaceDetectorTfjs {
     // Transforms the input image into a 128x128 tensor while keeping the aspect
     // ratio (what is expected by the corresponding face detection model),
     // resulting in potential letterboxing in the transformed image.
-    const {imageTensor: inputTensors, transformationMatrix: transformMatrix} =
-        convertImageToTensor(image3d, this.imageToTensorConfig);
+    final _img = convertImageToTensor(image3d, this.imageToTensorConfig, null);
+    final transformationMatrix = _img.transformationMatrix;
+    final inputTensors = _img.imageTensor;
 
-    const detectionResult =
-        this.detectorModel.execute(inputTensors, 'Identity:0') as tf.Tensor3D;
+    final detectionResult =
+        this.detectorModel.execute(inputTensors, ['Identity:0']) as tf.Tensor3D;
     // FaceDetectionShort/FullRangeModelCpu: InferenceCalculator
     // The model returns a tensor with the following shape:
     // [1 (batch), 896 (anchor points), 17 (data for each anchor)]
-    const {boxes, logits} = detectorResult(detectionResult);
+    final results = detectorResult(detectionResult);
     // FaceDetectionShort/FullRangeModelCpu: TensorsToDetectionsCalculator
-    const unfilteredDetections: Detection[] = await tensorsToDetections(
-        [logits, boxes], this.anchorTensor, this.tensorsToDetectionConfig);
+    final List<Detection> unfilteredDetections = await tensorsToDetections(
+        [results.logits, results.boxes],
+        this.anchorTensor,
+        this.tensorsToDetectionConfig);
 
-    if (unfilteredDetections.length === 0) {
-      tf.dispose([image3d, inputTensors, detectionResult, logits, boxes]);
+    if (unfilteredDetections.length == 0) {
+      tf.dispose([
+        image3d,
+        inputTensors,
+        detectionResult,
+        results.logits,
+        results.boxes
+      ]);
       return unfilteredDetections;
     }
 
     // FaceDetectionShort/FullRangeModelCpu: NonMaxSuppressionCalculator
-    const filteredDetections = await nonMaxSuppression(
-        unfilteredDetections, this.maxFaces,
-        constants.DETECTOR_NON_MAX_SUPPRESSION_CONFIG.minSuppressionThreshold,
-        constants.DETECTOR_NON_MAX_SUPPRESSION_CONFIG.overlapType);
+    final filteredDetections = await nonMaxSuppression(
+      unfilteredDetections,
+      this.maxFaces,
+      constants.DETECTOR_NON_MAX_SUPPRESSION_CONFIG.minSuppressionThreshold,
+      // constants.DETECTOR_NON_MAX_SUPPRESSION_CONFIG.overlapType,
+    );
 
-    const detections =
+    final detections =
         // FaceDetectionShortRangeModelCpu:
         // DetectionProjectionCalculator
-        detectionProjection(filteredDetections, transformMatrix);
+        detectionProjection(filteredDetections, transformationMatrix);
 
-    tf.dispose([image3d, inputTensors, detectionResult, logits, boxes]);
+    tf.dispose([
+      image3d,
+      inputTensors,
+      detectionResult,
+      results.logits,
+      results.boxes
+    ]);
 
     return detections;
   }
@@ -158,17 +209,19 @@ class MediaPipeFaceDetectorTfjs {
  * parameters in the documentation of the `MediaPipeHandsTfjsModelConfig`
  * interface.
  */
-export async function loadDetectorModel(
-    modelConfig: MediaPipeFaceDetectorTfjsModelConfig) {
-  const config = validateDetectorModelConfig(modelConfig);
+Future<MediaPipeFaceDetectorTfjs> loadDetectorModel(
+    MediaPipeFaceDetectorTfjsModelConfig config) async {
+  // final config = validateDetectorModelConfig(modelConfig);
 
-  const detectorFromTFHub = typeof config.detectorModelUrl === 'string' &&
-      (config.detectorModelUrl.indexOf('https://tfhub.dev') > -1);
+  final detectorFromTFHub = config.detectorModelUrl.isUrl &&
+      config.detectorModelUrl.url!.contains('https://tfhub.dev');
 
-  const detectorModel = await tfconv.loadGraphModel(
-      config.detectorModelUrl, {fromTFHub: detectorFromTFHub});
+  final detectorModel = await tfconv.loadGraphModel(
+    config.detectorModelUrl,
+    tfconv.LoadOptions(fromTFHub: detectorFromTFHub),
+  );
 
-  return new MediaPipeFaceDetectorTfjs(
+  return MediaPipeFaceDetectorTfjs(
       config.modelType, detectorModel, config.maxFaces);
 }
 
@@ -176,14 +229,21 @@ export async function loadDetectorModel(
  * MediaPipFaceMesh class.
  */
 class MediaPipeFaceMeshTfjsLandmarksDetector implements FaceLandmarksDetector {
+  // TODO: all private
   // Store global states.
-  private prevFaceRectsFromLandmarks: Rect[] = null;
+  List<Rect>? prevFaceRectsFromLandmarks;
 
-  constructor(
-      private readonly detector: MediaPipeFaceDetectorTfjs,
-      private readonly landmarkModel: tfconv.GraphModel,
-      private readonly maxFaces: number,
-      private readonly withAttention: boolean) {}
+  final MediaPipeFaceDetectorTfjs detector;
+  final tfconv.GraphModel landmarkModel;
+  final int maxFaces;
+  final bool withAttention;
+
+  MediaPipeFaceMeshTfjsLandmarksDetector(
+    this.detector,
+    this.landmarkModel,
+    this.maxFaces,
+    this.withAttention,
+  );
 
   /**
    * Estimates faces for an image or video frame.
@@ -203,11 +263,12 @@ class MediaPipeFaceMeshTfjsLandmarksDetector implements FaceLandmarksDetector {
   // TF.js implementation of the mediapipe face landmark pipeline.
   // ref graph:
   // https://github.com/google/mediapipe/blob/master/mediapipe/mediapipe/modules/face_landmark/face_landmark_front_cpu.pbtxt
-  async estimateFaces(
-      image: FaceLandmarksDetectorInput,
-      estimationConfig: MediaPipeFaceMeshTfjsEstimationConfig):
-      Promise<Face[]> {
-    const config = validateEstimationConfig(estimationConfig);
+  Future<List<Face>> estimateFaces(
+    FaceLandmarksDetectorInput image, [
+    MediaPipeFaceMeshTfjsEstimationConfig? config_,
+  ]) async {
+    final config = config_ ?? const MediaPipeFaceMeshTfjsEstimationConfig();
+    // final config = validateEstimationConfig(estimationConfig);
 
     if (image == null) {
       this.reset();
@@ -216,34 +277,33 @@ class MediaPipeFaceMeshTfjsLandmarksDetector implements FaceLandmarksDetector {
 
     // FaceLandmarkFrontCpu: ImagePropertiesCalculator
     // Calculate size of the image.
-    const imageSize = getImageSize(image);
+    final imageSize = getImageSize(image);
 
-    const image3d = tf.tidy(() => {
-      let imageTensor = tf.cast(toImageTensor(image), 'float32');
+    final image3d = tf.tidy(() {
+      var imageTensor = tf.cast(toImageTensor(image), 'float32');
       if (config.flipHorizontal) {
-        const batchAxis = 0;
-        imageTensor = tf.squeeze(
-            tf.image.flipLeftRight(
-                // tslint:disable-next-line: no-unnecessary-type-assertion
-                tf.expandDims(imageTensor, batchAxis) as tf.Tensor4D),
-            [batchAxis]);
+        final batchAxis = 0;
+        imageTensor = tf.squeeze(tf.image.flipLeftRight(
+            // tslint:disable-next-line: no-unnecessary-type-assertion
+            tf.expandDims(imageTensor, batchAxis) as tf.Tensor4D), [batchAxis]);
       }
       return imageTensor;
     });
 
-    const prevFaceRectsFromLandmarks = this.prevFaceRectsFromLandmarks;
+    final prevFaceRectsFromLandmarks = this.prevFaceRectsFromLandmarks;
 
-    let faceRectsFromDetections: Rect[];
+    final List<Rect> faceRectsFromDetections;
     // Drops the incoming image if enough faces have already been identified
     // from the previous image. Otherwise, passes the incoming image through to
     // trigger a new round of face detection.
-    if (config.staticImageMode || prevFaceRectsFromLandmarks == null ||
+    if (config.staticImageMode ||
+        prevFaceRectsFromLandmarks == null ||
         prevFaceRectsFromLandmarks.length < this.maxFaces) {
       // FaceLandmarkFrontCpu: FaceDetectionShortRangeCpu
       // Detects faces.
-      const allFaceDetections = await this.detector.detectFaces(image3d);
+      final allFaceDetections = await this.detector.detectFaces(image3d);
 
-      if (allFaceDetections.length === 0) {
+      if (allFaceDetections.length == 0) {
         this.reset();
         image3d.dispose();
         return [];
@@ -252,14 +312,15 @@ class MediaPipeFaceMeshTfjsLandmarksDetector implements FaceLandmarksDetector {
       // FaceLandmarkFrontCpu: ClipDetectionVectorSizeCalculator
       // Makes sure there are no more detections than the provided maxFaces.
       // This is already done by our implementation of nonMaxSuppresion.
-      const faceDetections = allFaceDetections;
+      final faceDetections = allFaceDetections;
 
       // FaceLandmarkFrontCpu: FaceDetectionFrontDetectionToRoi
       // Calculates region of interest based on face detections, so that can be
       // used to detect landmarks.
-      faceRectsFromDetections = faceDetections.map(
-          detection =>
-              this.faceDetectionFrontDetectionToRoi(detection, imageSize));
+      faceRectsFromDetections = faceDetections
+          .map((detection) =>
+              this._faceDetectionFrontDetectionToRoi(detection, imageSize))
+          .toList();
     } else {
       faceRectsFromDetections = [];
     }
@@ -269,45 +330,45 @@ class MediaPipeFaceMeshTfjsLandmarksDetector implements FaceLandmarksDetector {
     // previous image and rects based on face detections from the current image.
     // This calculator ensures that the output faceRects array doesn't contain
     // overlapping regions based on the specified minSimilarityThreshold.
-    const faceRects = calculateAssociationNormRect(
-        [faceRectsFromDetections, prevFaceRectsFromLandmarks || []],
+    final faceRects = calculateAssociationNormRect(
+        [faceRectsFromDetections, prevFaceRectsFromLandmarks ?? []],
         constants.MIN_SIMILARITY_THRESHOLD);
 
     // FaceLandmarkFrontCpu: FaceLandmarkCpu
     // Detects face landmarks within specified region of interest of the image.
-    const faceLandmarks = await Promise.all(
-        faceRects.map(faceRect => this.faceLandmark(faceRect, image3d)));
+    final faceLandmarks = await Future.wait(
+        faceRects.map((faceRect) => this._faceLandmark(faceRect, image3d)));
 
-    const faces = [];
+    final faces = <Face>[];
     this.prevFaceRectsFromLandmarks = [];
 
-    for (let i = 0; i < faceLandmarks.length; ++i) {
-      const landmarks = faceLandmarks[i];
+    for (int i = 0; i < faceLandmarks.length; ++i) {
+      final landmarks = faceLandmarks[i];
 
       if (landmarks == null) {
         continue;
       }
 
-      this.prevFaceRectsFromLandmarks.push(
-          this.faceLandmarksToRoi(landmarks, imageSize));
+      this
+          .prevFaceRectsFromLandmarks!
+          .add(this._faceLandmarksToRoi(landmarks, imageSize));
 
       // Scale back keypoints.
-      const keypoints = normalizedKeypointsToKeypoints(landmarks, imageSize);
+      var keypoints = normalizedKeypointsToKeypoints(landmarks, imageSize);
 
       // Add keypoint name.
       if (keypoints != null) {
-        keypoints.forEach((keypoint, i) => {
-          const name = MEDIAPIPE_KEYPOINTS.get(i);
-          if (name != null) {
-            keypoint.name = name;
-          }
-        });
+        keypoints = keypoints.mapIndexed((i, keypoint) {
+          final name = MEDIAPIPE_KEYPOINTS.get(i);
+          return keypoint.copyWith(name: Nullable(name ?? keypoint.name));
+        }).toList();
       }
 
-      const detection = landmarksToDetection(keypoints);
+      final detection = landmarksToDetection(keypoints);
 
-      faces.push(
-          {keypoints, box: detection.locationData.relativeBoundingBox} as Face);
+      faces.add(Face(
+          keypoints: keypoints,
+          box: detection.locationData.relativeBoundingBox));
     }
 
     image3d.dispose();
@@ -315,12 +376,12 @@ class MediaPipeFaceMeshTfjsLandmarksDetector implements FaceLandmarksDetector {
     return faces;
   }
 
-  dispose() {
+  void dispose() {
     this.detector.dispose();
     this.landmarkModel.dispose();
   }
 
-  reset() {
+  void reset() {
     this.detector.reset();
     this.prevFaceRectsFromLandmarks = null;
   }
@@ -329,24 +390,26 @@ class MediaPipeFaceMeshTfjsLandmarksDetector implements FaceLandmarksDetector {
   // Subgraph: FaceDetectionFrontDetectionToRoi.
   // ref:
   // https://github.com/google/mediapipe/blob/master/mediapipe/modules/face_landmark/face_detection_front_detection_to_roi.pbtxt
-  private faceDetectionFrontDetectionToRoi(
-      detection: Detection, imageSize?: ImageSize): Rect {
+  Rect _faceDetectionFrontDetectionToRoi(
+      Detection detection, ImageSize imageSize) {
     // Converts results of face detection into a rectangle (normalized by
     // image size) that encloses the face and is rotated such that the line
     // connecting left eye and right eye is aligned with the X-axis of the
     // rectangle.
     // FaceDetectionFrontDetectionToRoi: DetectionsToRectsCalculator.
-    const rawRoi = calculateDetectionsToRects(
-        detection, 'boundingbox', 'normRect', imageSize, {
-          rotationVectorStartKeypointIndex: 0,  // Left eye.
-          rotationVectorEndKeypointIndex: 1,    // Right eye.
-          rotationVectorTargetAngleDegree: 0
-        });
+    final rawRoi =
+        calculateDetectionsToRects(detection, ConversionMode.boundingbox,
+            normalized: true,
+            imageSize: imageSize,
+            rotationConfig: DetectionToRectConfig(
+                rotationVectorStartKeypointIndex: 0, // Left eye.
+                rotationVectorEndKeypointIndex: 1, // Right eye.
+                rotationVectorTargetAngleDegree: 0));
 
     // Expands and shifts the rectangle that contains the face so that it's
     // likely to cover the entire face.
     // FaceDetectionFrontDetectionToRoi: RectTransformationCalculation.
-    const roi = transformNormalizedRect(
+    final roi = transformNormalizedRect(
         rawRoi, imageSize, constants.RECT_TRANSFORMATION_CONFIG);
 
     return roi;
@@ -356,37 +419,44 @@ class MediaPipeFaceMeshTfjsLandmarksDetector implements FaceLandmarksDetector {
   // subgraph: FaceLandmarkCpu
   // ref:
   // https://github.com/google/mediapipe/blob/master/mediapipe/modules/face_landmark/face_landmark_cpu.pbtxt
-  private async faceLandmark(roi: Rect, image: tf.Tensor3D) {
+  Future _faceLandmark(Rect roi, tf.Tensor3D image) async {
     // FaceLandmarkCpu: ImageToTensorCalculator
     // Transforms the input image into a 192x192 tensor.
-    const {imageTensor: inputTensors} = convertImageToTensor(
+    final _img = convertImageToTensor(
         image, constants.LANDMARK_IMAGE_TO_TENSOR_CONFIG, roi);
+    final inputTensors = _img.imageTensor;
 
     // FaceLandmarkCpu: InferenceCalculator
     // Runs a model takes an image tensor and
     // outputs a list of tensors representing, for instance, detection
     // boxes/keypoints and scores.
-    const outputs = ['output_faceflag'].concat(
-        this.withAttention ?
-            [
-              'output_mesh_identity', 'output_lips', 'Identity_6:0',
-              'Identity_1:0', 'Identity_2:0', 'Identity_5:0'
-            ] :
-            ['output_mesh']);
+    final outputs = [
+      'output_faceflag',
+      ...(this.withAttention
+          ? [
+              'output_mesh_identity',
+              'output_lips',
+              'Identity_6:0',
+              'Identity_1:0',
+              'Identity_2:0',
+              'Identity_5:0'
+            ]
+          : ['output_mesh']),
+    ];
     // The model returns 2 or 7 tensors with the following shape:
     // output_faceflag: This tensor (shape: [1, 1]) represents the
     // confidence score of the presence of a face.
     // Other outputs represents 2-d or 3-d keypoints of different parts of the
     // face.
-    const outputTensors =
-        this.landmarkModel.execute(inputTensors, outputs) as tf.Tensor[];
+    final outputTensors =
+        this.landmarkModel.execute(inputTensors, outputs) as List<tf.Tensor>;
 
-    const faceFlagTensor = outputTensors[0] as tf.Tensor2D,
-          landmarkTensors = outputTensors.slice(1) as tf.Tensor4D[];
+    final faceFlagTensor = outputTensors[0] as tf.Tensor2D,
+        landmarkTensors = outputTensors.slice(1) as List<tf.Tensor4D>;
 
     // Converts the face-flag tensor into a float that represents the
     // confidence score of face presence.
-    const facePresenceScore = (await faceFlagTensor.data())[0];
+    final facePresenceScore = (await faceFlagTensor.data())[0];
 
     // Applies a threshold to the confidence score to determine whether a face
     // is present.
@@ -402,14 +472,14 @@ class MediaPipeFaceMeshTfjsLandmarksDetector implements FaceLandmarksDetector {
     // the model.
     // FaceLandmarkCpu: TensorsToFaceLandmarks /
     // TensorsToFaceLandmarksWithAttention.
-    const landmarks = this.withAttention ?
-        await this.tensorsToFaceLandmarksWithAttention(landmarkTensors) :
-        await this.tensorsToFaceLandmarks(landmarkTensors);
+    final landmarks = this.withAttention
+        ? await this.tensorsToFaceLandmarksWithAttention(landmarkTensors)
+        : await this._tensorsToFaceLandmarks(landmarkTensors);
 
     // Projects the landmarks from the cropped face image to the corresponding
     // locations on the full image before cropping.
     // FaceLandmarkCpu: WorldLandmarkProjectionCalculator.
-    const faceLandmarks = calculateLandmarkProjection(landmarks, roi);
+    final faceLandmarks = calculateLandmarkProjection(landmarks, roi);
 
     tf.dispose(outputTensors);
     tf.dispose(inputTensors);
@@ -421,7 +491,8 @@ class MediaPipeFaceMeshTfjsLandmarksDetector implements FaceLandmarksDetector {
   // subgraph: TensorsToFaceLandmarks
   // ref:
   // https://github.com/google/mediapipe/blob/master/mediapipe/modules/face_landmark/tensors_to_face_landmarks.pbtxt
-  private async tensorsToFaceLandmarks(landmarkTensors: tf.Tensor4D[]) {
+  Future<List<Keypoint>> _tensorsToFaceLandmarks(
+      List<tf.Tensor4D> landmarkTensors) async {
     return tensorsToLandmarks(
         landmarkTensors[0], constants.TENSORS_TO_LANDMARKS_MESH_CONFIG);
   }
@@ -431,57 +502,61 @@ class MediaPipeFaceMeshTfjsLandmarksDetector implements FaceLandmarksDetector {
   // subgraph: TensorsToFaceLandmarks
   // ref:
   // https://github.com/google/mediapipe/blob/master/mediapipe/modules/face_landmark/tensors_to_face_landmarks_with_attention.pbtxt
-  private async tensorsToFaceLandmarksWithAttention(landmarkTensors:
-                                                        tf.Tensor4D[]) {
-    const meshLandmarks = await tensorsToLandmarks(
+  Future tensorsToFaceLandmarksWithAttention(
+      List<tf.Tensor4D> landmarkTensors) async {
+    final meshLandmarks = await tensorsToLandmarks(
         landmarkTensors[0], constants.TENSORS_TO_LANDMARKS_MESH_CONFIG);
-    const lipsLandmarks = await tensorsToLandmarks(
+    final lipsLandmarks = await tensorsToLandmarks(
         landmarkTensors[1], constants.TENSORS_TO_LANDMARKS_LIPS_CONFIG);
-    const leftEyeLandmarks = await tensorsToLandmarks(
+    final leftEyeLandmarks = await tensorsToLandmarks(
         landmarkTensors[3], constants.TENSORS_TO_LANDMARKS_EYE_CONFIG);
-    const rightEyeLandmarks = await tensorsToLandmarks(
+    final rightEyeLandmarks = await tensorsToLandmarks(
         landmarkTensors[5], constants.TENSORS_TO_LANDMARKS_EYE_CONFIG);
-    const leftIrisLandmarks = await tensorsToLandmarks(
+    final leftIrisLandmarks = await tensorsToLandmarks(
         landmarkTensors[4], constants.TENSORS_TO_LANDMARKS_IRIS_CONFIG);
-    const rightIrisLandmarks = await tensorsToLandmarks(
+    final rightIrisLandmarks = await tensorsToLandmarks(
         landmarkTensors[2], constants.TENSORS_TO_LANDMARKS_IRIS_CONFIG);
 
-    return landmarksRefinement(
-        [
-          meshLandmarks, lipsLandmarks, leftEyeLandmarks, rightEyeLandmarks,
-          leftIrisLandmarks, rightIrisLandmarks
-        ],
-        [
-          constants.LANDMARKS_REFINEMENT_MESH_CONFIG,
-          constants.LANDMARKS_REFINEMENT_LIPS_CONFIG,
-          constants.LANDMARKS_REFINEMENT_LEFT_EYE_CONFIG,
-          constants.LANDMARKS_REFINEMENT_RIGHT_EYE_CONFIG,
-          constants.LANDMARKS_REFINEMENT_LEFT_IRIS_CONFIG,
-          constants.LANDMARKS_REFINEMENT_RIGHT_IRIS_CONFIG
-        ]);
+    return landmarksRefinement([
+      meshLandmarks,
+      lipsLandmarks,
+      leftEyeLandmarks,
+      rightEyeLandmarks,
+      leftIrisLandmarks,
+      rightIrisLandmarks
+    ], [
+      constants.LANDMARKS_REFINEMENT_MESH_CONFIG,
+      constants.LANDMARKS_REFINEMENT_LIPS_CONFIG,
+      constants.LANDMARKS_REFINEMENT_LEFT_EYE_CONFIG,
+      constants.LANDMARKS_REFINEMENT_RIGHT_EYE_CONFIG,
+      constants.LANDMARKS_REFINEMENT_LEFT_IRIS_CONFIG,
+      constants.LANDMARKS_REFINEMENT_RIGHT_IRIS_CONFIG
+    ]);
   }
 
   // Calculate face region of interest (ROI) from detections.
   // subgraph: FaceLandmarkLandmarksToRoi
   // ref:
   // https://github.com/google/mediapipe/blob/master/mediapipe/modules/face_landmark/face_landmark_landmarks_to_roi.pbtxt
-  private faceLandmarksToRoi(landmarks: Keypoint[], imageSize: ImageSize):
-      Rect {
+  Rect _faceLandmarksToRoi(List<Keypoint> landmarks, ImageSize imageSize) {
     // Converts face landmarks to a detection that tightly encloses all
     // landmarks.
     // FaceLandmarkLandmarksToRoi: LandmarksToDetectionCalculator.
-    const faceDetection = landmarksToDetection(landmarks);
+    final faceDetection = landmarksToDetection(landmarks);
     // Converts the face detection into a rectangle (normalized by image size)
     // that encloses the face and is rotated such that the line connecting
     // left side of the left eye and right side of the right eye is aligned
     // with the X-axis of the rectangle.
     // FaceLandmarkLandmarksToRoi: DetectionsToRectsCalculator
-    const faceRectFromLandmarks = calculateDetectionsToRects(
-        faceDetection, 'boundingbox', 'normRect', imageSize, {
-          rotationVectorStartKeypointIndex: 33,  // Left side of left eye.
-          rotationVectorEndKeypointIndex: 263,   // Right side of right eye.
-          rotationVectorTargetAngleDegree: 0
-        });
+    final faceRectFromLandmarks =
+        calculateDetectionsToRects(faceDetection, ConversionMode.boundingbox,
+            normalized: true,
+            imageSize: imageSize,
+            rotationConfig: DetectionToRectConfig(
+              rotationVectorStartKeypointIndex: 33, // Left side of left eye.
+              rotationVectorEndKeypointIndex: 263, // Right side of right eye.
+              rotationVectorTargetAngleDegree: 0,
+            ));
 
     // Expands the face rectangle so that in the next video image it's likely
     // to still contain the face even with some motion.
@@ -490,7 +565,7 @@ class MediaPipeFaceMeshTfjsLandmarksDetector implements FaceLandmarksDetector {
     // but is not due to a bug in their processing. Once fixed on their end,
     // split RECT_TRANSFORMATION_CONFIG into separate detector and landmark
     // configs, with landmark's config's `squareLong` set to false.
-    const roi = transformNormalizedRect(
+    final roi = transformNormalizedRect(
         faceRectFromLandmarks, imageSize, constants.RECT_TRANSFORMATION_CONFIG);
 
     return roi;
@@ -505,22 +580,20 @@ class MediaPipeFaceMeshTfjsLandmarksDetector implements FaceLandmarksDetector {
  * parameters in the documentation of the `MediaPipeHandsTfjsModelConfig`
  * interface.
  */
-export async function loadMeshModel(
-    modelConfig: MediaPipeFaceMeshTfjsModelConfig):
-    Promise<FaceLandmarksDetector> {
-  const config = validateMeshModelConfig(modelConfig);
+Future<FaceLandmarksDetector> loadMeshModel(
+    MediaPipeFaceMeshTfjsModelConfig config) async {
+  // final config = validateMeshModelConfig(modelConfig);
 
-  const landmarkFromTFHub = typeof config.landmarkModelUrl === 'string' &&
-      (config.landmarkModelUrl.indexOf('https://tfhub.dev') > -1);
-  const landmarkModel = await tfconv.loadGraphModel(
-      config.landmarkModelUrl, {fromTFHub: landmarkFromTFHub});
+  final landmarkFromTFHub = config.landmarkModelUrl.isUrl &&
+      config.landmarkModelUrl.url!.contains('https://tfhub.dev');
+  final landmarkModel = await tfconv.loadGraphModel(config.landmarkModelUrl,
+      tfconv.LoadOptions(fromTFHub: landmarkFromTFHub));
 
-  const detector = await loadDetectorModel({
-    modelType: 'short',
-    maxFaces: config.maxFaces,
-    detectorModelUrl: config.detectorModelUrl
-  });
+  final detector = await loadDetectorModel(MediaPipeFaceDetectorTfjsModelConfig(
+      modelType: MediaPipeFaceDetectorModelType.short,
+      maxFaces: config.maxFaces,
+      detectorModelUrl: config.detectorModelUrl));
 
-  return new MediaPipeFaceMeshTfjsLandmarksDetector(
+  return MediaPipeFaceMeshTfjsLandmarksDetector(
       detector, landmarkModel, config.maxFaces, config.refineLandmarks);
 }

@@ -15,17 +15,20 @@
  * =============================================================================
  */
 
-export {createDetector} from './create_detector';
+export './create_detector.dart' show createDetector;
 // FaceLandmarksDetector class.
-export {FaceLandmarksDetector} from './face_landmarks_detector';
+export './face_landmarks_detector.dart' show FaceLandmarksDetector;
 // Entry point to create a new detector instance.
-export {MediaPipeFaceMeshMediaPipeEstimationConfig, MediaPipeFaceMeshMediaPipeModelConfig} from './mediapipe/types';
-export {MediaPipeFaceMeshTfjsEstimationConfig, MediaPipeFaceMeshTfjsModelConfig} from './tfjs/types';
+// export {MediaPipeFaceMeshMediaPipeEstimationConfig, MediaPipeFaceMeshMediaPipeModelConfig} from './mediapipe/types.dart';
+export './tfjs/types.dart'
+    show
+        MediaPipeFaceMeshTfjsEstimationConfig,
+        MediaPipeFaceMeshTfjsModelConfig;
 
 // Supported models enum.
-export * from './types';
+export './types.dart';
 
 // Second level exports.
 // Utils for rendering.
-import * as util from './util';
-export {util};
+// import * as util from './util.dart';
+// export {util};
