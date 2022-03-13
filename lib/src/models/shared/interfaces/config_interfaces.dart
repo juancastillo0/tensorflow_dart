@@ -334,7 +334,10 @@ class VisibilitySmoothingConfig {
   });
 }
 
-typedef AssignAverage = List<double>;
+typedef AssignAverage = List<int>;
+
+/// 'none'|'copy'|AssignAverage;  // Z refinement instructions.
+typedef LandmarksRefinementConfigZRefinement = Object;
 
 class LandmarksRefinementConfig {
   final List<int>
@@ -342,7 +345,7 @@ class LandmarksRefinementConfig {
   // resulting set of landmarks. Should be non empty and contain
   // the same amount of indexes as landmarks in the corresponding
   // input.
-  final Object
+  final LandmarksRefinementConfigZRefinement
       zRefinement; //: 'none'|'copy'|AssignAverage;  // Z refinement instructions.
 
   const LandmarksRefinementConfig({
