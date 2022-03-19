@@ -47,15 +47,17 @@ List<Detection> detectionProjection(
 ) {
   final flatProjectionMatrix = matrix4x4ToArray(projectionMatrix);
 
-  detections.forEach((detection) {
+  return detections.map((detection) {
     final locationData = detection.locationData;
 
     // Project keypoints.
-    locationData.relativeKeypoints.forEach((keypoint) {
+    final relativeKeypoints = locationData.relativeKeypoints.map((keypoint) {
       final _l = _project(flatProjectionMatrix, x: keypoint.x, y: keypoint.y);
-      keypoint.x = _l[0];
-      keypoint.y = _l[1];
-    });
+      return keypoint.copyWith(
+        x: _l[0],
+        y: _l[1],
+      );
+    }).toList();
 
     // Project bounding box.
     final box = locationData.relativeBoundingBox;
@@ -84,15 +86,18 @@ List<Detection> detectionProjection(
       yMin = Math.min(yMin, y);
       yMax = Math.max(yMax, y);
     });
-    locationData.relativeBoundingBox = BoundingBox(
-      xMin,
-      xMax,
-      yMin,
-      yMax,
-      width: xMax - xMin,
-      height: yMax - yMin,
+    return detection.copyWith(
+      locationData: LocationData(
+        relativeKeypoints: relativeKeypoints,
+        relativeBoundingBox: BoundingBox(
+          xMin: xMin,
+          xMax: xMax,
+          yMin: yMin,
+          yMax: yMax,
+          width: xMax - xMin,
+          height: yMax - yMin,
+        ),
+      ),
     );
-  });
-
-  return detections;
+  }).toList();
 }

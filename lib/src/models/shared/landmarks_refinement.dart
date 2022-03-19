@@ -61,7 +61,7 @@ int _getNumberOfRefinedLandmarks(List<LandmarksRefinementConfig> refinements) {
 void _refineXY(
   List<int> indexesMapping,
   List<Keypoint> landmarks,
-  List<Keypoint> refinedLandmarks,
+  List<Keypoint?> refinedLandmarks,
 ) {
   for (int i = 0; i < landmarks.length; ++i) {
     final landmark = landmarks[i];
@@ -70,10 +70,10 @@ void _refineXY(
   }
 }
 
-double _getZAverage(List<Keypoint> landmarks, List<int> indexes) {
+double _getZAverage(List<Keypoint?> landmarks, List<int> indexes) {
   double zSum = 0;
   for (int i = 0; i < indexes.length; ++i) {
-    zSum += landmarks[indexes[i]].z!;
+    zSum += landmarks[indexes[i]]!.z!;
   }
   return zSum / indexes.length;
 }
@@ -82,14 +82,16 @@ void _refineZ(
   List<int> indexesMapping,
   LandmarksRefinementConfigZRefinement zRefinement,
   List<Keypoint> landmarks,
-  List<Keypoint> refinedLandmarks,
+  List<Keypoint?> refinedLandmarks,
 ) {
   if (zRefinement is String) {
     switch (zRefinement) {
       case 'copy':
         {
           for (int i = 0; i < landmarks.length; ++i) {
-            refinedLandmarks[indexesMapping[i]].z = landmarks[i].z;
+            refinedLandmarks[indexesMapping[i]] =
+                refinedLandmarks[indexesMapping[i]]!
+                    .copyWith(z: Nullable(landmarks[i].z));
           }
           break;
         }
@@ -103,7 +105,8 @@ void _refineZ(
   } else {
     final zAverage = _getZAverage(refinedLandmarks, zRefinement as List<int>);
     for (int i = 0; i < indexesMapping.length; ++i) {
-      refinedLandmarks[indexesMapping[i]].z = zAverage;
+      refinedLandmarks[indexesMapping[i]] =
+          refinedLandmarks[indexesMapping[i]]!.copyWith(z: Nullable(zAverage));
     }
   }
 }
@@ -120,11 +123,14 @@ void _refineZ(
  */
 // ref:
 // https://github.com/google/mediapipe/blob/master/mediapipe/calculators/util/landmarks_refinement_calculator.cc
-List<Keypoint> landmarksRefinement(List<List<Keypoint>> allLandmarks,
-    List<LandmarksRefinementConfig> refinements) {
+List<Keypoint> landmarksRefinement(
+  List<List<Keypoint>> allLandmarks,
+  List<LandmarksRefinementConfig> refinements,
+) {
   // Initialize refined landmarks list.
   final numRefinedLandmarks = _getNumberOfRefinedLandmarks(refinements);
-  final List<Keypoint> refinedLandmarks = new Array(numRefinedLandmarks);
+  final List<Keypoint?> refinedLandmarks =
+      List.filled(numRefinedLandmarks, null);
 
   // Apply input landmarks to output refined landmarks in provided order.
   for (int i = 0; i < allLandmarks.length; ++i) {
@@ -147,5 +153,5 @@ List<Keypoint> landmarksRefinement(List<List<Keypoint>> allLandmarks,
     // Visibility and presence are not currently refined and are left as `0`.
   }
 
-  return refinedLandmarks;
+  return refinedLandmarks.cast();
 }

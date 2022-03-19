@@ -34,10 +34,10 @@ import 'interfaces/shape_interfaces.dart';
 Detection landmarksToDetection(List<Keypoint> landmarks) {
   final List<Keypoint> relativeKeypoints = [];
 
-  var xMin = Number.MAX_SAFE_INTEGER;
-  var xMax = Number.MIN_SAFE_INTEGER;
-  var yMin = Number.MAX_SAFE_INTEGER;
-  var yMax = Number.MIN_SAFE_INTEGER;
+  var xMin = double.maxFinite;
+  var xMax = double.minPositive;
+  var yMin = double.maxFinite;
+  var yMax = double.minPositive;
 
   for (int i = 0; i < landmarks.length; ++i) {
     final landmark = landmarks[i];
