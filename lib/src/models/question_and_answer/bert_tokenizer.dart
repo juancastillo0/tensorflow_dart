@@ -14,46 +14,68 @@
  * limitations under the License.
  * =============================================================================
  */
-import * as tf from '@tensorflow/tfjs-core';
+import 'dart:convert';
+
+import 'package:collection/collection.dart';
+import 'package:tensorflow_wasm/tensorflow_wasm.dart' as tf;
+import "package:unorm_dart/unorm_dart.dart" as unorm;
 
 const SEPERATOR = '\u2581';
-export const UNK_INDEX = 100;
-export const CLS_INDEX = 101;
-export const CLS_TOKEN = '[CLS]';
-export const SEP_INDEX = 102;
-export const SEP_TOKEN = '[SEP]';
-export const NFKC_TOKEN = 'NFKC';
-export const VOCAB_BASE =
-    'https://tfhub.dev/tensorflow/tfjs-model/mobilebert/1/';
-export const VOCAB_URL = VOCAB_BASE + 'processed_vocab.json?tfjs-format=file';
+const UNK_INDEX = 100;
+const CLS_INDEX = 101;
+const CLS_TOKEN = '[CLS]';
+const SEP_INDEX = 102;
+const SEP_TOKEN = '[SEP]';
+const VOCAB_BASE = 'https://tfhub.dev/tensorflow/tfjs-model/mobilebert/1/';
+const VOCAB_URL = VOCAB_BASE + 'processed_vocab.json?tfjs-format=file';
+
 /**
  * Class for represent node for token parsing Trie data structure.
  */
 class TrieNode {
-  parent: TrieNode;
-  children: {[key: string]: TrieNode} = {};
-  end = false;
-  score: number;
-  index: number;
-  constructor(private key: string) {}
+  final TrieNode? parent;
+  final Map<String, TrieNode> children = {};
+  bool end = false;
 
-  getWord(): [string[], number, number] {
-    const output: string[] = [];
-    let node: TrieNode = this;
+  int? score;
+  int? index;
+  final String? key;
+
+  TrieNode(this.key, [this.parent]);
+
+  Word getWord() {
+    final List<String> output = [];
+    TrieNode? node = this;
 
     while (node != null) {
       if (node.key != null) {
-        output.unshift(node.key);
+        output.insert(0, node.key!);
       }
       node = node.parent;
     }
 
-    return [output, this.score, this.index];
+    return Word(
+      output: output,
+      score: this.score,
+      index: this.index,
+    );
   }
 }
 
+class Word {
+  final List<String> output;
+  final int? score;
+  final int? index;
+
+  Word({
+    required this.output,
+    required this.score,
+    required this.index,
+  });
+}
+
 class Trie {
-  private root = new TrieNode(null);
+  final root = TrieNode(null);
 
   /**
    * Insert the bert vacabulary word into the trie.
@@ -61,23 +83,24 @@ class Trie {
    * @param score word score.
    * @param index index of word in the bert vocabulary file.
    */
-  insert(word: string, score: number, index: number) {
-    let node = this.root;
+  insert(String word, int score, int index) {
+    var node = this.root;
 
-    const symbols = [];
-    for (const symbol of word) {
-      symbols.push(symbol);
+    final symbols = <String>[];
+    for (final _ch in word.codeUnits) {
+      final symbol = String.fromCharCode(_ch);
+      symbols.add(symbol);
     }
 
-    for (let i = 0; i < symbols.length; i++) {
+    for (int i = 0; i < symbols.length; i++) {
       if (node.children[symbols[i]] == null) {
-        node.children[symbols[i]] = new TrieNode(symbols[i]);
-        node.children[symbols[i]].parent = node;
+        final t = TrieNode(symbols[i], node);
+        node.children[symbols[i]] = t;
       }
 
-      node = node.children[symbols[i]];
+      node = node.children[symbols[i]]!;
 
-      if (i === symbols.length - 1) {
+      if (i == symbols.length - 1) {
         node.end = true;
         node.score = score;
         node.index = index;
@@ -90,9 +113,9 @@ class Trie {
    * matches the subtoken from the beginning of the token.
    * @param token string, input string to be searched.
    */
-  find(token: string): TrieNode {
-    let node = this.root;
-    let iter = 0;
+  TrieNode? find(String token) {
+    TrieNode? node = this.root;
+    int iter = 0;
 
     while (iter < token.length && node != null) {
       node = node.children[token[iter]];
@@ -103,117 +126,127 @@ class Trie {
   }
 }
 
-function isWhitespace(ch: string): boolean {
-  return /\s/.test(ch);
+bool _isWhitespace(String ch) {
+  return RegExp(r'\s').hasMatch(ch);
 }
 
-function isInvalid(ch: string): boolean {
-  return (ch.charCodeAt(0) === 0 || ch.charCodeAt(0) === 0xfffd);
+bool _isInvalid(String ch) {
+  return (ch.codeUnitAt(0) == 0 || ch.codeUnitAt(0) == 0xfffd);
 }
 
-const punctuations = '[~`!@#$%^&*(){}[];:"\'<,.>?/\\|-_+=';
+final punctuations = '[~`!@#\$%^&*(){}[];:"\'<,.>?/\\|-_+=';
 
 /** To judge whether it's a punctuation. */
-function isPunctuation(ch: string): boolean {
-  return punctuations.indexOf(ch) !== -1;
+bool _isPunctuation(String ch) {
+  return punctuations.indexOf(ch) != -1;
 }
 
-export interface Token {
-  text: string;
-  index: number;
+class Token {
+  String _text;
+  final int index;
+
+  String get text => _text;
+
+  Token({
+    required String text,
+    required this.index,
+  }) : _text = text;
 }
+
 /**
  * Tokenizer for Bert.
  */
-export class BertTokenizer {
-  private vocab: string[];
-  private trie: Trie;
+class BertTokenizer {
+  late final List<String> vocab;
+  late final Trie trie;
 
   /**
    * Load the vacabulary file and initialize the Trie for lookup.
    */
-  async load() {
-    this.vocab = await this.loadVocab();
+  Future<void> load() async {
+    this.vocab = await this._loadVocab();
 
-    this.trie = new Trie();
+    this.trie = Trie();
     // Actual tokens start at 999.
-    for (let vocabIndex = 999; vocabIndex < this.vocab.length; vocabIndex++) {
-      const word = this.vocab[vocabIndex];
+    for (int vocabIndex = 999; vocabIndex < this.vocab.length; vocabIndex++) {
+      final word = this.vocab[vocabIndex];
       this.trie.insert(word, 1, vocabIndex);
     }
   }
 
-  private async loadVocab(): Promise<[]> {
-    return tf.util.fetch(VOCAB_URL).then(d => d.json());
+  Future<List<String>> _loadVocab() async {
+    return tf
+        .env()
+        .platform!
+        .fetchAndParse(Uri.parse(VOCAB_URL))
+        .then((d) => (jsonDecode(d.body) as List).cast<String>());
   }
 
-  processInput(text: string): Token[] {
-    const charOriginalIndex: number[] = [];
-    const cleanedText = this.cleanText(text, charOriginalIndex);
-    const origTokens = cleanedText.split(' ');
+  List<Token> processInput(String text) {
+    final List<int> charOriginalIndex = [];
+    final cleanedText = this._cleanText(text, charOriginalIndex);
+    final origTokens = cleanedText.split(' ');
 
-    let charCount = 0;
-    const tokens = origTokens.map((token) => {
+    int charCount = 0;
+    final tokens = origTokens.expand((token) {
       token = token.toLowerCase();
-      const tokens = this.runSplitOnPunc(token, charCount, charOriginalIndex);
+      final tokens = this._runSplitOnPunc(token, charCount, charOriginalIndex);
       charCount += token.length + 1;
       return tokens;
-    });
-
-    let flattenTokens: Token[] = [];
-    for (let index = 0; index < tokens.length; index++) {
-      flattenTokens = flattenTokens.concat(tokens[index]);
-    }
-    return flattenTokens;
+    }).toList();
+    return tokens;
   }
 
   /* Performs invalid character removal and whitespace cleanup on text. */
-  private cleanText(text: string, charOriginalIndex: number[]): string {
-    const stringBuilder: string[] = [];
-    let originalCharIndex = 0, newCharIndex = 0;
-    for (const ch of text) {
+  String _cleanText(String text, List<int> charOriginalIndex) {
+    final List<String> stringBuilder = [];
+    int originalCharIndex = 0;
+    for (final _ch in text.codeUnits) {
+      final ch = String.fromCharCode(_ch);
       // Skip the characters that cannot be used.
-      if (isInvalid(ch)) {
+      if (_isInvalid(ch)) {
         originalCharIndex += ch.length;
         continue;
       }
-      if (isWhitespace(ch)) {
+      if (_isWhitespace(ch)) {
         if (stringBuilder.length > 0 &&
-            stringBuilder[stringBuilder.length - 1] !== ' ') {
-          stringBuilder.push(' ');
-          charOriginalIndex[newCharIndex] = originalCharIndex;
+            stringBuilder[stringBuilder.length - 1] != ' ') {
+          stringBuilder.add(' ');
+          charOriginalIndex.add(originalCharIndex);
           originalCharIndex += ch.length;
         } else {
           originalCharIndex += ch.length;
           continue;
         }
       } else {
-        stringBuilder.push(ch);
-        charOriginalIndex[newCharIndex] = originalCharIndex;
+        stringBuilder.add(ch);
+        charOriginalIndex.add(originalCharIndex);
         originalCharIndex += ch.length;
       }
-      newCharIndex++;
     }
     return stringBuilder.join('');
   }
 
   /* Splits punctuation on a piece of text. */
-  private runSplitOnPunc(
-      text: string, count: number,
-      charOriginalIndex: number[]): Token[] {
-    const tokens: Token[] = [];
-    let startNewWord = true;
-    for (const ch of text) {
-      if (isPunctuation(ch)) {
-        tokens.push({text: ch, index: charOriginalIndex[count]});
+  List<Token> _runSplitOnPunc(
+    String text,
+    int count,
+    List<int> charOriginalIndex,
+  ) {
+    final List<Token> tokens = [];
+    bool startNewWord = true;
+    for (final _ch in text.codeUnits) {
+      final ch = String.fromCharCode(_ch);
+      if (_isPunctuation(ch)) {
+        tokens.add(Token(text: ch, index: charOriginalIndex[count]));
         count += ch.length;
         startNewWord = true;
       } else {
         if (startNewWord) {
-          tokens.push({text: '', index: charOriginalIndex[count]});
+          tokens.add(Token(text: '', index: charOriginalIndex[count]));
           startNewWord = false;
         }
-        tokens[tokens.length - 1].text += ch;
+        tokens[tokens.length - 1]._text += ch;
         count += ch.length;
       }
     }
@@ -224,41 +257,41 @@ export class BertTokenizer {
    * Generate tokens for the given vocalbuary.
    * @param text text to be tokenized.
    */
-  tokenize(text: string): number[] {
+  List<int> tokenize(String text) {
     // Source:
     // https://github.com/google-research/bert/blob/88a817c37f788702a363ff935fd173b6dc6ac0d6/tokenization.py#L311
 
-    let outputTokens: number[] = [];
+    final List<int> outputTokens = [];
 
-    const words = this.processInput(text);
-    words.forEach(word => {
-      if (word.text !== CLS_TOKEN && word.text !== SEP_TOKEN) {
-        word.text = `${SEPERATOR}${word.text.normalize(NFKC_TOKEN)}`;
+    final words = this.processInput(text);
+    words.forEach((word) {
+      if (word.text != CLS_TOKEN && word.text != SEP_TOKEN) {
+        word._text = '${SEPERATOR}${unorm.nfkc(word.text)}';
       }
     });
 
-    for (let i = 0; i < words.length; i++) {
-      const chars = [];
-      for (const symbol of words[i].text) {
-        chars.push(symbol);
+    for (int i = 0; i < words.length; i++) {
+      final chars = <String>[];
+      for (final symbol in words[i].text.codeUnits) {
+        chars.add(String.fromCharCode(symbol));
       }
 
-      let isUnknown = false;
-      let start = 0;
-      const subTokens: number[] = [];
+      bool isUnknown = false;
+      int start = 0;
+      final List<int> subTokens = [];
 
-      const charsLength = chars.length;
+      final charsLength = chars.length;
 
       while (start < charsLength) {
-        let end = charsLength;
-        let currIndex;
+        int end = charsLength;
+        int? currIndex;
 
         while (start < end) {
-          const substr = chars.slice(start, end).join('');
+          final substr = chars.slice(start, end).join('');
 
-          const match = this.trie.find(substr);
-          if (match != null && match.end != null) {
-            currIndex = match.getWord()[2];
+          final match = this.trie.find(substr);
+          if (match != null && match.end) {
+            currIndex = match.getWord().index;
             break;
           }
 
@@ -270,14 +303,14 @@ export class BertTokenizer {
           break;
         }
 
-        subTokens.push(currIndex);
+        subTokens.add(currIndex);
         start = end;
       }
 
       if (isUnknown) {
-        outputTokens.push(UNK_INDEX);
+        outputTokens.add(UNK_INDEX);
       } else {
-        outputTokens = outputTokens.concat(subTokens);
+        outputTokens.addAll(subTokens);
       }
     }
 
@@ -285,8 +318,8 @@ export class BertTokenizer {
   }
 }
 
-export async function loadTokenizer(): Promise<BertTokenizer> {
-  const tokenizer = new BertTokenizer();
+Future<BertTokenizer> loadTokenizer() async {
+  final tokenizer = BertTokenizer();
   await tokenizer.load();
   return tokenizer;
 }

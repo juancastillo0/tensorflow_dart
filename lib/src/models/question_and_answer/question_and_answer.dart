@@ -14,10 +14,13 @@
  * limitations under the License.
  * =============================================================================
  */
-import * as tfconv from '@tensorflow/tfjs-converter';
-import * as tf from '@tensorflow/tfjs-core';
+import 'dart:math' as Math;
+import 'package:collection/collection.dart';
+import 'package:tensorflow_wasm/tensorflow_wasm.dart' as tf;
+import 'package:tensorflow_wasm/converter.dart' as tfconv;
 
-import {BertTokenizer, CLS_INDEX, loadTokenizer, SEP_INDEX, Token} from './bert_tokenizer';
+// import {BertTokenizer, CLS_INDEX, loadTokenizer, SEP_INDEX, Token} from './bert_tokenizer';
+import 'bert_tokenizer.dart';
 
 const MODEL_URL = 'https://tfhub.dev/tensorflow/tfjs-model/mobilebert/1';
 const INPUT_SIZE = 384;
@@ -31,14 +34,14 @@ const OUTPUT_OFFSET = 1;
 // training process based on the SQUaD 2.0 dataset.
 const NO_ANSWER_THRESHOLD = 4.3980759382247925;
 
-export interface QuestionAndAnswer {
+abstract class QuestionAndAnswer {
   /**
    * Given the question and context, find the best answers.
    * @param question the question to find answers for.
    * @param context context where the answers are looked up from.
    * @return array of answers
    */
-  findAnswers(question: string, context: string): Promise<Answer[]>;
+  Future<List<Answer>> findAnswers(String question, String context);
 }
 
 /**
@@ -49,17 +52,22 @@ export interface QuestionAndAnswer {
  * is useful for area/countries that don't have access to the model hosted on
  * GCP.
  */
-export interface ModelConfig {
+class ModelConfig {
   /**
    * An optional string that specifies custom url of the model. This
    * is useful for area/countries that don't have access to the model hosted on
    * GCP.
    */
-  modelUrl: string;
+  final String modelUrl;
   /**
    * Wheter the url is from tfhub.
    */
-  fromTFHub?: boolean;
+  final bool fromTFHub;
+
+  const ModelConfig({
+    required this.modelUrl,
+    required this.fromTFHub,
+  });
 }
 
 /**
@@ -71,134 +79,170 @@ export interface ModelConfig {
  * `score`: number, indicates the confident
  * level.
  */
-export interface Answer {
-  text: string;
-  startIndex: number;
-  endIndex: number;
-  score: number;
+class Answer {
+  final String text;
+  final int startIndex;
+  final int endIndex;
+  final double score;
+
+  Answer({
+    required this.text,
+    required this.startIndex,
+    required this.endIndex,
+    required this.score,
+  });
 }
 
-interface Feature {
-  inputIds: number[];
-  inputMask: number[];
-  segmentIds: number[];
-  origTokens: Token[];
-  tokenToOrigMap: {[key: number]: number};
+class Feature {
+  final List<int> inputIds;
+  final List<int> inputMask;
+  final List<int> segmentIds;
+  final List<Token> origTokens;
+  final Map<int, int> tokenToOrigMap;
+
+  Feature({
+    required this.inputIds,
+    required this.inputMask,
+    required this.segmentIds,
+    required this.origTokens,
+    required this.tokenToOrigMap,
+  });
 }
 
-interface AnswerIndex {
-  start: number;
-  end: number;
-  score: number;
+class AnswerIndex {
+  final int start;
+  final int end;
+  final double score;
+
+  AnswerIndex({
+    required this.start,
+    required this.end,
+    required this.score,
+  });
+}
+
+class _Span {
+  final int start;
+  final int length;
+  _Span({
+    required this.start,
+    required this.length,
+  });
 }
 
 class QuestionAndAnswerImpl implements QuestionAndAnswer {
-  private model: tfconv.GraphModel;
-  private tokenizer: BertTokenizer;
+  late final tfconv.GraphModel model;
+  late final BertTokenizer tokenizer;
+  final ModelConfig modelConfig;
 
-  constructor(private modelConfig: ModelConfig) {
-    if (this.modelConfig == null) {
-      this.modelConfig = {modelUrl: MODEL_URL, fromTFHub: true};
-    }
-    if (this.modelConfig.fromTFHub == null) {
-      this.modelConfig.fromTFHub = false;
-    }
-  }
-  private process(
-      query: string, context: string, maxQueryLen: number, maxSeqLen: number,
-      docStride = 128): Feature[] {
+  QuestionAndAnswerImpl([
+    ModelConfig? modelConfig,
+  ]) : modelConfig = modelConfig ??
+            const ModelConfig(modelUrl: MODEL_URL, fromTFHub: true);
+
+  List<Feature> _process(
+      String query, String context, int maxQueryLen, int maxSeqLen,
+      [int docStride = 128]) {
     // always add the question mark to the end of the query.
-    query = query.replace(/\?/g, '');
+    query = query.replaceAll(RegExp(r'\?'), '');
     query = query.trim();
     query = query + '?';
 
-    const queryTokens = this.tokenizer.tokenize(query);
+    final queryTokens = this.tokenizer.tokenize(query);
     if (queryTokens.length > maxQueryLen) {
-      throw new Error(
-          `The length of question token exceeds the limit (${maxQueryLen}).`);
+      throw Exception(
+          'The length of question token exceeds the limit (${maxQueryLen}).');
     }
 
-    const origTokens = this.tokenizer.processInput(context.trim());
-    const tokenToOrigIndex: number[] = [];
-    const allDocTokens: number[] = [];
-    for (let i = 0; i < origTokens.length; i++) {
-      const token = origTokens[i].text;
-      const subTokens = this.tokenizer.tokenize(token);
-      for (let j = 0; j < subTokens.length; j++) {
-        const subToken = subTokens[j];
-        tokenToOrigIndex.push(i);
-        allDocTokens.push(subToken);
+    final origTokens = this.tokenizer.processInput(context.trim());
+    final List<int> tokenToOrigIndex = [];
+    final List<int> allDocTokens = [];
+    for (int i = 0; i < origTokens.length; i++) {
+      final token = origTokens[i].text;
+      final subTokens = this.tokenizer.tokenize(token);
+      for (int j = 0; j < subTokens.length; j++) {
+        final subToken = subTokens[j];
+        tokenToOrigIndex.add(i);
+        allDocTokens.add(subToken);
       }
     }
     // The -3 accounts for [CLS], [SEP] and [SEP]
-    const maxContextLen = maxSeqLen - queryTokens.length - 3;
+    final maxContextLen = maxSeqLen - queryTokens.length - 3;
 
     // We can have documents that are longer than the maximum sequence
     // length. To deal with this we do a sliding window approach, where we
     // take chunks of the up to our max length with a stride of
     // `doc_stride`.
-    const docSpans: Array<{start: number, length: number}> = [];
-    let startOffset = 0;
+    final List<_Span> docSpans = [];
+    int startOffset = 0;
     while (startOffset < allDocTokens.length) {
-      let length = allDocTokens.length - startOffset;
+      int length = allDocTokens.length - startOffset;
       if (length > maxContextLen) {
         length = maxContextLen;
       }
-      docSpans.push({start: startOffset, length});
-      if (startOffset + length === allDocTokens.length) {
+      docSpans.add(_Span(start: startOffset, length: length));
+      if (startOffset + length == allDocTokens.length) {
         break;
       }
       startOffset += Math.min(length, docStride);
     }
 
-    const features = docSpans.map(docSpan => {
-      const tokens = [];
-      const segmentIds = [];
-      const tokenToOrigMap: {[index: number]: number} = {};
-      tokens.push(CLS_INDEX);
-      segmentIds.push(0);
-      for (let i = 0; i < queryTokens.length; i++) {
-        const queryToken = queryTokens[i];
-        tokens.push(queryToken);
-        segmentIds.push(0);
+    final features = docSpans.map((docSpan) {
+      final List<int> tokens = [];
+      final List<int> segmentIds = [];
+      final Map<int, int> tokenToOrigMap = {};
+      tokens.add(CLS_INDEX);
+      segmentIds.add(0);
+      for (int i = 0; i < queryTokens.length; i++) {
+        final queryToken = queryTokens[i];
+        tokens.add(queryToken);
+        segmentIds.add(0);
       }
-      tokens.push(SEP_INDEX);
-      segmentIds.push(0);
-      for (let i = 0; i < docSpan.length; i++) {
-        const splitTokenIndex = i + docSpan.start;
-        const docToken = allDocTokens[splitTokenIndex];
-        tokens.push(docToken);
-        segmentIds.push(1);
+      tokens.add(SEP_INDEX);
+      segmentIds.add(0);
+      for (int i = 0; i < docSpan.length; i++) {
+        final splitTokenIndex = i + docSpan.start;
+        final docToken = allDocTokens[splitTokenIndex];
+        tokens.add(docToken);
+        segmentIds.add(1);
         tokenToOrigMap[tokens.length] = tokenToOrigIndex[splitTokenIndex];
       }
-      tokens.push(SEP_INDEX);
-      segmentIds.push(1);
-      const inputIds = tokens;
-      const inputMask = inputIds.map(id => 1);
+      tokens.add(SEP_INDEX);
+      segmentIds.add(1);
+      final inputIds = tokens;
+      final inputMask = inputIds.map((id) => 1).toList();
       while ((inputIds.length < maxSeqLen)) {
-        inputIds.push(0);
-        inputMask.push(0);
-        segmentIds.push(0);
+        inputIds.add(0);
+        inputMask.add(0);
+        segmentIds.add(0);
       }
-      return {inputIds, inputMask, segmentIds, origTokens, tokenToOrigMap};
-    });
+      return Feature(
+        inputIds: inputIds,
+        inputMask: inputMask,
+        segmentIds: segmentIds,
+        origTokens: origTokens,
+        tokenToOrigMap: tokenToOrigMap,
+      );
+    }).toList();
     return features;
   }
 
-  async load() {
+  Future<void> load() async {
     this.model = await tfconv.loadGraphModel(
-        this.modelConfig.modelUrl, {fromTFHub: this.modelConfig.fromTFHub});
+      tfconv.ModelHandler.fromUrl(this.modelConfig.modelUrl),
+      tfconv.LoadOptions(fromTFHub: this.modelConfig.fromTFHub),
+    );
     // warm up the backend
-    const batchSize = 1;
-    const inputIds = tf.ones([batchSize, INPUT_SIZE], 'int32');
-    const segmentIds = tf.ones([1, INPUT_SIZE], 'int32');
-    const inputMask = tf.ones([1, INPUT_SIZE], 'int32');
-    this.model.execute({
-      input_ids: inputIds,
-      segment_ids: segmentIds,
-      input_mask: inputMask,
-      global_step: tf.scalar(1, 'int32')
-    });
+    final batchSize = 1;
+    final inputIds = tf.ones([batchSize, INPUT_SIZE], 'int32');
+    final segmentIds = tf.ones([1, INPUT_SIZE], 'int32');
+    final inputMask = tf.ones([1, INPUT_SIZE], 'int32');
+    this.model.execute(tf.TensorMap({
+          'input_ids': inputIds,
+          'segment_ids': segmentIds,
+          'input_mask': inputMask,
+          'global_step': tf.scalar(1, 'int32')
+        }));
 
     this.tokenizer = await loadTokenizer();
   }
@@ -209,52 +253,62 @@ class QuestionAndAnswerImpl implements QuestionAndAnswer {
    * @param context context where the answers are looked up from.
    * @return array of answers
    */
-  async findAnswers(question: string, context: string): Promise<Answer[]> {
-    if (question == null || context == null) {
-      throw new Error(
-          'The input to findAnswers call is null, ' +
-          'please pass a string as input.');
-    }
+  Future<List<Answer>> findAnswers(String question, String context) async {
+    // if (question == null || context == null) {
+    //   throw Exception('The input to findAnswers call is null, ' +
+    //       'please pass a string as input.');
+    // }
 
-    const features =
-        this.process(question, context, MAX_QUERY_LEN, MAX_SEQ_LEN);
-    const inputIdArray = features.map(f => f.inputIds);
-    const segmentIdArray = features.map(f => f.segmentIds);
-    const inputMaskArray = features.map(f => f.inputMask);
-    const globalStep = tf.scalar(1, 'int32');
-    const batchSize = features.length;
-    const result = tf.tidy(() => {
-      const inputIds =
+    final features =
+        this._process(question, context, MAX_QUERY_LEN, MAX_SEQ_LEN);
+    final inputIdArray = features.map((f) => f.inputIds).toList();
+    final segmentIdArray = features.map((f) => f.segmentIds).toList();
+    final inputMaskArray = features.map((f) => f.inputMask).toList();
+    final globalStep = tf.scalar(1, 'int32');
+    final batchSize = features.length;
+    final result = tf.tidy(() {
+      final inputIds =
           tf.tensor2d(inputIdArray, [batchSize, INPUT_SIZE], 'int32');
-      const segmentIds =
+      final segmentIds =
           tf.tensor2d(segmentIdArray, [batchSize, INPUT_SIZE], 'int32');
-      const inputMask =
+      final inputMask =
           tf.tensor2d(inputMaskArray, [batchSize, INPUT_SIZE], 'int32');
       return this.model.execute(
-                 {
-                   input_ids: inputIds,
-                   segment_ids: segmentIds,
-                   input_mask: inputMask,
-                   global_step: globalStep
-                 },
-                 ['start_logits', 'end_logits']) as [tf.Tensor2D, tf.Tensor2D];
+          tf.TensorMap({
+            'input_ids': inputIds,
+            'segment_ids': segmentIds,
+            'input_mask': inputMask,
+            'global_step': globalStep
+          }),
+          ['start_logits', 'end_logits']) as List<tf.Tensor2D>;
     });
-    const logits = await Promise.all([result[0].array(), result[1].array()]);
+    final logits = (await Future.wait([
+      result[0].array(),
+      result[1].array(),
+    ]))
+        .cast<List>();
     // dispose all intermediate tensors
     globalStep.dispose();
     result[0].dispose();
     result[1].dispose();
 
-    const answers = [];
-    for (let i = 0; i < batchSize; i++) {
-      answers.push(this.getBestAnswers(
-          logits[0][i], logits[1][i], features[i].origTokens,
-          features[i].tokenToOrigMap, context, i));
+    final List<Answer> answers = [];
+    for (int i = 0; i < batchSize; i++) {
+      answers.addAll(this.getBestAnswers(
+        (logits[0][i] as List).cast(),
+        (logits[1][i] as List).cast(),
+        features[i].origTokens,
+        features[i].tokenToOrigMap,
+        context,
+        i,
+      ));
     }
 
-    return answers.reduce((flatten, array) => flatten.concat(array), [])
-        .sort((logitA, logitB) => logitB.score - logitA.score)
-        .slice(0, PREDICT_ANSWER_NUM);
+    answers.sort((logitA, logitB) => (logitB.score - logitA.score).round());
+
+    return answers.length > PREDICT_ANSWER_NUM
+        ? answers.slice(0, PREDICT_ANSWER_NUM)
+        : answers;
   }
 
   /**
@@ -264,95 +318,122 @@ class QuestionAndAnswerImpl implements QuestionAndAnswer {
    * @param origTokens original tokens of the passage
    * @param tokenToOrigMap token to index mapping
    */
-  getBestAnswers(
-      startLogits: number[], endLogits: number[], origTokens: Token[],
-      tokenToOrigMap: {[key: string]: number}, context: string,
-      docIndex = 0): Answer[] {
+  List<Answer> getBestAnswers(
+    List<double> startLogits,
+    List<double> endLogits,
+    List<Token> origTokens,
+    Map<int, int> tokenToOrigMap,
+    String context, [
+    int docIndex = 0,
+  ]) {
     // Model uses the closed interval [start, end] for indices.
-    const startIndexes = this.getBestIndex(startLogits);
-    const endIndexes = this.getBestIndex(endLogits);
-    const origResults: AnswerIndex[] = [];
-    startIndexes.forEach(start => {
-      endIndexes.forEach(end => {
-        if (tokenToOrigMap[start + OUTPUT_OFFSET] && tokenToOrigMap[end + OUTPUT_OFFSET] && end >= start) {
-          const length = end - start + 1;
+    final startIndexes = this.getBestIndex(startLogits);
+    final endIndexes = this.getBestIndex(endLogits);
+    final List<AnswerIndex> origResults = [];
+    startIndexes.forEach((start) {
+      endIndexes.forEach((end) {
+        if (!const [null, 0].contains(tokenToOrigMap[start + OUTPUT_OFFSET]) &&
+            !const [null, 0].contains(tokenToOrigMap[end + OUTPUT_OFFSET]) &&
+            end >= start) {
+          final length = end - start + 1;
           if (length < MAX_ANSWER_LEN) {
-            origResults.push(
-                {start, end, score: startLogits[start] + endLogits[end]});
+            origResults.add(AnswerIndex(
+              start: start,
+              end: end,
+              score: startLogits[start] + endLogits[end],
+            ));
           }
         }
       });
     });
 
-    origResults.sort((a, b) => b.score - a.score);
-    const answers: Answer[] = [];
-    for (let i = 0; i < origResults.length; i++) {
+    origResults.sort((a, b) => (b.score - a.score).round());
+    final List<Answer> answers = [];
+    for (int i = 0; i < origResults.length; i++) {
       if (i >= PREDICT_ANSWER_NUM ||
           origResults[i].score < NO_ANSWER_THRESHOLD) {
         break;
       }
 
-      let convertedText = '';
-      let startIndex = 0;
-      let endIndex = 0;
+      String convertedText = '';
+      int startIndex = 0;
+      int endIndex = 0;
       if (origResults[i].start > 0) {
-        [convertedText, startIndex, endIndex] = this.convertBack(
-            origTokens, tokenToOrigMap, origResults[i].start,
-            origResults[i].end, context);
+        final _c = this.convertBack(origTokens, tokenToOrigMap,
+            origResults[i].start, origResults[i].end, context);
+
+        convertedText = _c.convertedText;
+        startIndex = _c.startIndex;
+        endIndex = _c.endIndex;
       } else {
         convertedText = '';
       }
-      answers.push({
-        text: convertedText,
-        score: origResults[i].score,
-        startIndex,
-        endIndex
-      });
+      answers.add(Answer(
+          text: convertedText,
+          score: origResults[i].score,
+          startIndex: startIndex,
+          endIndex: endIndex));
     }
     return answers;
   }
 
   /** Get the n-best logits from a list of all the logits. */
-  getBestIndex(logits: number[]): number[] {
-    const tmpList = [];
-    for (let i = 0; i < MAX_SEQ_LEN; i++) {
-      tmpList.push([i, i, logits[i]]);
+  List<int> getBestIndex(List<double> logits) {
+    final tmpList = <List<num>>[];
+    for (int i = 0; i < MAX_SEQ_LEN; i++) {
+      tmpList.add([i, i, logits[i]]);
     }
-    tmpList.sort((a, b) => b[2] - a[2]);
+    tmpList.sort((a, b) => (b[2] - a[2]).round());
 
-    const indexes = [];
-    for (let i = 0; i < PREDICT_ANSWER_NUM; i++) {
-      indexes.push(tmpList[i][0]);
+    final List<int> indexes = [];
+    for (int i = 0; i < PREDICT_ANSWER_NUM; i++) {
+      indexes.add(tmpList[i][0] as int);
     }
 
     return indexes;
   }
 
   /** Convert the answer back to original text form. */
-  convertBack(
-      origTokens: Token[], tokenToOrigMap: {[key: string]: number},
-      start: number, end: number, context: string): [string, number, number] {
+  _ConvertedIndex convertBack(
+    List<Token> origTokens,
+    Map<int, int> tokenToOrigMap,
+    int start,
+    int end,
+    String context,
+  ) {
     // Shifted index is: index of logits + offset.
-    const shiftedStart = start + OUTPUT_OFFSET;
-    const shiftedEnd = end + OUTPUT_OFFSET;
-    const startIndex = tokenToOrigMap[shiftedStart];
-    const endIndex = tokenToOrigMap[shiftedEnd];
-    const startCharIndex = origTokens[startIndex].index;
+    final shiftedStart = start + OUTPUT_OFFSET;
+    final shiftedEnd = end + OUTPUT_OFFSET;
+    final startIndex = tokenToOrigMap[shiftedStart]!;
+    final endIndex = tokenToOrigMap[shiftedEnd]!;
+    final startCharIndex = origTokens[startIndex].index;
 
-    const endCharIndex = endIndex < origTokens.length - 1 ?
-        origTokens[endIndex + 1].index - 1 :
-        origTokens[endIndex].index + origTokens[endIndex].text.length;
+    final endCharIndex = endIndex < origTokens.length - 1
+        ? origTokens[endIndex + 1].index - 1
+        : origTokens[endIndex].index + origTokens[endIndex].text.length;
 
-    return [
-      context.slice(startCharIndex, endCharIndex + 1).trim(), startCharIndex,
-      endCharIndex
-    ];
+    return _ConvertedIndex(
+      convertedText: context.substring(startCharIndex, endCharIndex + 1).trim(),
+      startIndex: startCharIndex,
+      endIndex: endCharIndex,
+    );
   }
 }
 
-export async function load(modelConfig?: ModelConfig):
-    Promise<QuestionAndAnswer> {
-  const mobileBert = new QuestionAndAnswerImpl(modelConfig);
+Future<QuestionAndAnswer> load([ModelConfig? modelConfig]) async {
+  final mobileBert = QuestionAndAnswerImpl(modelConfig);
   await mobileBert.load();
   return mobileBert;
+}
+
+class _ConvertedIndex {
+  final String convertedText;
+  final int startIndex;
+  final int endIndex;
+
+  _ConvertedIndex({
+    required this.convertedText,
+    required this.startIndex,
+    required this.endIndex,
+  });
 }
