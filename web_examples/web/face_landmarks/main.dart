@@ -15,42 +15,53 @@
  * =============================================================================
  */
 
-import '@tensorflow/tfjs-backend-webgl';
-import '@tensorflow/tfjs-backend-cpu';
+// import '@tensorflow/tfjs-backend-webgl';
+// import '@tensorflow/tfjs-backend-cpu';
 
-import * as faceLandmarksDetection from '@tensorflow-models/face-landmarks-detection';
-import * as tfjsWasm from '@tensorflow/tfjs-backend-wasm';
-import * as tf from '@tensorflow/tfjs-core';
-import Stats from 'stats.js';
+// import * as faceLandmarksDetection from '@tensorflow-models/face-landmarks-detection';
+// import * as tfjsWasm from '@tensorflow/tfjs-backend-wasm';
+// import * as tf from '@tensorflow/tfjs-core';
+// import Stats from 'stats.js';
 
-import {TRIANGULATION} from './triangulation';
+// import {TRIANGULATION} from './triangulation';
 
-tfjsWasm.setWasmPaths(
-    `https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm@${
-        tfjsWasm.version_wasm}/dist/`);
+import 'dart:async';
+import 'dart:math' as Math;
+import 'package:mobx/mobx.dart';
 
+import 'triangulation.dart';
+import 'package:universal_html/html.dart';
+import 'package:tensorflow_wasm/models/face_landmarks.dart'
+    as faceLandmarksDetection;
+
+import 'ui.dart';
+
+const CANVAS_ELEMENT_ID = 'mesh-canvas';
 const NUM_KEYPOINTS = 468;
 const NUM_IRIS_KEYPOINTS = 5;
 const GREEN = '#32EEDB';
 const RED = '#FF2C35';
 const BLUE = '#157AB3';
-let stopRendering = false;
+bool stopRendering = false;
 
-function isMobile() {
-  const isAndroid = /Android/i.test(navigator.userAgent);
-  const isiOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+bool _isMobile() {
+  final isAndroid = RegExp('Android', caseSensitive: false)
+      .hasMatch(window.navigator.userAgent);
+  final isiOS = RegExp('iPhone|iPad|iPod', caseSensitive: false)
+      .hasMatch(window.navigator.userAgent);
   return isAndroid || isiOS;
 }
 
-function distance(a, b) {
-  return Math.sqrt(Math.pow(a[0] - b[0], 2) + Math.pow(a[1] - b[1], 2));
+double _distance(
+    faceLandmarksDetection.Keypoint a, faceLandmarksDetection.Keypoint b) {
+  return Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2));
 }
 
-function drawPath(ctx, points, closePath) {
-  const region = new Path2D();
+void _drawPath(ctx, points, closePath) {
+  final region = Path2D();
   region.moveTo(points[0][0], points[0][1]);
-  for (let i = 1; i < points.length; i++) {
-    const point = points[i];
+  for (int i = 1; i < points.length; i++) {
+    final point = points[i];
     region.lineTo(point[0], point[1]);
   }
 
@@ -60,117 +71,138 @@ function drawPath(ctx, points, closePath) {
   ctx.stroke(region);
 }
 
-let model, ctx, videoWidth, videoHeight, video, canvas,
-    scatterGLHasInitialized = false, scatterGL, rafID;
+faceLandmarksDetection.FaceLandmarksDetector? model;
+late CanvasRenderingContext2D ctx;
+int? videoWidth;
+int? videoHeight;
+late VideoElement video;
+late CanvasElement _canvas;
+// scatterGLHasInitialized = false,
+// scatterGL,
+int? rafID;
 
 const VIDEO_SIZE = 500;
-const mobile = isMobile();
+final mobile = _isMobile();
 // Don't render the point cloud on mobile in order to maximize performance and
 // to avoid crowding limited screen space.
-const renderPointcloud = mobile === false;
-const stats = new Stats();
-const state = {
-  backend: 'webgl',
-  maxFaces: 1,
-  triangulateMesh: true,
-  predictIrises: true
-};
+final renderPointcloud = mobile == false;
+// const stats = Stats();
+final state = FaceLandmarkState();
 
-if (renderPointcloud) {
-  state.renderPointcloud = true;
+final _modelCompleter = Completer();
+
+class FaceLandmarkState {
+  final backend = Observable('wasm');
+  final maxFaces = Observable(1);
+  final triangulateMesh = Observable(true);
+  final predictIrises = Observable(true);
 }
 
-function setupDatGui() {
-  const gui = new dat.GUI();
-  gui.add(state, 'backend', ['webgl', 'wasm', 'cpu'])
-      .onChange(async backend => {
-        stopRendering = true;
-        window.cancelAnimationFrame(rafID);
-        await tf.setBackend(backend);
-        stopRendering = false;
-        requestAnimationFrame(renderPrediction);
-      });
+Future<void> _setupDatGui() async {
+  // final gui = dat.GUI();
+  // gui.add(state, 'backend', ['webgl', 'wasm', 'cpu'])
+  //     .onChange((backend) async {
+  //       stopRendering = true;
+  //       window.cancelAnimationFrame(rafID);
+  //       await tf.setBackend(backend);
+  //       stopRendering = false;
+  //       requestAnimationFrame(renderPrediction);
+  //     });
 
-  gui.add(state, 'maxFaces', 1, 20, 1).onChange(async val => {
-    model = await faceLandmarksDetection.load(
-        faceLandmarksDetection.SupportedPackages.mediapipeFacemesh,
-        {maxFaces: val});
+  await setupFaceLandmarkGui(state);
+
+  autorun((_) async {
+    model = await faceLandmarksDetection.createDetector(
+      faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh,
+      faceLandmarksDetection.MediaPipeFaceMeshTfjsModelConfig(
+        maxFaces: state.maxFaces.value,
+        refineLandmarks: state.predictIrises.value,
+      ),
+    );
+    if (!_modelCompleter.isCompleted) {
+      _modelCompleter.complete();
+    }
   });
 
-  gui.add(state, 'triangulateMesh');
-  gui.add(state, 'predictIrises');
-
-  if (renderPointcloud) {
-    gui.add(state, 'renderPointcloud').onChange(render => {
-      document.querySelector('#scatter-gl-container').style.display =
-          render ? 'inline-block' : 'none';
-    });
-  }
+  // if (renderPointcloud) {
+  //   gui.add(state, 'renderPointcloud').onChange((render) {
+  //     document.querySelector('#scatter-gl-container').style.display =
+  //         render ? 'inline-block' : 'none';
+  //   });
+  // }
 }
 
-async function setupCamera() {
-  video = document.getElementById('video');
+Future<VideoElement> _setupCamera() async {
+  video = document.getElementById('video') as VideoElement;
 
-  const stream = await navigator.mediaDevices.getUserMedia({
+  final stream = await window.navigator.mediaDevices!.getUserMedia({
     'audio': false,
     'video': {
-      facingMode: 'user',
+      'facingMode': 'user',
       // Only setting the video to a specified size in order to accommodate a
       // point cloud, so on mobile devices accept the default size.
-      width: mobile ? undefined : VIDEO_SIZE,
-      height: mobile ? undefined : VIDEO_SIZE
+      'width': mobile ? null : VIDEO_SIZE,
+      'height': mobile ? null : VIDEO_SIZE
     },
   });
   video.srcObject = stream;
 
-  return new Promise((resolve) => {
-    video.onloadedmetadata = () => {
-      resolve(video);
-    };
-  });
+  return video.onLoadedMetadata.first.then((value) => video);
 }
 
-async function renderPrediction() {
+Future<void> _renderPrediction([_]) async {
   if (stopRendering) {
     return;
   }
 
-  stats.begin();
+  // stats.begin();
 
-  const predictions = await model.estimateFaces({
-    input: video,
-    returnTensors: false,
-    flipHorizontal: false,
-    predictIrises: state.predictIrises
-  });
-  ctx.drawImage(
-      video, 0, 0, videoWidth, videoHeight, 0, 0, canvas.width, canvas.height);
+  final predictions = await model!.estimateFaces(
+    video,
+    faceLandmarksDetection.MediaPipeFaceMeshTfjsEstimationConfig(
+      // returnTensors: false,
+      flipHorizontal: false,
+      // predictIrises: state.predictIrises,
+    ),
+  );
+  ctx.drawImageScaledFromSource(
+    video,
+    0,
+    0,
+    videoWidth!,
+    videoHeight!,
+    0,
+    0,
+    _canvas.width!,
+    _canvas.height!,
+  );
 
   if (predictions.length > 0) {
-    predictions.forEach(prediction => {
-      const keypoints = prediction.scaledMesh;
+    predictions.forEach((prediction) {
+      final keypoints = prediction.keypoints;
 
-      if (state.triangulateMesh) {
+      if (state.triangulateMesh.value) {
         ctx.strokeStyle = GREEN;
         ctx.lineWidth = 0.5;
 
-        for (let i = 0; i < TRIANGULATION.length / 3; i++) {
-          const points = [
-            TRIANGULATION[i * 3], TRIANGULATION[i * 3 + 1],
+        for (int i = 0; i < TRIANGULATION.length / 3; i++) {
+          final points = [
+            TRIANGULATION[i * 3],
+            TRIANGULATION[i * 3 + 1],
             TRIANGULATION[i * 3 + 2]
-          ].map(index => keypoints[index]);
+          ].map((index) => keypoints[index]);
 
-          drawPath(ctx, points, true);
+          _drawPath(ctx, points, true);
         }
       } else {
         ctx.fillStyle = GREEN;
 
-        for (let i = 0; i < NUM_KEYPOINTS; i++) {
-          const x = keypoints[i][0];
-          const y = keypoints[i][1];
+        for (int i = 0; i < NUM_KEYPOINTS; i++) {
+          final x = keypoints[i].x;
+          final y = keypoints[i].y;
 
           ctx.beginPath();
-          ctx.arc(x, y, 1 /* radius */, 0, 2 * Math.PI);
+          ctx.arc(x, y, 1 /* radius */, 0, 2 * Math.pi);
           ctx.fill();
         }
       }
@@ -179,107 +211,108 @@ async function renderPrediction() {
         ctx.strokeStyle = RED;
         ctx.lineWidth = 1;
 
-        const leftCenter = keypoints[NUM_KEYPOINTS];
-        const leftDiameterY = distance(
+        final leftCenter = keypoints[NUM_KEYPOINTS];
+        final leftDiameterY = _distance(
             keypoints[NUM_KEYPOINTS + 4], keypoints[NUM_KEYPOINTS + 2]);
-        const leftDiameterX = distance(
+        final leftDiameterX = _distance(
             keypoints[NUM_KEYPOINTS + 3], keypoints[NUM_KEYPOINTS + 1]);
 
         ctx.beginPath();
-        ctx.ellipse(
-            leftCenter[0], leftCenter[1], leftDiameterX / 2, leftDiameterY / 2,
-            0, 0, 2 * Math.PI);
+        ctx.ellipse(leftCenter.x, leftCenter.y, leftDiameterX / 2,
+            leftDiameterY / 2, 0, 0, 2 * Math.pi, null);
         ctx.stroke();
 
         if (keypoints.length > NUM_KEYPOINTS + NUM_IRIS_KEYPOINTS) {
-          const rightCenter = keypoints[NUM_KEYPOINTS + NUM_IRIS_KEYPOINTS];
-          const rightDiameterY = distance(
+          final rightCenter = keypoints[NUM_KEYPOINTS + NUM_IRIS_KEYPOINTS];
+          final rightDiameterY = _distance(
               keypoints[NUM_KEYPOINTS + NUM_IRIS_KEYPOINTS + 2],
               keypoints[NUM_KEYPOINTS + NUM_IRIS_KEYPOINTS + 4]);
-          const rightDiameterX = distance(
+          final rightDiameterX = _distance(
               keypoints[NUM_KEYPOINTS + NUM_IRIS_KEYPOINTS + 3],
               keypoints[NUM_KEYPOINTS + NUM_IRIS_KEYPOINTS + 1]);
 
           ctx.beginPath();
-          ctx.ellipse(
-              rightCenter[0], rightCenter[1], rightDiameterX / 2,
-              rightDiameterY / 2, 0, 0, 2 * Math.PI);
+          ctx.ellipse(rightCenter.x, rightCenter.y, rightDiameterX / 2,
+              rightDiameterY / 2, 0, 0, 2 * Math.pi, null);
           ctx.stroke();
         }
       }
     });
 
-    if (renderPointcloud && state.renderPointcloud && scatterGL != null) {
-      const pointsData = predictions.map(prediction => {
-        let scaledMesh = prediction.scaledMesh;
-        return scaledMesh.map(point => ([-point[0], -point[1], -point[2]]));
-      });
+    // if (renderPointcloud && state.renderPointcloud && scatterGL != null) {
+    //   final pointsData = predictions.map((prediction) {
+    //     let scaledMesh = prediction.scaledMesh;
+    //     return scaledMesh.map((point) => ([-point[0], -point[1], -point[2]]));
+    //   });
 
-      let flattenedPointsData = [];
-      for (let i = 0; i < pointsData.length; i++) {
-        flattenedPointsData = flattenedPointsData.concat(pointsData[i]);
-      }
-      const dataset = new ScatterGL.Dataset(flattenedPointsData);
+    //   List<double> flattenedPointsData = [];
+    //   for (int i = 0; i < pointsData.length; i++) {
+    //     flattenedPointsData = flattenedPointsData.concat(pointsData[i]);
+    //   }
+    //   final dataset = ScatterGL.Dataset(flattenedPointsData);
 
-      if (!scatterGLHasInitialized) {
-        scatterGL.setPointColorer((i) => {
-          if (i % (NUM_KEYPOINTS + NUM_IRIS_KEYPOINTS * 2) > NUM_KEYPOINTS) {
-            return RED;
-          }
-          return BLUE;
-        });
-        scatterGL.render(dataset);
-      } else {
-        scatterGL.updateDataset(dataset);
-      }
-      scatterGLHasInitialized = true;
-    }
+    //   if (!scatterGLHasInitialized) {
+    //     scatterGL.setPointColorer((i) {
+    //       if (i % (NUM_KEYPOINTS + NUM_IRIS_KEYPOINTS * 2) > NUM_KEYPOINTS) {
+    //         return RED;
+    //       }
+    //       return BLUE;
+    //     });
+    //     scatterGL.render(dataset);
+    //   } else {
+    //     scatterGL.updateDataset(dataset);
+    //   }
+    //   scatterGLHasInitialized = true;
+    // }
   }
 
-  stats.end();
-  rafID = requestAnimationFrame(renderPrediction);
-};
+  // stats.end();
+  rafID = window.requestAnimationFrame(_renderPrediction);
+}
 
-async function main() {
-  await tf.setBackend(state.backend);
-  setupDatGui();
+Future<void> main() async {
+  // tfjsWasm.setWasmPaths(
+  //     'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm@${tfjsWasm.versionWasm}/dist/');
+  // if (renderPointcloud) {
+  //   state.renderPointcloud = true;
+  // }
 
-  stats.showPanel(0);  // 0: fps, 1: ms, 2: mb, 3+: custom
-  document.getElementById('main').appendChild(stats.dom);
+  await _setupDatGui();
+  await Future.wait([
+    // tf.setBackend(tfjsWasm.wasmBackendFactory),
+    _setupCamera(),
+  ]);
 
-  await setupCamera();
+  // stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
+  // document.getElementById('main')!.children.add(stats.dom);
   video.play();
   videoWidth = video.videoWidth;
   videoHeight = video.videoHeight;
-  video.width = videoWidth;
-  video.height = videoHeight;
+  video.width = videoWidth!;
+  video.height = videoHeight!;
 
-  canvas = document.getElementById('output');
-  canvas.width = videoWidth;
-  canvas.height = videoHeight;
-  const canvasContainer = document.querySelector('.canvas-wrapper');
-  canvasContainer.style = `width: ${videoWidth}px; height: ${videoHeight}px`;
+  _canvas = document.getElementById(CANVAS_ELEMENT_ID) as CanvasElement;
+  _canvas.width = videoWidth;
+  _canvas.height = videoHeight;
+  final canvasContainer = document.querySelector('.canvas-wrapper')!;
+  canvasContainer.setAttribute(
+      'style', 'width: ${videoWidth}px; height: ${videoHeight}px');
 
-  ctx = canvas.getContext('2d');
-  ctx.translate(canvas.width, 0);
+  ctx = _canvas.getContext('2d') as CanvasRenderingContext2D;
+  ctx.translate(_canvas.width!, 0);
   ctx.scale(-1, 1);
   ctx.fillStyle = GREEN;
   ctx.strokeStyle = GREEN;
   ctx.lineWidth = 0.5;
 
-  model = await faceLandmarksDetection.load(
-      faceLandmarksDetection.SupportedPackages.mediapipeFacemesh,
-      {maxFaces: state.maxFaces});
-  renderPrediction();
+  await _modelCompleter.future;
+  _renderPrediction();
 
-  if (renderPointcloud) {
-    document.querySelector('#scatter-gl-container').style =
-        `width: ${VIDEO_SIZE}px; height: ${VIDEO_SIZE}px;`;
+  // if (renderPointcloud) {
+  //   document.querySelector('#scatter-gl-container').style =
+  //       'width: ${VIDEO_SIZE}px; height: ${VIDEO_SIZE}px;';
 
-    scatterGL = new ScatterGL(
-        document.querySelector('#scatter-gl-container'),
-        {'rotateOnStart': false, 'selectEnabled': false});
-  }
-};
-
-main();
+  //   scatterGL = ScatterGL(document.querySelector('#scatter-gl-container'),
+  //       {'rotateOnStart': false, 'selectEnabled': false});
+  // }
+}
