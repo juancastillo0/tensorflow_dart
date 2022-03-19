@@ -92,7 +92,7 @@ TensorInfo resizeBilinear({
     newWidth,
     alignCorners ? 1 : 0,
     halfPixelCenters ? 1 : 0,
-    outId
+    outId,
   ]);
 
   if (castedData != null) {

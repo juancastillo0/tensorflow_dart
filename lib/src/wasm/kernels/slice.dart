@@ -106,7 +106,7 @@ void slice2d(
   final endI = beginI + size[0];
   for (int i = beginI; i < endI; i++) {
     final xOffset = i * xStride + beginJ;
-    outVals.setAll(outOffset, xVals.slice(xOffset, xOffset + size[1]));
+    List.copyRange(outVals, outOffset, xVals, xOffset, xOffset + size[1]);
     outOffset += size[1];
   }
 }
@@ -129,7 +129,7 @@ void slice3d(
   for (int i = beginI; i < endI; i++) {
     for (int j = beginJ; j < endJ; j++) {
       final xOffset = i * xStride1 + j * xStride2 + beginK;
-      outVals.setAll(outOffset, xVals.slice(xOffset, xOffset + size[2]));
+      List.copyRange(outVals, outOffset, xVals, xOffset, xOffset + size[2]);
       outOffset += size[2];
     }
   }
@@ -159,7 +159,7 @@ void slice4d(
     for (int j = beginJ; j < endJ; j++) {
       for (int k = beginK; k < endK; k++) {
         final xOffset = i * xStride1 + j * xStride2 + k * xStride3 + beginL;
-        outVals.setAll(outOffset, xVals.slice(xOffset, xOffset + size[3]));
+        List.copyRange(outVals, outOffset, xVals, xOffset, xOffset + size[3]);
         outOffset += size[3];
       }
     }

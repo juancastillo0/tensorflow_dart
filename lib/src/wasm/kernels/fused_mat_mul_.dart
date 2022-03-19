@@ -115,7 +115,7 @@ TensorInfo fusedBatchMatMul(
     b.shape.length,
     transposeA,
     transposeB,
-    fusedActivation,
+    fusedActivation.index,
     biasId,
     preluActivationWeightsId,
     leakyreluAlpha ?? 0,

@@ -167,7 +167,7 @@ TensorInfo fusedConv2d({
     strideWidth,
     inputChannels,
     outputChannels,
-    fusedActivation,
+    fusedActivation.index,
     preluActivationWeightsId,
     leakyreluAlpha ?? 0,
     outId

@@ -49,7 +49,7 @@ TensorInfoList unpack({
   final begin = List.filled(rank, 0);
   final size = [...value.shape];
   size[axis] = 1;
-  for (int i = 0; i < outs.length; i++) {
+  for (int i = 0; i < numOutputs; i++) {
     begin[axis] = i;
     outs.add(slice(
       inputs: {'x': value},

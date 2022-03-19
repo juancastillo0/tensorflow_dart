@@ -73,22 +73,29 @@ TensorInfo gatherV2({
   final shapeInfo = backend_util.collectGatherOpShapeInfo(
       x as Tensor, indices as Tensor, parsedAxis, batchDims);
 
-  final flattenX = reshape(inputs: {
-    'x': x
-  }, attrs: {
-    'shape': [
-      shapeInfo.batchSize,
-      shapeInfo.outerSize,
-      shapeInfo.dimSize,
-      shapeInfo.sliceSize
-    ]
-  }, backend: backend);
+  final flattenX = reshape(
+    inputs: {'x': x},
+    attrs: {
+      'shape': [
+        shapeInfo.batchSize,
+        shapeInfo.outerSize,
+        shapeInfo.dimSize,
+        shapeInfo.sliceSize,
+      ]
+    },
+    backend: backend,
+  );
   final indicesSize = util.sizeFromShape(indices.shape);
-  final flattenIndex = reshape(inputs: {
-    'x': indices
-  }, attrs: {
-    'shape': [shapeInfo.batchSize, indicesSize / shapeInfo.batchSize]
-  }, backend: backend);
+  final flattenIndex = reshape(
+    inputs: {'x': indices},
+    attrs: {
+      'shape': [
+        shapeInfo.batchSize,
+        (indicesSize / shapeInfo.batchSize).round(),
+      ]
+    },
+    backend: backend,
+  );
   final flattenOutputShape = [
     shapeInfo.batchSize,
     shapeInfo.outerSize,
