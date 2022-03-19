@@ -23,10 +23,9 @@
 
 import 'dart:html';
 
-import 'package:tensorflow_wasm/backend_wasm.dart' as tfjsWasm;
 import 'package:tensorflow_wasm/models/hand_pose.dart' as handdetection;
-import 'package:tensorflow_wasm/tensorflow_wasm.dart' as tf;
-import 'package:logging/logging.dart';
+import 'package:tensorflow_wasm/src/models/hand_pose/single/hand_pose_single.dart'
+    as handdsingle;
 import '../shared/params.dart';
 import '../shared/util.dart';
 import 'camera.dart';
@@ -61,14 +60,19 @@ Future<handdetection.HandDetector> _createDetector() async {
       //     solutionPath: `https://cdn.jsdelivr.net/npm/@mediapipe/hands@${mpHands.VERSION}`
       //   });
       // } else if (runtime === 'tfjs') {
-      return handdetection.createDetector(
-        STATE.model,
-        handdetection.MediaPipeHandsTfjsModelConfig(
-          // runtime,
-          modelType: STATE.modelConfig.type,
-          maxHands: STATE.modelConfig.maxNumHands,
-        ),
-      );
+      return handdsingle.load(handdetection.MediaPipeHandsTfjsModelConfig(
+        // runtime,
+        modelType: STATE.modelConfig.type,
+        maxHands: STATE.modelConfig.maxNumHands,
+      ));
+    // return handdetection.createDetector(
+    //   STATE.model,
+    //   handdetection.MediaPipeHandsTfjsModelConfig(
+    //     // runtime,
+    //     modelType: STATE.modelConfig.type,
+    //     maxHands: STATE.modelConfig.maxNumHands,
+    //   ),
+    // );
     // }
   }
 }
@@ -175,16 +179,6 @@ Future<void> renderPrediction([_]) async {
 }
 
 Future<void> app() async {
-  Logger.root.level = Level.CONFIG; // defaults to Level.INFO
-  Logger.root.onRecord.listen((record) {
-    print('${record.level.name}: ${record.time}: ${record.message}');
-  });
-  tfjsWasm.setWasmPaths(
-      'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm@${tfjsWasm.versionWasm}/dist/');
-
-  final setted = await tf.setBackend(tfjsWasm.wasmBackendFactory);
-  print('setted wasm $setted');
-
   // Gui content will change depending on which model is in the query string.
   final urlParams = UrlSearchParams(window.location.search);
 
