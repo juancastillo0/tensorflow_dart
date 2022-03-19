@@ -70,8 +70,9 @@ List<Tensor> executeOp(
         return [
           tfOps.mirrorPad(
             getParamValue('x', node, tensorMap, context) as Tensor,
-            getParamValueList<List<int>>('padding', node, tensorMap,
-                context)!, // Array<[number, number]>,
+            getParamValueList<List>('padding', node, tensorMap, context)!
+                .map((e) => e.cast<int>())
+                .toList(), // Array<[number, number]>,
             mode: getParamValue('mode', node, tensorMap, context)
                 as String, //'reflect' | 'symmetric'
           )
@@ -83,8 +84,9 @@ List<Tensor> executeOp(
         return [
           tfOps.pad(
               getParamValue('x', node, tensorMap, context) as Tensor,
-              getParamValueList<List<int>>('padding', node, tensorMap,
-                  context)!, //Array<[number, number]>,
+              (getParamValueList<List>('padding', node, tensorMap, context)!)
+                  .map((e) => e.cast<int>())
+                  .toList(), //Array<[number, number]>,
               constantValue:
                   getParamValue('constantValue', node, tensorMap, context)
                       as double)
@@ -95,7 +97,9 @@ List<Tensor> executeOp(
         final blockShape =
             getParamValueList<int>('blockShape', node, tensorMap, context)!;
         final paddings =
-            getParamValueList<List<int>>('paddings', node, tensorMap, context)!;
+            (getParamValueList<List>('paddings', node, tensorMap, context)!)
+                .map((e) => e.cast<int>())
+                .toList();
         return [
           tfOps.spaceToBatchND(
               getParamValue('x', node, tensorMap, context) as Tensor,
@@ -108,7 +112,9 @@ List<Tensor> executeOp(
         final blockShape =
             getParamValueList<int>('blockShape', node, tensorMap, context)!;
         final crops =
-            getParamValueList<List<int>>('crops', node, tensorMap, context)!;
+            getParamValueList<List>('crops', node, tensorMap, context)!
+                .map((e) => e.cast<int>())
+                .toList();
         return [
           tfOps.batchToSpaceND(
               getParamValue('x', node, tensorMap, context) as Tensor,

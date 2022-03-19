@@ -51,22 +51,19 @@ List<Tensor> executeOp(
       return [
         tfOps.einsum(
           getParamValue('equation', node, tensorMap, context) as String,
-          [
-            ...getParamValue('tensors', node, tensorMap, context)
-                as List<Tensor>
-          ],
+          [...getParamValueList<Tensor>('tensors', node, tensorMap, context)!],
         )
       ];
 
     case 'Transpose':
       return [
         tfOps.transpose(getParamValue('x', node, tensorMap, context) as Tensor,
-            perm: getParamValue('perm', node, tensorMap, context) as List<int>)
+            perm: getParamValueList<int>('perm', node, tensorMap, context))
       ];
 
     case '_FusedMatMul':
       final _ops =
-          getParamValue('fusedOps', node, tensorMap, context) as List<String>;
+          getParamValueList<String>('fusedOps', node, tensorMap, context)!;
       final extraOp = _ops.first;
       final activationFunc = _ops.last;
 
@@ -88,8 +85,7 @@ List<Tensor> executeOp(
               'Fused MatMul with BiasAdd must have one extra argument: bias.');
         }
       }
-      final _args =
-          getParamValue('args', node, tensorMap, context) as List<Tensor>?;
+      final _args = getParamValueList<Tensor>('args', node, tensorMap, context);
       final biasArg = numArgs >= 1 ? _args!.first : null;
       final preluArg = numArgs >= 2 ? _args!.last : null;
 
@@ -102,7 +98,9 @@ List<Tensor> executeOp(
           transposeB:
               getParamValue('transposeB', node, tensorMap, context) as bool,
           bias: biasArg,
-          activation: Activation.values.byName(activationFunc),
+          activation: Activation.values.any((a) => a.name == activationFunc)
+              ? Activation.values.byName(activationFunc)
+              : null,
           preluActivationWeights: preluArg,
           leakyreluAlpha: leakyreluAlpha?.toDouble(),
         )

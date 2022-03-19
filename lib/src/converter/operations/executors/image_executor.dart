@@ -39,7 +39,7 @@ List<Tensor> executeOp(
         final images =
             getParamValue('images', node, tensorMap, context) as Tensor;
         final size =
-            getParamValue('size', node, tensorMap, context) as List<int>;
+            getParamValueList<int>('size', node, tensorMap, context)!;
         final alignCorners =
             getParamValue('alignCorners', node, tensorMap, context) as bool;
         final halfPixelCenters =
@@ -58,7 +58,7 @@ List<Tensor> executeOp(
         final images =
             getParamValue('images', node, tensorMap, context) as Tensor;
         final size =
-            getParamValue('size', node, tensorMap, context) as List<int>;
+            getParamValueList<int>('size', node, tensorMap, context)!;
         final alignCorners =
             getParamValue('alignCorners', node, tensorMap, context) as bool;
         final halfPixelCenters =
@@ -81,7 +81,7 @@ List<Tensor> executeOp(
         final boxInd =
             getParamValue('boxInd', node, tensorMap, context) as Tensor;
         final cropSize =
-            getParamValue('cropSize', node, tensorMap, context) as List<int>;
+            getParamValueList<int>('cropSize', node, tensorMap, context)!;
         final method =
             getParamValue('method', node, tensorMap, context) as String;
         final extrapolationValue =

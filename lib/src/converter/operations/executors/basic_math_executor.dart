@@ -199,7 +199,7 @@ List<Tensor> executeOp(
     case 'Prod':
       return [
         tfOps.prod(getParamValue('x', node, tensorMap, context) as Tensor,
-            getParamValue('axes', node, tensorMap, context) as List<int>)
+            getParamValueList<int>('axes', node, tensorMap, context)!)
       ];
     case 'LeakyRelu':
       return [

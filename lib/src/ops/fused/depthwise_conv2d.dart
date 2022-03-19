@@ -118,10 +118,11 @@ T fusedDepthwiseConv2d<
   // 'floor'|'round'|'ceil'?
   String? dimRoundingMode,
   Tensor? bias,
-  Activation activation = Activation.linear,
+  Activation? activation,
   Tensor? preluActivationWeights,
   double? leakyreluAlpha,
 }) {
+  activation ??= Activation.linear;
   if (shouldFuse(ENGINE.state.gradientDepth, activation) == false) {
     var result = depthwiseConv2d(
       x,
@@ -207,7 +208,7 @@ T fusedDepthwiseConv2d<
     final y = saved[2];
     final bias = saved[3];
 
-    final dyActivation = getFusedDyActivation(dy, y, activation) as Tensor4D;
+    final dyActivation = getFusedDyActivation(dy, y, activation!) as Tensor4D;
 
     final xDer = depthwiseConv2dNativeBackpropInput(
         (x4D as Tensor4D).shape, dyActivation, $filter as Tensor4D,

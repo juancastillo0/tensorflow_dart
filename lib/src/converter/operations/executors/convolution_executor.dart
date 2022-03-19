@@ -36,7 +36,7 @@ class _ConvParams {
   final List<int> dilations;
   final Tensor? biasArg;
   final Tensor preluArg;
-  final String activationFunc;
+  final String? activationFunc;
   final double leakyreluAlpha;
 
   _ConvParams({
@@ -59,7 +59,7 @@ _ConvParams fusedConvAndDepthWiseParams(
   final params =
       getParamValueList<String>('fusedOps', node, tensorMap, context)!;
   final extraOp = params[0];
-  final activationFunc = params[1];
+  final activationFunc = params.length >= 2 ? params[1] : null;
 
   final isBiasAdd = extraOp == 'biasadd';
   final noBiasAdd = !isBiasAdd;
@@ -73,7 +73,7 @@ _ConvParams fusedConvAndDepthWiseParams(
           'FusedConv2d and DepthwiseConv2d with BiasAdd and Prelu ' +
               'must have two extra arguments: bias and alpha.');
     }
-    if (!isPrelu && isBiasAdd && numArgs != 1) {
+    if (!isPrelu && numArgs != 1) {
       throw Exception(
           'FusedConv2d and DepthwiseConv2d with BiasAdd must have ' +
               'one extra argument: bias.');
@@ -92,12 +92,12 @@ _ConvParams fusedConvAndDepthWiseParams(
       getParamValueList<int>('dilations', node, tensorMap, context)!;
   final _a = getParamValueList<Tensor>('args', node, tensorMap, context)!;
 
-  Tensor? biasArg = _a[0];
-  Tensor preluArg = _a[1];
-  if (noBiasAdd) {
-    preluArg = biasArg;
-    biasArg = null;
-  }
+  Tensor? biasArg = _a.length > 1 ? _a[0] : null;
+  Tensor preluArg = _a.length > 1 ? _a[1] : _a[0];
+  // if (noBiasAdd) {
+  //   preluArg = biasArg;
+  //   biasArg = null;
+  // }
   final leakyreluAlpha =
       getParamValue('leakyreluAlpha', node, tensorMap, context) as double;
 
@@ -173,7 +173,9 @@ List<Tensor> executeOp(
             dataFormat: p.dataFormat, // as 'NHWC' | 'NCHW',
             dilations: [p.dilations[1], p.dilations[2]],
             bias: p.biasArg,
-            activation: Activation.values.byName(p.activationFunc),
+            activation: p.activationFunc == null
+                ? null
+                : Activation.values.byName(p.activationFunc!),
             preluActivationWeights: p.preluArg,
             leakyreluAlpha: p.leakyreluAlpha,
           )
@@ -195,7 +197,9 @@ List<Tensor> executeOp(
               dataFormat: p.dataFormat, // as 'NHWC' | 'NCHW',
               dilations: [p.dilations[1], p.dilations[2]],
               bias: p.biasArg,
-              activation: Activation.values.byName(p.activationFunc),
+              activation: p.activationFunc == null
+                  ? null
+                  : Activation.values.byName(p.activationFunc!),
               preluActivationWeights: p.preluArg,
               leakyreluAlpha: p.leakyreluAlpha)
         ];
@@ -267,10 +271,10 @@ List<Tensor> executeOp(
     case 'AvgPool':
       {
         final stride =
-            getParamValue('strides', node, tensorMap, context) as List<int>;
+            getParamValueList<int>('strides', node, tensorMap, context)!;
         final pad = getParamValue('pad', node, tensorMap, context)!;
         final kernelSize =
-            getParamValue('kernelSize', node, tensorMap, context) as List<int>;
+            getParamValueList<int>('kernelSize', node, tensorMap, context)!;
 
         return [
           tfOps.avgPool(
@@ -285,10 +289,10 @@ List<Tensor> executeOp(
     case 'MaxPool':
       {
         final stride =
-            getParamValue('strides', node, tensorMap, context) as List<int>;
+            getParamValueList<int>('strides', node, tensorMap, context)!;
         final pad = getParamValue('pad', node, tensorMap, context)!;
         final kernelSize =
-            getParamValue('kernelSize', node, tensorMap, context) as List<int>;
+            getParamValueList<int>('kernelSize', node, tensorMap, context)!;
 
         return [
           tfOps.maxPool(
@@ -303,10 +307,10 @@ List<Tensor> executeOp(
     case 'MaxPoolWithArgmax':
       {
         final stride =
-            getParamValue('strides', node, tensorMap, context) as List<int>;
+            getParamValueList<int>('strides', node, tensorMap, context)!;
         final pad = getParamValue('pad', node, tensorMap, context)!;
         final kernelSize =
-            getParamValue('kernelSize', node, tensorMap, context) as List<int>;
+            getParamValueList<int>('kernelSize', node, tensorMap, context)!;
         final includeBatchInIndex =
             getParamValue('includeBatchInIndex', node, tensorMap, context)
                 as bool;

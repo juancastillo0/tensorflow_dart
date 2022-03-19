@@ -43,8 +43,8 @@ List<Tensor> executeOp(
       ];
     case 'AddN':
       return [
-        tfOps.addN((getParamValue('tensors', node, tensorMap, context)
-            as List<Tensor>))
+        tfOps.addN(
+            (getParamValueList<Tensor>('tensors', node, tensorMap, context)!))
       ];
     case 'FloorMod':
     case 'Mod':

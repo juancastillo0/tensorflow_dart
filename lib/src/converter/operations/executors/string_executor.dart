@@ -37,7 +37,7 @@ List<Tensor> executeOp(
             getParamValue('data', node, tensorMap, context) as Tensor1D,
             getParamValue('dataSplits', node, tensorMap, context) as Tensor,
             getParamValue('separator', node, tensorMap, context) as String,
-            getParamValue('nGramWidths', node, tensorMap, context) as List<int>,
+            getParamValueList<int>('nGramWidths', node, tensorMap, context)!,
             getParamValue('leftPad', node, tensorMap, context) as String,
             getParamValue('rightPad', node, tensorMap, context) as String,
             getParamValue('padWidth', node, tensorMap, context) as int,

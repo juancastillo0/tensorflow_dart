@@ -73,10 +73,11 @@ Tensor fusedMatMul({
   bool transposeA = false,
   bool transposeB = false,
   Tensor? bias,
-  Activation activation = Activation.linear,
+  Activation? activation,
   Tensor? preluActivationWeights,
   double? leakyreluAlpha,
 }) {
+  activation ??= Activation.linear;
   if (shouldFuse(ENGINE.state.gradientDepth, activation) == false) {
     var result =
         unfusedMatMul(a, b, transposeA: transposeA, transposeB: transposeB);
@@ -152,7 +153,7 @@ Tensor fusedMatMul({
     // necessarily going to be a 3d tensor due to a reshape done at the end of
     // the customOp.
     final dyActivation =
-        getFusedDyActivation(reshape(dy, y.shape), y, activation);
+        getFusedDyActivation(reshape(dy, y.shape), y, activation!);
     final Tensor aDer;
     final Tensor bDer;
 

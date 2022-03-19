@@ -107,25 +107,27 @@ import '../conv_util.dart' as conv_util;
  *     activation.
  */
 T fusedConv2d<
-        T extends Tensor3D
+    T extends Tensor3D
 // |Tensor4D
-        >(
-    {required T x,
-    required Tensor4D filter,
-    // [number, number]|number
-    required List<int> strides,
-    // 'valid'|'same'|number|conv_util.ExplicitPadding
-    required Object pad,
-    // 'NHWC'|'NCHW'
-    String dataFormat = 'NHWC',
-    // [number, number]|number?
-    List<int> dilations = const [1, 1],
-    // 'floor'|'round'|'ceil'?
-    String? dimRoundingMode,
-    Tensor? bias,
-    Activation activation = Activation.linear,
-    Tensor? preluActivationWeights,
-    double? leakyreluAlpha}) {
+    >({
+  required T x,
+  required Tensor4D filter,
+  // [number, number]|number
+  required List<int> strides,
+  // 'valid'|'same'|number|conv_util.ExplicitPadding
+  required Object pad,
+  // 'NHWC'|'NCHW'
+  String dataFormat = 'NHWC',
+  // [number, number]|number?
+  List<int> dilations = const [1, 1],
+  // 'floor'|'round'|'ceil'?
+  String? dimRoundingMode,
+  Tensor? bias,
+  Activation? activation,
+  Tensor? preluActivationWeights,
+  double? leakyreluAlpha,
+}) {
+  activation ??= Activation.linear;
   if (shouldFuse(ENGINE.state.gradientDepth, activation) == false) {
     var result = conv2d(
       x,
@@ -205,7 +207,7 @@ T fusedConv2d<
     final y = saved[2];
     final $bias = saved[3];
 
-    final dyActivation = getFusedDyActivation(dy, y, activation) as Tensor4D;
+    final dyActivation = getFusedDyActivation(dy, y, activation!) as Tensor4D;
 
     util.assert_(
         conv_util.tupleValuesAreOne(dilations),

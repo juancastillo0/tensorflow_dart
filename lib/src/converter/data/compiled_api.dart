@@ -319,6 +319,11 @@ class IAttrValue {
   Map<String, dynamic> toJson() => _$IAttrValueToJson(this);
   factory IAttrValue.fromJson(Map<String, dynamic> map) =>
       _$IAttrValueFromJson(map);
+
+  @override
+  String toString() {
+    return 'IAttrValue(list: $list, s: $s, i: $i, f: $f, b: $b, type: $type, shape: $shape, tensor: $tensor, placeholder: $placeholder, func: $func)';
+  }
 }
 
 // class AttrValue {

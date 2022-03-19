@@ -187,6 +187,14 @@ class Node {
     this.defaultOutput,
     this.outputs,
   });
+
+  @override
+  String toString() {
+    return 'Node(signatureKey: $signatureKey, name: $name, op: $op, category: $category,'
+        ' inputNames: $inputNames, inputs: ${inputs.map((i) => i.name)}, inputParams: $inputParams,'
+        ' attrParams: $attrParams, children: ${children.map((i) => i.name)}, rawAttrs: $rawAttrs,'
+        ' defaultOutput: $defaultOutput, outputs: $outputs)';
+  }
 }
 
 class Graph {
@@ -236,6 +244,11 @@ class InputParamValue implements ParamValue {
     this.value,
     required this.type,
   });
+
+  @override
+  String toString() {
+    return 'InputParamValue(inputIndexStart: $inputIndexStart, inputIndexEnd: $inputIndexEnd, value: $value, type: $type)';
+  }
 }
 
 abstract class OpExecutor {

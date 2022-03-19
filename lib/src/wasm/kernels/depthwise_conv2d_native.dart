@@ -26,7 +26,7 @@ import 'unary_kernel.dart';
 
 // import {BackendWasm} from '../backend_wasm';
 
-late Function(List) _wasmDepthwiseConv2d;
+late final Function(List) _wasmDepthwiseConv2d;
 // (
 //     xId: number, batchSize: number, inputHeight: number, inputWidth: number,
 //     filterId: number, filterHeight: number, filterWidth: number, padTop: number,

@@ -37,7 +37,7 @@ List<Tensor> executeOp(
     case 'Fill':
       {
         final shape =
-            getParamValue('shape', node, tensorMap, context) as List<int>;
+            getParamValueList<int>('shape', node, tensorMap, context)!;
         final dtype =
             getParamValue('dtype', node, tensorMap, context) as DataType;
         final value =
@@ -77,8 +77,7 @@ List<Tensor> executeOp(
     case 'Ones':
       {
         return [
-          tfOps.ones(
-              getParamValue('shape', node, tensorMap, context) as List<int>,
+          tfOps.ones(getParamValueList<int>('shape', node, tensorMap, context)!,
               getParamValue('dtype', node, tensorMap, context) as DataType)
         ];
       }
@@ -93,7 +92,7 @@ List<Tensor> executeOp(
         return [
           tfOps.randomUniform(
               // tslint:disable-next-line:no-any
-              getParamValue('shape', node, tensorMap, context) as List<int>,
+              getParamValueList<int>('shape', node, tensorMap, context)!,
               min: getParamValue('minval', node, tensorMap, context) as double,
               max: getParamValue('maxval', node, tensorMap, context) as double,
               dtype:
@@ -116,7 +115,7 @@ List<Tensor> executeOp(
     case 'TruncatedNormal':
       {
         final shape =
-            getParamValue('shape', node, tensorMap, context) as List<int>;
+            getParamValueList<int>('shape', node, tensorMap, context)!;
         final mean = getParamValue('mean', node, tensorMap, context) as double;
         final stdDev =
             getParamValue('stdDev', node, tensorMap, context) as double;
@@ -134,7 +133,7 @@ List<Tensor> executeOp(
       {
         return [
           tfOps.zeros(
-              getParamValue('shape', node, tensorMap, context) as List<int>,
+              getParamValueList<int>('shape', node, tensorMap, context)!,
               getParamValue('dtype', node, tensorMap, context) as DataType)
         ];
       }

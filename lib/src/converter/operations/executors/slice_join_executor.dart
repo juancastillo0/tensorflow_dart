@@ -41,7 +41,7 @@ List<Tensor> executeOp(
         final n = getParamValue('n', node, tensorMap, context) as int;
         final axis = getParamValue('axis', node, tensorMap, context) as int;
         var inputs =
-            getParamValue('tensors', node, tensorMap, context) as List<Tensor>;
+            getParamValueList<Tensor>('tensors', node, tensorMap, context)!;
         inputs = inputs.sublistRelaxed(0, n);
         return [tfOps.concat(inputs, axis)];
       }
@@ -68,8 +68,7 @@ List<Tensor> executeOp(
       }
     case 'Reverse':
       {
-        final dims =
-            getParamValue('dims', node, tensorMap, context) as List<bool>;
+        final dims = getParamValueList<bool>('dims', node, tensorMap, context)!;
         final List<int> axis = [];
         for (int i = 0; i < dims.length; i++) {
           if (dims[i]) {
@@ -81,19 +80,17 @@ List<Tensor> executeOp(
       }
     case 'ReverseV2':
       {
-        final axis = (getParamValue('axis', node, tensorMap, context) as List)
-            .cast<int>();
+        final axis = getParamValueList<int>('axis', node, tensorMap, context)!;
         final input = getParamValue('x', node, tensorMap, context) as Tensor;
         return [tfOps.reverse(input, axis)];
       }
     case 'Slice':
       {
         // tslint:disable-next-line:no-any
-        final begin = (getParamValue('begin', node, tensorMap, context) as List)
-            .cast<int>();
+        final begin =
+            getParamValueList<int>('begin', node, tensorMap, context)!;
         // tslint:disable-next-line:no-any
-        final size = (getParamValue('size', node, tensorMap, context) as List?)
-            ?.cast<int>();
+        final size = getParamValueList<int>('size', node, tensorMap, context);
         return [
           tfOps.slice(getParamValue('x', node, tensorMap, context) as Tensor,
               begin, size)
@@ -101,13 +98,11 @@ List<Tensor> executeOp(
       }
     case 'StridedSlice':
       {
-        final begin = (getParamValue('begin', node, tensorMap, context) as List)
-            .cast<int>();
-        final end = (getParamValue('end', node, tensorMap, context) as List)
-            .cast<int>();
+        final begin =
+            getParamValueList<int>('begin', node, tensorMap, context)!;
+        final end = getParamValueList<int>('end', node, tensorMap, context)!;
         final strides =
-            (getParamValue('strides', node, tensorMap, context) as List?)
-                ?.cast<int>();
+            getParamValueList<int>('strides', node, tensorMap, context);
         final beginMask =
             getParamValue('beginMask', node, tensorMap, context) as int? ?? 0;
         final endMask =
@@ -140,8 +135,8 @@ List<Tensor> executeOp(
       {
         return tfOps.tidy(() {
           final axis = getParamValue('axis', node, tensorMap, context) as int;
-          final tensors = getParamValue('tensors', node, tensorMap, context)
-              as List<Tensor>;
+          final tensors =
+              getParamValueList<Tensor>('tensors', node, tensorMap, context)!;
           // Reshape the tensors to the first tensor's shape if they don't
           // match.
           final shape = tensors[0].shape;
@@ -166,8 +161,7 @@ List<Tensor> executeOp(
       }
     case 'Tile':
       {
-        final reps = (getParamValue('reps', node, tensorMap, context) as List)
-            .cast<int>();
+        final reps = getParamValueList<int>('reps', node, tensorMap, context)!;
         return [
           tfOps.tile(
               getParamValue('x', node, tensorMap, context) as Tensor, reps)
@@ -195,8 +189,8 @@ List<Tensor> executeOp(
             getParamValue('indices', node, tensorMap, context) as Tensor;
         final values =
             getParamValue('values', node, tensorMap, context) as Tensor;
-        final shape = (getParamValue('shape', node, tensorMap, context) as List)
-            .cast<int>();
+        final shape =
+            getParamValueList<int>('shape', node, tensorMap, context)!;
         return [tfOps.scatterND(indices, values, shape)];
       }
     case 'GatherNd':
@@ -211,8 +205,7 @@ List<Tensor> executeOp(
         final indices =
             getParamValue('sparseIndices', node, tensorMap, context) as Tensor;
         final shape =
-            (getParamValue('outputShape', node, tensorMap, context) as List)
-                .cast<int>();
+            getParamValueList<int>('outputShape', node, tensorMap, context)!;
         final sparseValues =
             getParamValue('sparseValues', node, tensorMap, context) as Tensor;
         final defaultValue =

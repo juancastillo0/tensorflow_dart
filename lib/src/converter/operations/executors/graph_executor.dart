@@ -53,7 +53,7 @@ List<Tensor?> executeOp(
         return [cloneTensor(data)];
       }
     case 'IdentityN':
-      return (getParamValue('x', node, tensorMap, context) as List<Tensor>)
+      return (getParamValueList<Tensor>('x', node, tensorMap, context)!)
           .map((Tensor t) => cloneTensor(t))
           .toList();
     case 'Snapshot':
@@ -66,7 +66,7 @@ List<Tensor?> executeOp(
             'int32')
       ];
     case 'ShapeN':
-      return (getParamValue('x', node, tensorMap, context) as List<Tensor>)
+      return (getParamValueList<Tensor>('x', node, tensorMap, context)!)
           .map((Tensor t) => tfOps.tensor1d(t.shape))
           .toList();
     case 'Size':
@@ -85,8 +85,7 @@ List<Tensor?> executeOp(
       return [tfOps.scalar(1)];
     case 'Print':
       final input = getParamValue('x', node, tensorMap, context) as Tensor;
-      final data =
-          getParamValue('data', node, tensorMap, context) as List<Tensor>;
+      final data = getParamValueList<Tensor>('data', node, tensorMap, context)!;
       final message =
           getParamValue('message', node, tensorMap, context) as String;
       final summarize =

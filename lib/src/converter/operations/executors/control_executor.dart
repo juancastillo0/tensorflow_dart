@@ -43,7 +43,7 @@ Future<List<Tensor?>?> executeOp(
             getParamValue('elseBranch', node, tensorMap, context) as String;
         final cond = getParamValue('cond', node, tensorMap, context) as Tensor;
         final args =
-            getParamValue('args', node, tensorMap, context) as List<Tensor>;
+            getParamValueList<Tensor>('args', node, tensorMap, context)!;
         final condValue = await cond.data();
         if (condValue[0]) {
           return context.functionMap[thenFunc]!.executeFunctionAsync(
@@ -61,7 +61,7 @@ Future<List<Tensor?>?> executeOp(
         final condFunc =
             getParamValue('cond', node, tensorMap, context) as String;
         final args =
-            getParamValue('args', node, tensorMap, context) as List<Tensor>;
+            getParamValueList<Tensor>('args', node, tensorMap, context)!;
 
         // Calculate the condition of the loop
         final condResult = (await context.functionMap[condFunc]!
@@ -166,8 +166,7 @@ Future<List<Tensor?>?> executeOp(
         final dtype =
             getParamValue('dtype', node, tensorMap, context) as DataType;
         final elementShape =
-            getParamValue('elementShape', node, tensorMap, context)
-                as List<int>?;
+            getParamValueList<int>('elementShape', node, tensorMap, context);
         final dynamicSize =
             getParamValue('dynamicSize', node, tensorMap, context) as bool;
         final clearAfterRead =
@@ -206,7 +205,7 @@ Future<List<Tensor?>?> executeOp(
         final gatherId =
             getParamValue('tensorArrayId', node, tensorMap, context) as Tensor;
         final gatherIndices =
-            getParamValue('indices', node, tensorMap, context) as List<int>;
+            getParamValueList<int>('indices', node, tensorMap, context);
         final gatherDtype =
             getParamValue('dtype', node, tensorMap, context) as DataType;
         final gatherTensorArray = context.getTensorArray(gatherId.id)!;
@@ -217,7 +216,7 @@ Future<List<Tensor?>?> executeOp(
         final scatterId =
             getParamValue('tensorArrayId', node, tensorMap, context) as Tensor;
         final scatterIndices =
-            getParamValue('indices', node, tensorMap, context) as List<int>;
+            getParamValueList<int>('indices', node, tensorMap, context)!;
         final scatterTensor =
             getParamValue('tensor', node, tensorMap, context) as Tensor;
         final scatterTensorArray = context.getTensorArray(scatterId.id)!;
@@ -240,7 +239,7 @@ Future<List<Tensor?>?> executeOp(
         final splitTensor =
             getParamValue('tensor', node, tensorMap, context) as Tensor;
         final lengths =
-            getParamValue('lengths', node, tensorMap, context) as List<int>;
+            getParamValueList<int>('lengths', node, tensorMap, context)!;
         final splitTensorArray = context.getTensorArray(splitId.id)!;
         splitTensorArray.split(lengths, splitTensor);
         return [splitTensorArray.idTensor];
@@ -278,8 +277,7 @@ Future<List<Tensor?>?> executeOp(
         final readIndex =
             getParamValue('index', node, tensorMap, context) as int;
         final elementShape =
-            getParamValue('elementShape', node, tensorMap, context)
-                as List<int>;
+            getParamValueList<int>('elementShape', node, tensorMap, context)!;
 
         final elementDType =
             getParamValue('elementDType', node, tensorMap, context) as DataType;
@@ -290,12 +288,11 @@ Future<List<Tensor?>?> executeOp(
     case 'TensorListScatter':
       {
         final scatterIndices =
-            getParamValue('indices', node, tensorMap, context) as List<int>;
+            getParamValueList<int>('indices', node, tensorMap, context)!;
         final scatterTensor =
             getParamValue('tensor', node, tensorMap, context) as Tensor;
         final elementShape =
-            getParamValue('elementShape', node, tensorMap, context)
-                as List<int>;
+            getParamValueList<int>('elementShape', node, tensorMap, context)!;
         final numElements =
             getParamValue('numElements', node, tensorMap, context) as int;
         final tensorList =
@@ -307,8 +304,7 @@ Future<List<Tensor?>?> executeOp(
     case 'EmptyTensorList':
       {
         final elementShape =
-            getParamValue('elementShape', node, tensorMap, context)
-                as List<int>;
+            getParamValueList<int>('elementShape', node, tensorMap, context)!;
         final elementDtype =
             getParamValue('elementDType', node, tensorMap, context) as DataType;
         final String numElementsParam;
@@ -331,10 +327,9 @@ Future<List<Tensor?>?> executeOp(
         final gatherId =
             getParamValue('tensorListId', node, tensorMap, context) as Tensor;
         final gatherIndices =
-            getParamValue('indices', node, tensorMap, context) as List<int>;
+            getParamValueList<int>('indices', node, tensorMap, context)!;
         final elementShape =
-            getParamValue('elementShape', node, tensorMap, context)
-                as List<int>;
+            getParamValueList<int>('elementShape', node, tensorMap, context)!;
         final elementDtype =
             getParamValue('elementDType', node, tensorMap, context) as DataType;
         final tensorList = context.getTensorList(gatherId.id)!;
@@ -345,8 +340,7 @@ Future<List<Tensor?>?> executeOp(
         final idTensor =
             getParamValue('tensorListId', node, tensorMap, context) as Tensor;
         final elementShape =
-            getParamValue('elementShape', node, tensorMap, context)
-                as List<int>;
+            getParamValueList<int>('elementShape', node, tensorMap, context)!;
         final elementDtype =
             getParamValue('elementDType', node, tensorMap, context) as DataType;
         final numElements =
@@ -359,8 +353,7 @@ Future<List<Tensor?>?> executeOp(
         final tensor =
             getParamValue('tensor', node, tensorMap, context) as Tensor;
         final elementShape =
-            getParamValue('elementShape', node, tensorMap, context)
-                as List<int>;
+            getParamValueList<int>('elementShape', node, tensorMap, context)!;
         final elementDtype =
             getParamValue('elementDType', node, tensorMap, context) as DataType;
         final tensorList = fromTensor(tensor, elementShape, elementDtype);
@@ -375,8 +368,7 @@ Future<List<Tensor?>?> executeOp(
         final concatDtype =
             getParamValue('dtype', node, tensorMap, context) as DataType;
         final elementShape =
-            getParamValue('elementShape', node, tensorMap, context)
-                as List<int>;
+            getParamValueList<int>('elementShape', node, tensorMap, context)!;
         return [tensorList.concat(concatDtype, elementShape)];
       }
     case 'TensorListPushBack':
@@ -394,8 +386,7 @@ Future<List<Tensor?>?> executeOp(
         final idTensor =
             getParamValue('tensorListId', node, tensorMap, context) as Tensor;
         final elementShape =
-            getParamValue('elementShape', node, tensorMap, context)
-                as List<int>;
+            getParamValueList<int>('elementShape', node, tensorMap, context)!;
         final elementDType =
             getParamValue('elementDType', node, tensorMap, context) as DataType;
         final tensorList = context.getTensorList(idTensor.id)!;
@@ -406,10 +397,9 @@ Future<List<Tensor?>?> executeOp(
         final splitTensor =
             getParamValue('tensor', node, tensorMap, context) as Tensor;
         final elementShape =
-            getParamValue('elementShape', node, tensorMap, context)
-                as List<int>;
+            getParamValueList<int>('elementShape', node, tensorMap, context)!;
         final lengths =
-            getParamValue('lengths', node, tensorMap, context) as List<int>;
+            getParamValueList<int>('lengths', node, tensorMap, context)!;
 
         final tensorList = split(splitTensor, lengths, elementShape);
         context.addTensorList(tensorList);
