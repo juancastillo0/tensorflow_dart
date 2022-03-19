@@ -16,6 +16,7 @@
  */
 
 // import * as faceMesh from '@mediapipe/face_mesh';
+import 'facemesh_connections.dart' as faceMesh;
 
 const MEDIAPIPE_FACEMESH_NUM_KEYPOINTS = 468;
 const MEDIAPIPE_FACEMESH_NUM_KEYPOINTS_WITH_IRISES = 478;
