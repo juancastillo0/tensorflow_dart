@@ -14,12 +14,9 @@
  * limitations under the License.
  * =============================================================================
  */
+import 'package:characters/characters.dart';
 
-// unicode-aware iteration
+/// unicode-aware iteration
 List<String> stringToChars(String input) {
-  const symbols = <String>[];
-  for (const symbol in input.characters) {
-    symbols.add(symbol);
-  }
-  return symbols;
+  return input.characters.toList();
 }

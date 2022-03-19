@@ -214,11 +214,14 @@ class HandDetector {
 
     // Calling arraySync on both boxes and palmLandmarks because the tensors are
     // very small so it's not worth calling await array().
-    final boundingBoxes = prediction.boxes.arraySync() as List<List<double>>;
+    final boundingBoxes = (prediction.boxes.arraySync() as List)
+        .map((e) => (e as List).cast<double>())
+        .toList();
     final startPoint = boundingBoxes[0].slice(0, 2);
     final endPoint = boundingBoxes[0].slice(2, 4);
-    final palmLandmarks =
-        prediction.palmLandmarks.arraySync() as List<List<double>>;
+    final palmLandmarks = (prediction.palmLandmarks.arraySync() as List)
+        .map((e) => (e as List).cast<double>())
+        .toList();
 
     image.dispose();
     prediction.boxes.dispose();

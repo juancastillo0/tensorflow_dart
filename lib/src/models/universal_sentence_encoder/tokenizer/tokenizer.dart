@@ -30,8 +30,10 @@
 
 import 'dart:convert';
 
+import 'package:collection/collection.dart';
 import 'package:tensorflow_wasm/tensorflow_wasm.dart' as tf;
 import 'package:http/http.dart' as http;
+import "package:unorm_dart/unorm_dart.dart" as unorm;
 
 import '../util.dart';
 import 'trie.dart';
@@ -40,7 +42,7 @@ const separator =
     '\u2581'; // This is the unicode character 'lower one eighth block'.
 
 String _processInput(String str) {
-  final normalized = str.normalize('NFKC');
+  final normalized = unorm.nfkc(str);
   return normalized.length > 0
       ? separator + normalized.replaceAll(RegExp(' '), separator)
       : normalized;
@@ -79,7 +81,7 @@ class Tokenizer {
   }
 
   List<int> encode(String input) {
-    final List<Map<String, List<Score>>> nodes = [];
+    final List<Map<int, List<Score>>> nodes = [];
     final List<int> words = [];
     final List<int> best = [];
 

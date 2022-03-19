@@ -56,12 +56,19 @@ T getParamValue<T extends ValueType?>(
 ]) {
   final inputParam = node.inputParams[paramName];
   if (inputParam != null && inputParam.inputIndexStart != null) {
-    final start = inputParam.inputIndexStart!;
-    final end = inputParam.inputIndexEnd == 0
+    var start = inputParam.inputIndexStart!;
+    var end = inputParam.inputIndexEnd == 0
         ? null
         : (inputParam.inputIndexEnd == null
             ? start + 1
             : inputParam.inputIndexEnd);
+
+    start = start < 0 ? node.inputNames.length + start : start;
+    end = end == null
+        ? null
+        : end < 0
+            ? node.inputNames.length + end
+            : end;
     if (inputParam.type == 'tensor') {
       return getTensor(
         node.inputNames[start],

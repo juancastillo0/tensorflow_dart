@@ -64,7 +64,7 @@ tf.Tensor4D cutBoxFromImageAndResize(
   return tf.image.cropAndResize(
     image,
     tf.tensor(boxes),
-    tf.tensor([0]),
+    tf.tensor([0], [1], 'int32'),
     cropSize,
   );
 }
