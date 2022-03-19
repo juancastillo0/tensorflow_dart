@@ -1,3 +1,3 @@
 export 'src/backend_wasm.dart';
 
-const versionWasm = '3.13.0';
+const versionWasm = '3.14.0';

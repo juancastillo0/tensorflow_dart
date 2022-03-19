@@ -94,7 +94,8 @@ class _Instance implements WasmInstance {
 
   @override
   Function? lookupFunction(String name) {
-    return instance.functions[name];
+    final f = instance.functions[name];
+    return f != null ? (List a) => Function.apply(f, a) : null;
   }
 
   @override
@@ -105,7 +106,8 @@ class _Instance implements WasmInstance {
   }
 
   Map<String, Object> exports(wasm.WasmModule module) => {
-        ...instance.functions,
+        ...instance.functions.map((key, value) =>
+            MapEntry(key, (List a) => Function.apply(value, a))),
         ...instance.globals.map((key, value) => MapEntry(key, _Global(value))),
         ...instance.memories.map((key, value) => MapEntry(key, _Memory(value))),
         ...instance.tables,

@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:math' as Math;
 import 'dart:typed_data';
 
+import 'package:collection/collection.dart';
 import 'package:http/http.dart' as http;
 import 'package:universal_html/html.dart' as html;
 import 'package:universal_io/io.dart' as io;
@@ -66,10 +67,12 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
     var ENVIRONMENT_IS_SHELL = false;
 
     // ENVIRONMENT_IS_WEB = typeof window == "object";
-    ENVIRONMENT_IS_WORKER = ENVIRONMENT_IS_WEB &&
-        html.Worker.supported &&
-        html.WorkerGlobalScope.instance.importScripts
-            is Function; // typeof importScripts == "function";
+    ENVIRONMENT_IS_WORKER = ENVIRONMENT_IS_WEB && html.Worker.supported && false
+        //  &&
+        // html.WorkerGlobalScope.instance.importScripts
+        //     is Function
+        ;
+    // typeof importScripts == "function";
     // ENVIRONMENT_IS_NODE =
     //   typeof process == "object" &&
     //   typeof process.versions == "object" &&
@@ -117,6 +120,13 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
         // }
         // assert(ret.buffer);
         return ret;
+      };
+      readAsync = (filename, onload, onerror) {
+        final file = io.File(filename);
+        file
+            .readAsBytes()
+            .then(onload)
+            .onError((error, stackTrace) => onerror(error));
       };
       final argv = io.Platform.executableArguments;
       if (argv.length > 1) {
@@ -237,6 +247,7 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
       thisProgram = Module["thisProgram"] as String;
     }
     if (Module["quit"] is Function) quit_ = Module["quit"] as Function;
+
     ByteBuffer? wasmBinary;
     if (Module["wasmBinary"] is ByteBuffer) {
       wasmBinary = Module["wasmBinary"] as ByteBuffer;
@@ -261,7 +272,7 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
       throw e;
     }
 
-    final noExitRuntime = Module["noExitRuntime"] ?? true;
+    final noExitRuntime = Module["noExitRuntime"] as bool? ?? true;
     // TODO:
     // if (typeof WebAssembly != "object") {
     //   abort("no native wasm support detected");
@@ -303,33 +314,46 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
     late Map<String, dynamic> exports;
     var __ATPRERUN__ = [];
     var __ATINIT__ = [];
-    var __ATMAIN__ = [];
     var __ATPOSTRUN__ = [];
     var runtimeInitialized = false;
+    var runtimeKeepaliveCounter = 0;
+    bool keepRuntimeAlive() {
+      return noExitRuntime || runtimeKeepaliveCounter > 0;
+    }
 
     late Function(List) ___wasm_call_ctors;
     ___wasm_call_ctors = (Module["___wasm_call_ctors"] = (arguments) {
-      return (___wasm_call_ctors =
-          Module["___wasm_call_ctors"] = exports["k"])(arguments);
+      return (___wasm_call_ctors = Module["___wasm_call_ctors"] =
+          exports["__wasm_call_ctors"])(arguments);
     });
-    __ATINIT__.add({
-      'func': () {
-        ___wasm_call_ctors([]);
-      },
-    });
+
+    var wasmTableMirror = [];
+    Function getWasmTableEntry(funcPtr) {
+      var func = wasmTableMirror[funcPtr];
+      if (func == null) {
+        if (funcPtr >= wasmTableMirror.length) {
+          // TOOD: wasmTableMirror should be a nullable list
+          wasmTableMirror.length = funcPtr + 1;
+        }
+        wasmTableMirror[funcPtr] = func = wasmTable.get(funcPtr);
+      }
+      return func;
+    }
 
     callRuntimeCallbacks(List callbacks) {
       while (callbacks.length > 0) {
         final callback = callbacks.removeAt(0);
         if (callback is Function) {
-          callback(Module);
+          if (callback is Function(Map<String, Object?>)) callback(Module);
+          if (callback is Function()) callback();
+          callback([]);
         } else if (callback is Map) {
           final func = callback['func'];
           if (func is int) {
             if (callback['arg'] == null) {
-              wasmTable.get(func)();
+              getWasmTableEntry(func)();
             } else {
-              wasmTable.get(func)(callback['arg']);
+              getWasmTableEntry(func)(callback['arg']);
             }
           } else if (func is Function()) {
             func();
@@ -342,6 +366,10 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
 
     addOnPreRun(cb) {
       __ATPRERUN__.insert(0, cb);
+    }
+
+    void addOnInit(cb) {
+      __ATINIT__.insert(0, cb);
     }
 
     addOnPostRun(cb) {
@@ -361,10 +389,6 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
     initRuntime() {
       runtimeInitialized = true;
       callRuntimeCallbacks(__ATINIT__);
-    }
-
-    preMain() {
-      callRuntimeCallbacks(__ATMAIN__);
     }
 
     postRun() {
@@ -446,8 +470,12 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
     Future<Uint8List> getBinaryPromise() {
       if (wasmBinary == null && (ENVIRONMENT_IS_WEB || ENVIRONMENT_IS_WORKER)) {
         if (!isFileURI(wasmBinaryFile)) {
-          return http.get(Uri.parse(wasmBinaryFile),
-              headers: {'credentials': "same-origin"}).then((response) {
+          return http
+              .get(
+            Uri.parse(wasmBinaryFile),
+            // headers: {'credentials': "same-origin"},
+          )
+              .then((response) {
             if (response.statusCode >= 300) {
               throw ("failed to load wasm binary file at '$wasmBinaryFile'");
             }
@@ -461,7 +489,9 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
             readAsync(
               wasmBinaryFile,
               (response) {
-                completer.complete(Uint8List(response));
+                completer.complete(response is Uint8List
+                    ? response
+                    : Uint8List.view(response));
               },
               (err) => completer.completeError(err ?? ''),
             );
@@ -480,7 +510,7 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
     late Function(List) ___errno_location;
     ___errno_location = (Module["___errno_location"] = (arguments) {
       return (___errno_location =
-          Module["___errno_location"] = exports["Ya"])(arguments);
+          Module["___errno_location"] = exports["__errno_location"])(arguments);
     });
 
     final asmLibraryArg = asmLibraryArgs(
@@ -506,7 +536,10 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
     );
 
     createWasm() {
-      final info = {'a': asmLibraryArg};
+      final info = {
+        'env': asmLibraryArg,
+        'wasi_snapshot_preview1': asmLibraryArg
+      };
       receiveInstance(WasmInstance instance, WasmModule module) {
         exports = instance.exports(module);
         Module["asm"] = exports;
@@ -514,6 +547,7 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
         wasmMemory = instance.memory;
         updateGlobalBufferAndViews(wasmMemory!.view.buffer);
         // TODO: wasmTable = Module["asm"]["r"];
+        addOnInit((Module["asm"] as Map)["__wasm_call_ctors"]);
         removeRunDependency("wasm-instantiate");
       }
 
@@ -523,10 +557,11 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
       }
 
       instantiateArrayBuffer(Function(WasmInstanceModule) receiver) {
-        return getBinaryPromise().then((binary) {
+        return getBinaryPromise().then((binary) async {
           // return WebAssembly.instantiate(binary, info);
           // return wasm_interop.Instance.fromBytesAsync(binary, importMap: info);
-          final module = WasmModule(binary);
+          final module = await compileAsyncWasmModule(binary);
+          print(module.describe());
           final builder = module.builder();
           for (final modEntry in info.entries) {
             for (final entry in modEntry.value.entries) {
@@ -584,44 +619,48 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
     final asm = createWasm();
 
     (Module["_init"] = ((arguments) {
-      return (Module["_init"] = exports["l"])(arguments);
+      return (Module["_init"] = exports["init"])(arguments);
     }));
     (Module["_init_with_threads_count"] = ((arguments) {
-      return (Module["_init_with_threads_count"] = exports["m"])(arguments);
+      return (Module["_init_with_threads_count"] =
+          exports["init_with_threads_count"])(arguments);
     }));
     (Module["_get_threads_count"] = ((arguments) {
-      return (Module["_get_threads_count"] = exports["n"])(arguments);
+      return (Module["_get_threads_count"] =
+          exports["get_threads_count"])(arguments);
     }));
     (Module["_register_tensor"] = ((arguments) {
-      return (Module["_register_tensor"] = exports["o"])(arguments);
+      return (Module["_register_tensor"] =
+          exports["register_tensor"])(arguments);
     }));
     (Module["_dispose_data"] = ((arguments) {
-      return (Module["_dispose_data"] = exports["p"])(arguments);
+      return (Module["_dispose_data"] = exports["dispose_data"])(arguments);
     }));
     (Module["_dispose"] = ((arguments) {
-      return (Module["_dispose"] = exports["q"])(arguments);
+      return (Module["_dispose"] = exports["dispose"])(arguments);
     }));
 
     addTensorFlowFunctions(Module);
 
     (Module["_malloc"] = ((arguments) {
-      return (Module["_malloc"] = exports["Wa"])(arguments);
+      return (Module["_malloc"] = exports["malloc"])(arguments);
     }));
     (Module["_free"] = ((arguments) {
-      return (Module["_free"] = exports["Xa"])(arguments);
+      return (Module["_free"] = exports["free"])(arguments);
     }));
     late Function(List) stackSave;
     stackSave = (Module["stackSave"] = (args) {
-      return (stackSave = Module["stackSave"] = exports["Za"])(args);
+      return (stackSave = Module["stackSave"] = exports["stackSave"])(args);
     });
     late Function(List) stackRestore;
     stackRestore = (Module["stackRestore"] = ((arguments) {
       return ((stackRestore =
-          Module["stackRestore"] = exports["_a"]))(arguments);
+          Module["stackRestore"] = exports["stackRestore"]))(arguments);
     }));
     late Function(List) stackAlloc;
     stackAlloc = (Module["stackAlloc"] = ((arguments) {
-      return ((stackAlloc = Module["stackAlloc"] = exports[r"$a"]))(arguments);
+      return ((stackAlloc =
+          Module["stackAlloc"] = exports["stackAlloc"]))(arguments);
     }));
 
     assertC(bool condition, String text) {
@@ -686,8 +725,12 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
         }
       }
       var ret = func(cArgs);
-      ret = convertReturnValue(ret);
-      if (stack != 0) stackRestore([stack]);
+      Object? onDone(ret) {
+        if (stack != 0) stackRestore([stack]);
+        return convertReturnValue(ret);
+      }
+
+      ret = onDone(ret);
       return ret;
     }
 
@@ -729,7 +772,6 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
         Module["calledRun"] = true;
         if (ABORT) return;
         initRuntime();
-        preMain();
         readyCompleter.complete(Module);
         if (Module["onRuntimeInitialized"] is Function) {
           (Module["onRuntimeInitialized"] as Function)();
@@ -824,7 +866,7 @@ String UTF8ArrayToString(Uint8List heap, int idx, int? maxBytesToRead) {
     ++endPtr;
   }
   if (endPtr - idx > 16) {
-    return utf8.decode(heap.sublist(idx, endPtr)); // TODO: view
+    return utf8.decode(heap.slice(idx, endPtr)); // TODO: view
   } else {
     var str = "";
     while (idx < endPtr) {
@@ -904,7 +946,11 @@ Map<String, Function> asmLibraryArgs(
   int Function() ___errno_location,
 ) {
   _abort() {
-    abort();
+    abort('');
+  }
+
+  int _emscripten_get_heap_max() {
+    return 2147483648;
   }
 
   _emscripten_memcpy_big(int dest, int src, int num) {
@@ -914,17 +960,14 @@ Map<String, Function> asmLibraryArgs(
     List.copyRange(HEAPU8, dest, HEAPU8, src, src + num);
   }
 
-  _emscripten_get_heap_size() {
-    return wasmMemory().view.length;
-  }
-
   emscripten_realloc_buffer(int size) {
     return reallocBuffer(size);
   }
 
   _emscripten_resize_heap(int requestedSize) {
-    final oldSize = _emscripten_get_heap_size();
-    const maxHeapSize = 2147483648;
+    final oldSize = wasmMemory().view.length;
+    requestedSize = requestedSize >>> 0;
+    final maxHeapSize = _emscripten_get_heap_max();
     if (requestedSize > maxHeapSize) {
       return false;
     }
@@ -991,8 +1034,9 @@ Map<String, Function> asmLibraryArgs(
     var num = 0;
     final HEAP32 = Int32List.view(wasmMemory().view.buffer);
     for (var i = 0; i < iovcnt; i++) {
-      var ptr = HEAP32[(iov + i * 8) >> 2];
-      var len = HEAP32[(iov + (i * 8 + 4)) >> 2];
+      final ptr = HEAP32[iov >> 2];
+      final len = HEAP32[(iov + 4) >> 2];
+      iov += 8;
       for (var j = 0; j < len; j++) {
         SYSCALLSprintChar(fd, wasmMemory().view[ptr + j]);
       }
@@ -1002,200 +1046,38 @@ Map<String, Function> asmLibraryArgs(
     return 0;
   }
 
-  _pthread_create() {
-    return 6;
-  }
+  var tempRet0 = 0;
+  var setTempRet0 = (value) {
+    tempRet0 = value;
+  };
 
-  _pthread_join() {
-    return 28;
-  }
-
-  setErrNo(int value) {
-    Int32List.view(wasmMemory().view.buffer)[___errno_location() >> 2] = value;
-    return value;
-  }
-
-  _sysconf(name) {
-    switch (name) {
-      case 30:
-        return 16384;
-      case 85:
-        var maxHeapSize = 2147483648;
-        return maxHeapSize / 16384;
-      case 132:
-      case 133:
-      case 12:
-      case 137:
-      case 138:
-      case 15:
-      case 235:
-      case 16:
-      case 17:
-      case 18:
-      case 19:
-      case 20:
-      case 149:
-      case 13:
-      case 10:
-      case 236:
-      case 153:
-      case 9:
-      case 21:
-      case 22:
-      case 159:
-      case 154:
-      case 14:
-      case 77:
-      case 78:
-      case 139:
-      case 82:
-      case 68:
-      case 67:
-      case 164:
-      case 11:
-      case 29:
-      case 47:
-      case 48:
-      case 95:
-      case 52:
-      case 51:
-      case 46:
-        return 200809;
-      case 27:
-      case 246:
-      case 127:
-      case 128:
-      case 23:
-      case 24:
-      case 160:
-      case 161:
-      case 181:
-      case 182:
-      case 242:
-      case 183:
-      case 184:
-      case 243:
-      case 244:
-      case 245:
-      case 165:
-      case 178:
-      case 179:
-      case 49:
-      case 50:
-      case 168:
-      case 169:
-      case 175:
-      case 170:
-      case 171:
-      case 172:
-      case 97:
-      case 76:
-      case 32:
-      case 173:
-      case 35:
-      case 80:
-      case 81:
-      case 79:
-        return -1;
-      case 176:
-      case 177:
-      case 7:
-      case 155:
-      case 8:
-      case 157:
-      case 125:
-      case 126:
-      case 92:
-      case 93:
-      case 129:
-      case 130:
-      case 131:
-      case 94:
-      case 91:
-        return 1;
-      case 74:
-      case 60:
-      case 69:
-      case 70:
-      case 4:
-        return 1024;
-      case 31:
-      case 42:
-      case 72:
-        return 32;
-      case 87:
-      case 26:
-      case 33:
-        return 2147483647;
-      case 34:
-      case 1:
-        return 47839;
-      case 38:
-      case 36:
-        return 99;
-      case 43:
-      case 37:
-        return 2048;
-      case 0:
-        return 2097152;
-      case 3:
-        return 65536;
-      case 28:
-        return 32768;
-      case 44:
-        return 32767;
-      case 75:
-        return 16384;
-      case 39:
-        return 1e3;
-      case 89:
-        return 700;
-      case 71:
-        return 256;
-      case 40:
-        return 255;
-      case 2:
-        return 100;
-      case 180:
-        return 64;
-      case 25:
-        return 20;
-      case 5:
-        return 16;
-      case 6:
-        return 6;
-      case 73:
-        return 4;
-      case 84:
-        {
-          try {
-            return html.window.navigator.hardwareConcurrency ?? 1;
-          } catch (_) {
-            return 1;
-          }
-        }
-    }
-    setErrNo(28);
-    return -1;
+  void _setTempRet0(val) {
+    setTempRet0(val);
   }
 
   return {
-    'a': _abort,
-    'd': _emscripten_memcpy_big,
-    'e': _emscripten_resize_heap,
-    'f': _fd_close,
-    'c': _fd_seek,
-    'b': _fd_write,
-    'h': _pthread_create,
-    'g': _pthread_join,
-    'i': _sysconf,
+    'abort': _abort,
+    'emscripten_get_heap_max': _emscripten_get_heap_max,
+    'emscripten_memcpy_big': _emscripten_memcpy_big,
+    'emscripten_resize_heap': _emscripten_resize_heap,
+    'fd_close': _fd_close,
+    'fd_seek': _fd_seek,
+    'fd_write': _fd_write,
+    'setTempRet0': _setTempRet0,
   };
 }
 
 void addTensorFlowFunctions(Map Module) async {
   for (final entry in tfNames.entries) {
-    Module[entry.key] = (args) =>
-        ((Module[entry.key] = Module['asm'][entry.value]) as Function)(args);
+    Module[entry.key] = (args) {
+      try {
+        return ((Module[entry.key] = Module['asm'][entry.key.substring(1)])
+            as Function)(args);
+      } catch (e, s) {
+        print('addTensorFlowFunctions ${entry.key} ${args} $e $s');
+        rethrow;
+      }
+    };
   }
 }
 
