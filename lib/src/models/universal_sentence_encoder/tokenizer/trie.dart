@@ -22,23 +22,26 @@ import '../util.dart';
 // [token, score, index]
 class OutputNode {
   final List<String> token;
-  final int score;
-  final int index;
+  int get score => _score;
+  int get index => _index;
+  int _score;
+  int _index;
 
   OutputNode({
     required this.token,
-    required this.score,
-    required this.index,
-  });
+    required int score,
+    required int index,
+  })  : _score = score,
+        _index = index;
 }
 
 class TrieNode {
-  TrieNode? parent;
+  final TrieNode? parent;
   bool end = false;
   Map<String, TrieNode> children = {};
   OutputNode word = OutputNode(index: 0, score: 0, token: []);
 
-  TrieNode();
+  TrieNode([this.parent]);
 }
 
 class Trie {
@@ -51,24 +54,23 @@ class Trie {
   /**
    * Inserts a token into the trie.
    */
-  insert(String word, int score, int index) {
+  void insert(String word, int score, int index) {
     var node = this.root;
 
     final symbols = stringToChars(word);
 
     for (int i = 0; i < symbols.length; i++) {
-      if (node.children.containsKey(symbols[i])) {
-        final t = TrieNode();
+      if (!node.children.containsKey(symbols[i])) {
+        final t = TrieNode(node);
         node.children[symbols[i]] = t;
-        t.parent = node;
-        t.word[0] = node.word[0].concat(symbols[i]);
+        t.word.token.add(symbols[i]);
       }
 
-      node = node.children[symbols[i]];
+      node = node.children[symbols[i]]!;
       if (i == symbols.length - 1) {
         node.end = true;
-        node.word[1] = score;
-        node.word[2] = index;
+        node.word._score = score;
+        node.word._index = index;
       }
     }
   }

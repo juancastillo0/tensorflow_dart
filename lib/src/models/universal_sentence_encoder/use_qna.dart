@@ -22,6 +22,7 @@
 
 // export {version} from './version';
 
+import 'package:collection/collection.dart';
 import 'package:tensorflow_wasm/tensorflow_wasm.dart' as tf;
 import 'package:tensorflow_wasm/converter.dart' as tfconv;
 
@@ -153,7 +154,7 @@ class UniversalSentenceEncoderQnA {
   }
 
   List<int> _shiftTokens(List<int> tokens, int limit) {
-    tokens.unshift(TOKEN_START_VALUE);
+    tokens.insert(0, TOKEN_START_VALUE);
     for (int index = 0; index < limit; index++) {
       if (index >= tokens.length) {
         tokens[index] = TOKEN_PADDING;

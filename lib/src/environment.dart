@@ -51,6 +51,15 @@ typedef FetchFn = Future<http.StreamedResponse> Function(
 class TFPlatform {
   final FetchFn fetch;
 
+  Future<http.Response> fetchAndParse(
+    Uri uri, [
+    RequestInit? req,
+  ]) async {
+    final stream = await fetch(uri, req);
+    final response = await http.Response.fromStream(stream);
+    return response;
+  }
+
   TFPlatform({
     required this.fetch,
   });
