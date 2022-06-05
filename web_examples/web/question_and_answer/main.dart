@@ -21,11 +21,11 @@ class _State {
     loadingModel.value = true;
     try {
       this.model = await qa.load(
-          //   qa.ModelConfig(
-          //   fromTFHub: false,
-          //   modelUrl: '/question_and_answer/model/model.json',
-          // )
-          );
+        qa.ModelConfig(
+          fromTFHub: false,
+          modelUrl: '/question_and_answer/model/model.json',
+        ),
+      );
     } catch (e, s) {
       error.value = 'Error loading model: $e $s';
     } finally {
@@ -38,20 +38,17 @@ class _State {
   final loadingInference = Observable<DateTime?>(null);
   final inferenceMillis = Observable<int?>(null);
   final documentText = Observable(_teslaDocument);
-  final questionText = Observable('');
+  final questionText = Observable('When did Tesla died?');
   final answers = Observable(<qa.Answer>[]);
 
   void answerQuestion() async {
     if (model == null || loadingInference.value != null) return;
     loadingInference.value = DateTime.now();
     try {
-      print(questionText.value);
-      print(documentText.value);
       final answers = await model!.findAnswers(
         questionText.value,
         documentText.value,
       );
-      print(answers);
       this.answers.value = answers;
     } finally {
       inferenceMillis.value =
