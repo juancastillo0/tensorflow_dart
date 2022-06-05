@@ -8,3 +8,8 @@ build/
 # Omit committing pubspec.lock for library packages; see
 # https://dart.dev/guides/libraries/private-files#pubspeclock.
 pubspec.lock
+.fvm/flutter_sdk
+.vscode/settings.json
+.DS_Store
+lib/.DS_Store
+lib/src/.DS_Store

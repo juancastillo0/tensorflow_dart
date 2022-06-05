@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:tensorflow_wasm/src/backend_wasm.dart';
-import 'package:tensorflow_wasm/src/emscripten_module.dart';
 import 'package:wasm/wasm.dart';
 import 'package:tensorflow_wasm/tensorflow_wasm.dart' as tf;
 
@@ -36,3 +35,35 @@ void main() async {
 // disposeData(id: number): void,
 // // Disposes the backend and all of its associated data.
 // dispose(): void,
+
+// ArgMin
+// LogicalNot
+// LogicalOr
+// Reciprocal
+
+// ArgMin
+// Bincount
+// Complex
+// ComplexAbs
+// Real
+// Conv3D
+// Dilation2D
+// LinSpace
+// LogicalNot
+// LogicalOr
+// Mod
+// Multinomial
+// Reciprocal
+// ResizeBilinearGrad
+// ResizeNearestNeighbor
+// ResizeNearestNeighborGrad
+// Selu
+// Sign
+// Softplus
+// StringNGrams
+// StringSplit
+// StringToHashBucketFast
+// Unique
+// UnsortedSegmentSum
+// MaxPoolWithArgMax
+// Erf
