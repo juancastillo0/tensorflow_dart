@@ -1,24 +1,7 @@
-/**
- * @license
- * Copyright 2020 Google LLC. All Rights Reserved.
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- * =============================================================================
- */
-import 'dart:convert';
-
 import 'package:collection/collection.dart';
-import 'package:tensorflow_wasm/tensorflow_wasm.dart' as tf;
 import "package:unorm_dart/unorm_dart.dart" as unorm;
+
+import 'vocab.dart';
 
 const SEPERATOR = '\u2581';
 const UNK_INDEX = 100;
@@ -118,7 +101,8 @@ class Trie {
     int iter = 0;
 
     while (iter < token.length && node != null) {
-      node = node.children[token[iter]];
+      final char = token[iter];
+      node = node.children[char];
       iter++;
     }
 
@@ -151,6 +135,19 @@ class Token {
     required String text,
     required this.index,
   }) : _text = text;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is Token && other._text == _text && other.index == index;
+  }
+
+  @override
+  int get hashCode => _text.hashCode ^ index.hashCode;
+
+  @override
+  String toString() => 'Token(_text: $_text, index: $index)';
 }
 
 /**
@@ -175,11 +172,13 @@ class BertTokenizer {
   }
 
   Future<List<String>> _loadVocab() async {
-    return tf
-        .env()
-        .platform!
-        .fetchAndParse(Uri.parse(VOCAB_URL))
-        .then((d) => (jsonDecode(d.body) as List).cast<String>());
+    return bertVocabulary;
+    // TODO:
+    // return tf
+    //     .env()
+    //     .platform!
+    //     .fetchAndParse(Uri.parse(VOCAB_URL))
+    //     .then((d) => (jsonDecode(d.body) as List).cast<String>());
   }
 
   List<Token> processInput(String text) {
@@ -201,6 +200,7 @@ class BertTokenizer {
   String _cleanText(String text, List<int> charOriginalIndex) {
     final List<String> stringBuilder = [];
     int originalCharIndex = 0;
+    int newCharIndex = 0;
     for (final _ch in text.codeUnits) {
       final ch = String.fromCharCode(_ch);
       // Skip the characters that cannot be used.
@@ -212,7 +212,7 @@ class BertTokenizer {
         if (stringBuilder.length > 0 &&
             stringBuilder[stringBuilder.length - 1] != ' ') {
           stringBuilder.add(' ');
-          charOriginalIndex.add(originalCharIndex);
+          charOriginalIndex.insert(newCharIndex, originalCharIndex);
           originalCharIndex += ch.length;
         } else {
           originalCharIndex += ch.length;
@@ -220,9 +220,10 @@ class BertTokenizer {
         }
       } else {
         stringBuilder.add(ch);
-        charOriginalIndex.add(originalCharIndex);
+        charOriginalIndex.insert(newCharIndex, originalCharIndex);
         originalCharIndex += ch.length;
       }
+      newCharIndex++;
     }
     return stringBuilder.join('');
   }
