@@ -154,7 +154,7 @@ final maxConfig = KernelConfigG(
 );
 
 final minConfig = KernelConfigG(
-  kernelName: Max,
+  kernelName: Min,
   backendName: 'wasm',
   setupFunc: _setupMin,
   kernelFunc: min,

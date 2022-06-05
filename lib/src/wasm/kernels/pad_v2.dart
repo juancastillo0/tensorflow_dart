@@ -56,13 +56,12 @@ TensorInfo pad({
 }) {
   final x = inputs['x']!;
 
-  final paddings = attrs!['paddings'] as List<List<int>>;
+  final List<List<int>> paddings =
+      (attrs!['paddings'] as List).map((e) => (e as List).cast<int>()).toList();
   final constantValue = attrs['constantValue'] as double;
 
-  final outShape = paddings
-      .mapIndexed(
-          (i, p) => p[0] /* beforePad */ + x.shape[i] + p[1] /* afterPad */)
-      .toList();
+  final outShape = List.of(paddings.mapIndexed(
+      (i, p) => p[0] /* beforePad */ + x.shape[i] + p[1] /* afterPad */));
 
   if (util.sizeFromShape(x.shape) == 0) {
     // Short-circuit the computation, since x doesn't have value, only

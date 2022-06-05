@@ -146,9 +146,9 @@ Tensor fusedMatMul({
 
   grad(Tensor3D dy, List<Tensor> saved) {
     final a3D = saved[0];
-    final b3D = saved[0];
-    final y = saved[0];
-    final $bias = saved[0];
+    final b3D = saved[1];
+    final y = saved[2];
+    final $bias = saved[3];
     // we reshape dy because the result of the forward is not
     // necessarily going to be a 3d tensor due to a reshape done at the end of
     // the customOp.

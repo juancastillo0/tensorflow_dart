@@ -50,7 +50,7 @@ TensorInfo sigmoid({
 }
 
 final sigmoidConfig = KernelConfigG(
-  kernelName: 'Sigmoid',
+  kernelName: Sigmoid,
   backendName: 'wasm',
   setupFunc: _setup,
   kernelFunc: sigmoid,
