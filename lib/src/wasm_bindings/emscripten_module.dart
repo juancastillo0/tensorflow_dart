@@ -1082,90 +1082,90 @@ void addTensorFlowFunctions(Map Module) async {
 }
 
 const tfNames = {
-  '_Abs': 's',
-  '_Add': 't',
+  '_Abs': 's', // done
+  '_Add': 't', // done
   '_AddN': 'u',
-  '_All': 'v',
-  '_Any': 'w',
-  '_ArgMax': 'x',
+  '_All': 'v', // done
+  '_Any': 'w', // done
+  '_ArgMax': 'x', // new
   '_AvgPool': 'y',
-  '_BatchMatMul': 'z',
-  '_Ceil': 'A',
+  '_BatchMatMul': 'z', // new
+  '_Ceil': 'A', // done
   '_ClipByValue': 'B',
   '_Conv2D': 'C',
   '_Conv2DBackpropInput': 'D',
-  '_Cos': 'E',
-  '_Cosh': 'F',
+  '_Cos': 'E', // done
+  '_Cosh': 'F', // done
   '_CropAndResize': 'G',
-  '_Cumsum': 'H',
+  '_Cumsum': 'H', // new
   '_DepthToSpace': 'I',
   '_DepthwiseConv2dNative': 'J',
-  '_Elu': 'K',
-  '_Equal': 'L',
-  '_Exp': 'M',
+  '_Elu': 'K', // done
+  '_Equal': 'L', // done
+  '_Exp': 'M', // done
   '_FlipLeftRight': 'N',
-  '_Floor': 'O',
-  '_FloorDiv': 'P',
-  '_FusedBatchNorm': 'Q',
-  '_FusedConv2D': 'R',
-  '_FusedDepthwiseConv2D': 'S',
+  '_Floor': 'O', // done
+  '_FloorDiv': 'P', // done
+  '_FusedBatchNorm': 'Q', // new
+  '_FusedConv2D': 'R', // new
+  '_FusedDepthwiseConv2D': 'S', // new
   '_Gather': 'T',
   '_GatherNd': 'U',
-  '_Greater': 'V',
-  '_GreaterEqual': 'W',
+  '_Greater': 'V', // done
+  '_GreaterEqual': 'W', // done
   '_LeakyRelu': 'X',
-  '_Less': 'Y',
-  '_LessEqual': 'Z',
-  '_Log': '_',
-  '_LogicalAnd': r'$',
-  '_Max': 'aa',
+  '_Less': 'Y', // done
+  '_LessEqual': 'Z', // done
+  '_Log': '_', // done
+  '_LogicalAnd': r'$', // done
+  '_Max': 'aa', // new
   '_MaxPool': 'ba',
-  '_Maximum': 'ca',
-  '_Mean': 'da',
-  '_Min': 'ea',
-  '_Minimum': 'fa',
+  '_Maximum': 'ca', // new
+  '_Mean': 'da', // new
+  '_Min': 'ea', // new
+  '_Minimum': 'fa', // new
   '_MirrorPad': 'ga',
-  '_Multiply': 'ha',
-  '_Neg': 'ia',
+  '_Multiply': 'ha', // done
+  '_Neg': 'ia', // done
   '_NonMaxSuppressionV3': 'ja',
   '_NonMaxSuppressionV4': 'ka',
   '_NonMaxSuppressionV5': 'la',
-  '_NotEqual': 'ma',
-  '_OneHot': 'na',
+  '_NotEqual': 'ma', // done
+  '_OneHot': 'na', // new
   '_PadV2': 'oa',
-  '_Pow': 'pa',
+  '_Pow': 'pa', // done
   '_Prelu': 'qa',
-  '_Prod': 'ra',
-  '_RealDiv': 'sa',
-  '_Relu': 'ta',
-  '_Relu6': 'ua',
+  '_Prod': 'ra', // new
+  '_RealDiv': 'sa', // done
+  '_Relu': 'ta', // done
+  '_Relu6': 'ua', // done
   '_ResizeBilinear': 'va',
   '_Reverse': 'wa',
   '_RotateWithOffset': 'xa',
-  '_Round': 'ya',
-  '_Rsqrt': 'za',
+  '_Round': 'ya', // done
+  '_Rsqrt': 'za', // done
   '_ScatterNd': 'Aa',
-  '_SelectV2': 'Ba',
-  '_Sigmoid': 'Ca',
-  '_Sin': 'Da',
-  '_Softmax': 'Ea',
+  '_SelectV2': 'Ba', // done
+  '_Sigmoid': 'Ca', // new
+  '_Sin': 'Da', // done
+  '_Softmax': 'Ea', // new
   '_SparseFillEmptyRows': 'Fa',
   '_SparseReshape': 'Ga',
   '_SparseSegmentReduction': 'Ha',
-  '_Sqrt': 'Ia',
-  '_Square': 'Ja',
-  '_SquaredDifference': 'Ka',
+  '_Sqrt': 'Ia', // done
+  '_Square': 'Ja', // done
+  '_SquaredDifference': 'Ka', // done
   '_Step': 'La',
   '_StridedSlice': 'Ma',
-  '_Sub': 'Na',
-  '_Sum': 'Oa',
-  '_Tan': 'Pa',
-  '_Tanh': 'Qa',
-  '_Tile': 'Ra',
-  '_TopK': 'Sa',
+  '_Sub': 'Na', // done
+  '_Sum': 'Oa', // new
+  '_Tan': 'Pa', // done
+  '_Tanh': 'Qa', // done
+  '_Tile': 'Ra', // done
+  '_TopK': 'Sa', // new
   '_Transform': 'Ta',
-  '_Transpose': 'Ua',
-  '__FusedMatMul': 'Va'
+  '_Transpose': 'Ua', // done
+  '__FusedMatMul': 'Va' // new
 };
 
 class WasmFactoryConfig {
