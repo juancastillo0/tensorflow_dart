@@ -1,1 +1,1 @@
-export 'src/wasm.dart';
+export 'src/wasm_bindings/wasm.dart';

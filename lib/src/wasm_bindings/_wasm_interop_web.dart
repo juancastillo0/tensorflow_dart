@@ -1,15 +1,19 @@
 import 'dart:typed_data';
 
-import 'wasm_interface.dart' hide WasmModule;
 import 'wasm_interface.dart' as wasm;
+import 'wasm_interface.dart' hide WasmModule;
 import 'package:wasm_interop/wasm_interop.dart';
+
+Future<wasm.WasmModule> compileAsyncWasmModule(Uint8List bytes) async {
+  return WasmModule.compileAsync(bytes);
+}
 
 class WasmModule implements wasm.WasmModule {
   final Module module;
   WasmModule(Uint8List bytes) : module = Module.fromBytes(bytes);
   WasmModule._(this.module);
 
-  static Future<WasmModule> compileAsync(Uint8List bytes) async {
+  static Future<wasm.WasmModule> compileAsync(Uint8List bytes) async {
     final module = await Module.fromBytesAsync(bytes);
     return WasmModule._(module);
   }
@@ -105,6 +109,7 @@ class _Instance implements WasmInstance {
     return _Global(global);
   }
 
+  @override
   Map<String, Object> exports(wasm.WasmModule module) => {
         ...instance.functions.map((key, value) =>
             MapEntry(key, (List a) => Function.apply(value, a))),

@@ -5,10 +5,6 @@ abstract class WasmModule {
     throw UnimplementedError();
   }
 
-  static Future<WasmModule> compileAsync(Uint8List bytes) async {
-    throw UnimplementedError();
-  }
-
   WasmInstanceBuilder builder();
 
   WasmMemory createMemory(int pages, [int? maxPages]);

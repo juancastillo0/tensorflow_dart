@@ -564,7 +564,13 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
           print(module.describe());
           final builder = module.builder();
           for (final modEntry in info.entries) {
+            final _isEnv = modEntry.key == 'env';
             for (final entry in modEntry.value.entries) {
+              final _isWasi =
+                  const ['fd_close', 'fd_seek', 'fd_write'].contains(entry.key);
+              if (_isWasi && _isEnv || !_isEnv && !_isWasi) {
+                continue;
+              }
               builder.addFunction(modEntry.key, entry.key, entry.value);
             }
           }

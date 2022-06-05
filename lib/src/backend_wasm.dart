@@ -6,7 +6,7 @@ import 'package:tensorflow_wasm/src/globals.dart' show BackendFactory, engine;
 import 'package:tensorflow_wasm/src/wasm/kernels/register_all_kernels.dart';
 import 'package:tensorflow_wasm/src/tensor.dart';
 
-import 'emscripten_module.dart';
+import 'wasm_bindings/emscripten_module.dart';
 import 'util_base.dart' as util;
 
 // This enum must align with the enum defined in cc/backend.h.
