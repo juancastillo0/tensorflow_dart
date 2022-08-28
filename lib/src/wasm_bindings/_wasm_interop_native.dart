@@ -10,7 +10,7 @@ Future<WasmModule> compileAsyncWasmModule(Uint8List bytes) async {
   return WasmModule(bytes);
 }
 
-class _Export extends UnmodifiableMapBase<String, Object> {
+class _Export extends UnmodifiableMapBase<String, Object?> {
   final WasmInstance instance;
   final WasmModule module;
 
@@ -21,11 +21,11 @@ class _Export extends UnmodifiableMapBase<String, Object> {
   @override
   operator [](Object? key) {
     if (key is! String) return null;
-    final fn = instance.lookupFunction(key);
-    if (fn is Function) {
-      return fn;
+    if (key == 'memory') {
+      return instance.memory;
     }
-    return instance.lookupGlobal(key);
+    // TODO: support tables
+    return instance.lookupFunction(key) ?? instance.lookupGlobal(key);
   }
 
   @override
@@ -108,7 +108,7 @@ class _Instance implements WasmInstance {
   @override
   final WasmModule module;
 
-  Map<String, Object>? _exports;
+  Map<String, Object?>? _exports;
 
   _Instance(this.instance, this.module);
 
@@ -125,7 +125,7 @@ class _Instance implements WasmInstance {
   }
 
   @override
-  Map<String, Object> exports() => _exports ??= _Export(this, module);
+  Map<String, Object?> exports() => _exports ??= _Export(this, module);
 
   @override
   WasmMemory get memory => _Memory(instance.memory);

@@ -332,7 +332,7 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
       var func = wasmTableMirror[funcPtr];
       if (func == null) {
         if (funcPtr >= wasmTableMirror.length) {
-          // TOOD: wasmTableMirror should be a nullable list
+          // TODO: wasmTableMirror should be a nullable list
           wasmTableMirror.length = funcPtr + 1;
         }
         wasmTableMirror[funcPtr] = func = wasmTable.get(funcPtr);

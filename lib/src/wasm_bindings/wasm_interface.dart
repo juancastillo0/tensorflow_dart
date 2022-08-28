@@ -33,7 +33,7 @@ abstract class WasmInstance {
 
   WasmGlobal? lookupGlobal(String name);
 
-  Map<String, Object> exports();
+  Map<String, Object?> exports();
 
   WasmMemory get memory;
 

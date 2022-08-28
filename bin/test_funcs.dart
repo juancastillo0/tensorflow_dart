@@ -5,7 +5,8 @@ import 'package:wasm/wasm.dart';
 import 'package:tensorflow_wasm/tensorflow_wasm.dart' as tf;
 
 void main() async {
-  final moduleBytes = File('./tfjs-backend-wasm.wasm').readAsBytesSync();
+  const wasmPath = './web_examples/web/tensorflow_wasm/tfjs-backend-wasm.wasm';
+  final moduleBytes = File(wasmPath).readAsBytesSync();
   final module = WasmModule(moduleBytes);
   print(module.describe());
   // final instance = module.builder().build();
@@ -17,7 +18,7 @@ void main() async {
   //   WasmFactoryConfig(wasmBinary: moduleBytes.buffer),
   // );
 
-  setWasmPath('./tfjs-backend-wasm.wasm');
+  setWasmPath(wasmPath);
   await tf.setBackend(wasmBackendFactory);
 
   for (final d in (tf.backend() as BackendWasm).wasm.map.entries.where(
