@@ -58,7 +58,7 @@ class HTTPRequest implements IOHandler {
   final String? weightPathPrefix; // private
   final OnProgressCallback? onProgress; // private
 
-  static const DEFAULT_METHOD = 'POST';
+  static const DEFAULT_METHOD = 'GET';
   static final URL_SCHEME_REGEX = RegExp(r'^https?:\/\/');
 
   HTTPRequest(this.path, [LoadOptions? loadOptions])

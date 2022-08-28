@@ -24,7 +24,7 @@ export 'http.dart';
 export 'weights_loader.dart';
 export 'io_utils.dart';
 export 'browser_files.dart';
-export 'indexed_db.dart';
+// export 'indexed_db.dart';
 export 'file_system.dart';
 export 'passthrough.dart';
 
@@ -36,8 +36,9 @@ void setUpIo() {
   IORouterRegistry.registerLoadRouter(nodeFileSystemRouter);
   IORouterRegistry.registerSaveRouter(httpRouter);
   IORouterRegistry.registerLoadRouter(httpRouter);
-  IORouterRegistry.registerSaveRouter(indexedDBRouter);
-  IORouterRegistry.registerLoadRouter(indexedDBRouter);
+  // TODO: Export io and html indexed db interface
+  // IORouterRegistry.registerSaveRouter(indexedDBRouter);
+  // IORouterRegistry.registerLoadRouter(indexedDBRouter);
 }
 
 typedef ModelUri = List<String>; // string|string[]

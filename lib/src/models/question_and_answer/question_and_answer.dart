@@ -253,6 +253,7 @@ class QuestionAndAnswerImpl implements QuestionAndAnswer {
    * @param context context where the answers are looked up from.
    * @return array of answers
    */
+  @override
   Future<List<Answer>> findAnswers(String question, String context) async {
     // if (question == null || context == null) {
     //   throw Exception('The input to findAnswers call is null, ' +
