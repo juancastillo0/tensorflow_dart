@@ -14,26 +14,29 @@ class _Export extends UnmodifiableMapBase<String, Object> {
   final WasmInstance instance;
   final WasmModule module;
 
+  List<String>? _keys;
+
   _Export(this.instance, this.module);
 
   @override
   operator [](Object? key) {
     if (key is! String) return null;
     final fn = instance.lookupFunction(key);
-    if (fn is wasm_io.WasmFunction) {
-      return (fn as wasm_io.WasmFunction).apply;
+    if (fn is Function) {
+      return fn;
     }
     return instance.lookupGlobal(key);
   }
 
   @override
-  Iterable<String> get keys => module
+  List<String> get keys => _keys ??= module
       .describe()
       .split('\n')
       .where((element) => element.startsWith('export'))
       .map((e) => e.contains('(')
           ? e.substring(0, e.indexOf('(')).split(' ').last
-          : e.split(' ').last);
+          : e.split(' ').last)
+      .toList();
 }
 
 class WasmModule implements wasm.WasmModule {
@@ -42,7 +45,7 @@ class WasmModule implements wasm.WasmModule {
 
   @override
   WasmInstanceBuilder builder() {
-    return _Builder(module.builder());
+    return _Builder(module.builder(), this);
   }
 
   @override
@@ -59,7 +62,9 @@ class WasmModule implements wasm.WasmModule {
 class _Builder implements WasmInstanceBuilder {
   final wasm_io.WasmInstanceBuilder builder;
 
-  _Builder(this.builder);
+  final WasmModule module;
+
+  _Builder(this.builder, this.module);
 
   @override
   void addFunction(String moduleName, String name, Function fn) {
@@ -79,7 +84,7 @@ class _Builder implements WasmInstanceBuilder {
 
   @override
   WasmInstance build() {
-    return _Instance(builder.build());
+    return _Instance(builder.build(), module);
   }
 
   @override
@@ -100,11 +105,16 @@ class _Builder implements WasmInstanceBuilder {
 class _Instance implements WasmInstance {
   final wasm_io.WasmInstance instance;
 
-  _Instance(this.instance);
+  @override
+  final WasmModule module;
+
+  Map<String, Object>? _exports;
+
+  _Instance(this.instance, this.module);
 
   @override
-  Function? lookupFunction(String name) {
-    return instance.lookupFunction(name);
+  Function(List)? lookupFunction(String name) {
+    return (instance.lookupFunction(name) as wasm_io.WasmFunction?)?.apply;
   }
 
   @override
@@ -115,8 +125,7 @@ class _Instance implements WasmInstance {
   }
 
   @override
-  Map<String, Object> exports(wasm.WasmModule module) =>
-      _Export(this, module as WasmModule);
+  Map<String, Object> exports() => _exports ??= _Export(this, module);
 
   @override
   WasmMemory get memory => _Memory(instance.memory);

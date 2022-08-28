@@ -27,11 +27,13 @@ abstract class WasmInstanceBuilder {
 }
 
 abstract class WasmInstance {
-  Function? lookupFunction(String name);
+  WasmModule get module;
+
+  Function(List)? lookupFunction(String name);
 
   WasmGlobal? lookupGlobal(String name);
 
-  Map<String, Object> exports(WasmModule module);
+  Map<String, Object> exports();
 
   WasmMemory get memory;
 

@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'dart:typed_data';
 
 import 'wasm_interface.dart' as wasm;
@@ -93,11 +94,15 @@ class _Builder implements WasmInstanceBuilder {
 
 class _Instance implements WasmInstance {
   final Instance instance;
+  @override
+  late final WasmModule module = WasmModule._(instance.module);
+
+  Map<String, Object>? _exports;
 
   _Instance(this.instance);
 
   @override
-  Function? lookupFunction(String name) {
+  Function(List)? lookupFunction(String name) {
     final f = instance.functions[name];
     return f != null ? (List a) => Function.apply(f, a) : null;
   }
@@ -110,13 +115,18 @@ class _Instance implements WasmInstance {
   }
 
   @override
-  Map<String, Object> exports(wasm.WasmModule module) => {
-        ...instance.functions.map((key, value) =>
-            MapEntry(key, (List a) => Function.apply(value, a))),
-        ...instance.globals.map((key, value) => MapEntry(key, _Global(value))),
-        ...instance.memories.map((key, value) => MapEntry(key, _Memory(value))),
-        ...instance.tables,
-      };
+  Map<String, Object> exports() =>
+      _exports ??= UnmodifiableMapView(Map.fromEntries(
+        instance.functions.entries
+            .map<MapEntry<String, Object>>(
+              (e) => MapEntry(e.key, (List a) => Function.apply(e.value, a)),
+            )
+            .followedBy(instance.globals.entries
+                .map((e) => MapEntry(e.key, _Global(e.value))))
+            .followedBy(instance.memories.entries
+                .map((e) => MapEntry(e.key, _Memory(e.value))))
+            .followedBy(instance.tables.entries),
+      ));
 
   @override
   // TODO: implement memory

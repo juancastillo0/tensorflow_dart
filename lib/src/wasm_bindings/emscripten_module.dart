@@ -541,7 +541,7 @@ final Future<EmscriptenModule> Function(WasmFactoryConfig?) wasmFactory = (() {
         'wasi_snapshot_preview1': asmLibraryArg
       };
       receiveInstance(WasmInstance instance, WasmModule module) {
-        exports = instance.exports(module);
+        exports = instance.exports();
         Module["asm"] = exports;
         // TODO: wasmMemory = Module["asm"]["j"];
         wasmMemory = instance.memory;
